@@ -1,0 +1,82 @@
+/** 统一数据格式化工具（全站唯一实现，禁止页面各写一份） */
+
+const KB = 1024
+const MB = KB * 1024
+const GB = MB * 1024
+const TB = GB * 1024
+
+/** 文件大小：1024 进制，一位小数 */
+export function formatBytes(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return '-'
+  if (n < KB) return `${n} B`
+  if (n < MB) return `${(n / KB).toFixed(1)} KB`
+  if (n < GB) return `${(n / MB).toFixed(1)} MB`
+  if (n < TB) return `${(n / GB).toFixed(2)} GB`
+  return `${(n / TB).toFixed(2)} TB`
+}
+
+/** 运行时长：1d 2h 3m 4s（省略前导零单位） */
+export function formatDuration(totalSec: number): string {
+  if (!Number.isFinite(totalSec) || totalSec < 0) return '-'
+  const s = Math.floor(totalSec % 60)
+  const m = Math.floor((totalSec / 60) % 60)
+  const h = Math.floor((totalSec / 3600) % 24)
+  const d = Math.floor(totalSec / 86400)
+  const parts: string[] = []
+  if (d > 0) parts.push(`${d}d`)
+  if (h > 0) parts.push(`${h}h`)
+  if (m > 0) parts.push(`${m}m`)
+  if (s > 0 || parts.length === 0) parts.push(`${s}s`)
+  return parts.join(' ')
+}
+
+function pad(n: number): string {
+  return n.toString().padStart(2, '0')
+}
+
+/** RFC3339 → 本地 "MM-DD HH:mm:ss"；无效值返回 '-' */
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '-'
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+/** RFC3339 → 本地 "HH:mm:ss" */
+export function formatTime(iso: string | null | undefined): string {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '-'
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+/** 本地日期 → "YYYY-MM-DD" */
+export function toLocalDateStr(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/** 时钟显示 "HH:mm:ss" */
+export function formatClock(d: Date): string {
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+/** 秒 → "MM:SS" / "HH:MM:SS"（播放器用） */
+export function formatClockDuration(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) return '00:00'
+  const s = Math.floor(sec % 60)
+  const m = Math.floor((sec / 60) % 60)
+  const h = Math.floor(sec / 3600)
+  if (h > 0) return `${h}:${pad(m)}:${pad(s)}`
+  return `${pad(m)}:${pad(s)}`
+}
+
+/** 事件类型 → 中文标签 */
+export function eventTypeLabel(type: string, detail?: string): string {
+  if (type === 'motion') return '移动侦测'
+  if (type === 'selfcheck') {
+    if (detail === 'frozen') return '画面冻结'
+    if (detail === 'occlusion') return '画面异常'
+    return '自检'
+  }
+  return type
+}

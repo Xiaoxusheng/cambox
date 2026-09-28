@@ -1,0 +1,5 @@
+node_modules
+dist
+*.local
+# Vite 在 config 变更时生成的临时文件
+vite.config.ts.timestamp-*.mjs
