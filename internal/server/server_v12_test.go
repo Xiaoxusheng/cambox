@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"camhub/internal/config"
+	"camhub/internal/store"
 )
 
 // previewInterval 由 camera.preview_fps 换算; <=0 的兜底为防御性(正常路径 Sanitize 已钳到 1~30)。
@@ -75,5 +76,53 @@ func TestV12ConfigRoundTripAndClamp(t *testing.T) {
 	}
 	if reloaded.Camera.URL != "https://example.com/live.flv" || reloaded.Record.EncodeCRF != 51 {
 		t.Errorf("未持久化: url=%q crf=%d", reloaded.Camera.URL, reloaded.Record.EncodeCRF)
+	}
+}
+
+// 契约 v1.2 §3.3: /api/events 支持 detail=frozen|occlusion 精确筛选, 非法值 400。
+func TestEventsDetailFilter(t *testing.T) {
+	h := newHarness(t)
+	for _, seed := range []struct {
+		typ    string
+		detail string
+	}{
+		{"motion", ""},
+		{"selfcheck", "frozen"},
+		{"selfcheck", "occlusion"},
+	} {
+		if _, err := h.st.Append(seed.typ, 100, "", seed.detail); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	type evResp struct {
+		Items []store.Event `json:"items"`
+		Total int           `json:"total"`
+	}
+	assert := func(query string, wantTotal int, wantDetail string) {
+		t.Helper()
+		_, resp := h.do(t, "GET", "/api/events"+query, "")
+		data := decodeData[evResp](t, resp)
+		if data.Total != wantTotal || len(data.Items) != wantTotal {
+			t.Fatalf("%s: total=%d items=%d, want %d", query, data.Total, len(data.Items), wantTotal)
+		}
+		for _, it := range data.Items {
+			if it.Detail != wantDetail {
+				t.Errorf("%s: 含 detail=%q 的事件", query, it.Detail)
+			}
+		}
+	}
+	assert("?detail=frozen", 1, "frozen")
+	assert("?detail=occlusion", 1, "occlusion")
+	assert("?type=selfcheck&detail=frozen", 1, "frozen")
+	// detail 为空 = 不限, 返回全部
+	_, resp := h.do(t, "GET", "/api/events?detail=", "")
+	if data := decodeData[evResp](t, resp); data.Total != 3 {
+		t.Errorf("?detail=: total=%d, want 3", data.Total)
+	}
+
+	// 非法 detail
+	if code, _ := h.do(t, "GET", "/api/events?detail=bogus", ""); code != 400 {
+		t.Errorf("非法 detail 应 400, got %d", code)
 	}
 }

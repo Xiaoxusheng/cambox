@@ -527,10 +527,13 @@ function handleEvents(q: URLSearchParams): EventsResponse {
   const limit = clampInt(q.get('limit') ?? 20, 1, 500, 20)
   const offset = clampInt(q.get('offset') ?? 0, 0, 1_000_000, 0)
   const type = q.get('type') ?? ''
+  const detail = q.get('detail') ?? ''
   const from = parseIso(q.get('from'))
   const to = parseIso(q.get('to'))
   let list = events.slice().sort((a, b) => (a.time > b.time ? -1 : a.time < b.time ? 1 : 0))
   if (type === 'motion' || type === 'selfcheck') list = list.filter((e) => e.type === type)
+  // v1.2 §3.3：detail 精确筛选（仅 selfcheck 事件携带 frozen|occlusion）
+  if (detail === 'frozen' || detail === 'occlusion') list = list.filter((e) => e.detail === detail)
   if (from !== null) list = list.filter((e) => new Date(e.time).getTime() >= from)
   if (to !== null) list = list.filter((e) => new Date(e.time).getTime() <= to)
   return { items: list.slice(offset, offset + limit), total: list.length }

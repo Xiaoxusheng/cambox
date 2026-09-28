@@ -165,15 +165,20 @@ func (s *Store) Count() int {
 	return len(s.events)
 }
 
-// Filter 事件查询条件; 零值字段表示不限(契约 §3.2 GET /api/events 的 type/from/to)。
+// Filter 事件查询条件; 零值字段表示不限(契约 §3.2 GET /api/events 的 type/detail/from/to,
+// detail 为 v1.2 §3.3 增量: 仅 selfcheck 事件携带 frozen|occlusion)。
 type Filter struct {
-	Type string
-	From time.Time
-	To   time.Time
+	Type   string
+	Detail string
+	From   time.Time
+	To     time.Time
 }
 
 func (f Filter) match(ev Event) bool {
 	if f.Type != "" && ev.Type != f.Type {
+		return false
+	}
+	if f.Detail != "" && ev.Detail != f.Detail {
 		return false
 	}
 	if !f.From.IsZero() && ev.Time.Before(f.From) {

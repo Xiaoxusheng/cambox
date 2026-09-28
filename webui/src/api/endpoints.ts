@@ -44,6 +44,7 @@ export function fetchEvents(q: EventsQuery, signal?: AbortSignal): Promise<Event
   if (q.limit != null) p.set('limit', String(q.limit))
   if (q.offset != null) p.set('offset', String(q.offset))
   if (q.type) p.set('type', q.type)
+  if (q.detail) p.set('detail', q.detail)
   if (q.from) p.set('from', q.from)
   if (q.to) p.set('to', q.to)
   return apiGet<EventsResponse>(`/api/events?${p.toString()}`, { signal })

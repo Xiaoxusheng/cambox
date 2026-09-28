@@ -127,6 +127,16 @@ v1.1 §2 的其余部分（armed/日程门控、ROI、自检、日报、Bot、�
 `GET /api/status`、`/api/events`、`/api/timeline`、`/api/recordings`、`/api/arm`、
 `/api/notify/test`、`/api/logs/stream`、媒体端点 **全部不变**。
 
+### 3.3 增量（2026-09-28）：`GET /api/events` 支持 `detail` 精确筛选
+
+背景：`type=selfcheck` 只能筛出「画面自检」大类，无法区分冻结/异常（v1.1 前端遗留项）。
+
+- 新增可选查询参数 `detail`：`frozen` | `occlusion`，空/缺省 = 不限
+- 与 `type` 可自由组合（`?type=selfcheck&detail=frozen`）；motion 事件的 detail 恒为空串，
+  因此 `detail=frozen` 单独使用时等价于 `type=selfcheck&detail=frozen`
+- 非法值返回 `400 {"code":400,"message":"detail 只能是 frozen 或 occlusion"}`
+- 响应结构与分页语义（time 倒序、total 为筛选后总数）不变
+
 ---
 
 ## 4. 前端页面契约（v1.2 外壳改版：监控优先）

@@ -238,11 +238,18 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	offset, _ := strconv.Atoi(q.Get("offset"))
 
-	f := store.Filter{Type: q.Get("type")}
+	f := store.Filter{Type: q.Get("type"), Detail: q.Get("detail")}
 	switch f.Type {
 	case "", "motion", "selfcheck":
 	default:
 		writeErr(w, http.StatusBadRequest, "type 只能是 motion 或 selfcheck")
+		return
+	}
+	// v1.2 §3.3 增量: detail 精确筛选画面自检的冻结/异常(仅 selfcheck 事件携带)。
+	switch f.Detail {
+	case "", "frozen", "occlusion":
+	default:
+		writeErr(w, http.StatusBadRequest, "detail 只能是 frozen 或 occlusion")
 		return
 	}
 	var err error

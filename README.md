@@ -2,23 +2,25 @@
 
 单机监控服务：取流 → 实时预览 + 移动侦测 → 事件记录 → 循环录像 → Web 面板。
 Go + FFmpeg 实现，单二进制部署（前端已内嵌），需求与设计见 [docs/开发文档.md](docs/开发文档.md)，
-v1.1 的接口契约见 [docs/contracts/api-v1.1.md](docs/contracts/api-v1.1.md)。
+接口契约见 [docs/contracts/api-v1.1.md](docs/contracts/api-v1.1.md)（v1.1）与
+[docs/contracts/api-v1.2.md](docs/contracts/api-v1.2.md)（v1.2 增量）。
 
-## 功能一览（v1.1）
+## 功能一览（v1.2）
 
 | 能力 | 说明 |
 |---|---|
-| 实时预览 | MJPEG 推流，断线自动重连，面板显示 fps / 分辨率 / 重连次数 |
+| 实时预览 | MJPEG 推流，断线自动重连；**预览质量（1–100）与预览帧率（1–30）可调，热更新即时生效** |
+| 任意网络流 | `type: url` 支持 **HTTP-FLV / HLS / RTMP** 直播拉流（如直播平台地址，过期需手动更新） |
 | 移动侦测 | 帧差法（阈值 + 最小面积 + 冷却），支持 **ROI 检测区域**（归一化矩形，最多 8 个） |
 | 布防 / 撤防 | 运行时开关（重启默认布防）；撤防只停"事件入库 + 推送"，录像由日程单独控制 |
 | 布防日程 | 按星期 + 时段规则，分别控制侦测与录像；支持跨零点 |
-| 循环录像 | 分段 mp4（rtsp 源走 `-c copy` 零转码，其他源走 libx264），按天数 + 容量自动清理 |
+| 循环录像 | 分段 mp4（rtsp/url 源走 `-c copy` 零转码，其他源走 libx264 且 **CRF 可调**），按天数 + 容量自动清理 |
 | 多码流 | `camera.sub_rtsp` 子码流做解码/检测/预览，主码流仅用于流复制录像 |
 | 画面自检 (C3) | 周期比对帧，识别**画面冻结 / 被遮挡**，入库 + 推送 + 截图，状态暴露在 `/api/status` |
 | 事件通知 | 钉钉 / 企业微信 / Telegram / Bark / Webhook 五通道，同通道限流 |
 | 每日日报 (C9) | 每天定时推送过去 24h 事件统计（小时分布、总数、最高分事件） |
 | Telegram Bot (C6) | `/status` `/arm` `/disarm` `/snap` `/events [n]` `/help`，仅白名单用户可用 |
-| Web 面板 | Vite + React + TS + Arco 暗色：概览 / 实时 / 回放 / 事件 / 录像 / 设置 / 日志 |
+| Web 面板 | 监控优先外壳：**监控（默认页）/ 回看**常驻顶部栏，概览/事件/录像/设置/日志收进「更多▾」；Arco 暗色 |
 | 日志 | 内存环形缓冲 500 条 + `GET /api/logs/stream` SSE 实时推送，面板可暂停/清屏 |
 
 ## 快速开始
@@ -53,14 +55,32 @@ v1.1 的接口契约见 [docs/contracts/api-v1.1.md](docs/contracts/api-v1.1.md)
 **建议**：8MP 等高分辨率相机把 `sub_rtsp` 填子码流地址（解码 ffmpeg 会统一 `-vf scale` 到
 `camera.width × camera.height`，所以子码流分辨率与主码流不一致也没关系）。
 
+### 接直播流 / 任意网络流（v1.2）
+
+来源类型 `url` 支持 HTTP-FLV / HLS / RTMP，例如直播平台的拉流地址：
+
+```yaml
+camera:
+  name: 直播间
+  type: url
+  url: https://.../live.flv   # HTTP-FLV / HLS(.m3u8) / rtmp:// 均可
+```
+
+注意：直播平台地址通常**带签名且会过期**，失效后更新 `url` 即可（服务端会按
+`reconnect_delay_sec` 重试并提示「未配置流地址」）；地址自动抓取与刷新不在当前版本范围。
+该来源录像走 `-c copy`（零转码）。
+
 ## 配置说明
 
 完整 schema 与钳制规则见 [契约 §1](docs/contracts/api-v1.1.md)。常用键：
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| camera.type | synthetic | `synthetic` / `rtsp` / `file` / `dshow` |
-| camera.rtsp / sub_rtsp / file / dshow_device | - | 主码流 / 子码流 / 文件 / DirectShow 设备 |
+| camera.type | synthetic | `synthetic` / `rtsp` / `url` / `file` / `dshow` |
+| camera.rtsp / sub_rtsp / url / file / dshow_device | - | 主码流 / 子码流 / 网络流地址 / 文件 / DirectShow 设备 |
+| camera.preview_quality | 80 | MJPEG 预览与抓拍的 JPEG 画质（1–100），**热更新即时生效** |
+| camera.preview_fps | 15 | MJPEG 推送帧率上限（1–30，不是录像帧率），**热更新即时生效** |
+| record.encode_crf | 26 | 非 copy 模式（synthetic/file/dshow）录像 CRF（0–51，越小越清晰）；rtsp/url 源无效 |
 | motion.enabled / threshold / min_area / cooldown_sec | true / 22 / 500 / 8 | 侦测三参数 + 冷却 |
 | motion.rois | `[]` | 检测区域 `[[x,y,w,h],...]`（归一化 0~1，最多 8 个），空 = 全屏 |
 | record.enabled / segment_seconds | true / 600 | 自动录像与分段时长 |
@@ -73,7 +93,8 @@ v1.1 的接口契约见 [docs/contracts/api-v1.1.md](docs/contracts/api-v1.1.md)
 | server.host / port | 127.0.0.1 / 8787 | 局域网访问把 host 改 `0.0.0.0` |
 
 面板「设置」页可热更新 motion / record / notify / schedules / selfcheck / digest / bot 并持久化；
-`camera.*` 与 `server.*` 修改需重启（面板会提示）。`bot.bot_token` 变化需重启才会重建轮询。
+`camera.*` 与 `server.*` 中来源/地址/解码尺寸等修改需重启（面板会提示），**但预览质量与预览帧率
+热更新即时生效**。`bot.bot_token` 变化需重启才会重建轮询。
 
 ## 安全须知
 

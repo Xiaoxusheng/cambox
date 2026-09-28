@@ -95,6 +95,8 @@ export interface EventsQuery {
   limit?: number
   offset?: number
   type?: EventType | ''
+  /** v1.2 §3.3：精确筛选画面自检的冻结/异常 */
+  detail?: 'frozen' | 'occlusion' | ''
   from?: string
   to?: string
 }
