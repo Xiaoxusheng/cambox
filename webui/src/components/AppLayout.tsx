@@ -246,7 +246,7 @@ export function AppLayout() {
         ) : null}
       </header>
 
-      <main className="ch-content">
+      <main className={`ch-content ${pathname === '/' ? 'ch-content-bleed' : ''}`}>
         <div key={pathname} className="ch-page">
           <Outlet />
         </div>
