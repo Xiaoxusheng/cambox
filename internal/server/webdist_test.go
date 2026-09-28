@@ -64,4 +64,19 @@ func TestWebPanelAssetsServed(t *testing.T) {
 	if arec.Code != 200 || !strings.Contains(arec.Header().Get("Content-Type"), "json") {
 		t.Errorf("/api/status 应仍是 JSON, 实际 %d %q", arec.Code, arec.Header().Get("Content-Type"))
 	}
+
+	// 5) 未注册的 /api、/media 路径必须回 JSON 404，不能被兜底成 200 的 index.html
+	//    （否则客户端把 HTML 当 JSON 解析，拼错接口名时报出难以定位的错误）
+	for _, p := range []string{"/api/nope", "/api/event", "/media/nope"} {
+		rec := get(p)
+		if rec.Code != 404 {
+			t.Errorf("%s 应 404, 实际 %d", p, rec.Code)
+		}
+		if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "json") {
+			t.Errorf("%s 应回 JSON, 实际 %q", p, ct)
+		}
+		if strings.Contains(rec.Body.String(), `id="root"`) {
+			t.Errorf("%s 被兜底成了 index.html", p)
+		}
+	}
 }

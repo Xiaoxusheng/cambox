@@ -41,8 +41,9 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	// Web 面板(webdist 构建产物)。v1.0 是单文件 index.html, 换 Vite 产物后
-	// 多了 /assets/* 资源, 因此用 "GET /" 兜底: 命中文件就服务文件, 否则回 index.html。
-	// Go 1.22 ServeMux 按"最具体模式"取胜, /api/* 与 /media/* 不受影响。
+	// 多了 /assets/* 资源, 因此用 "GET /" 兜底: 命中文件就服务文件, 否则回 index.html
+	// (前端用 HashRouter, 深链都落在 "/" 上; 保留 SPA 兜底以防将来换 BrowserRouter)。
+	// Go 1.22 ServeMux 按"最具体模式"取胜, 已注册的 /api/*、/media/* 不受影响。
 	webRoot := mustSub(webFiles, "webdist")
 	webFS := http.FileServerFS(webRoot)
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +52,13 @@ func (s *Server) Handler() http.Handler {
 			if f, err := webRoot.Open(p); err == nil {
 				f.Close()
 				webFS.ServeHTTP(w, r) // 带 Last-Modified, 哈希资源可缓存
+				return
+			}
+			// 没有对应静态文件: /api、/media 下未注册的路径必须回 JSON 404,
+			// 不能兜底成 200 的 index.html —— 否则客户端把 HTML 当 JSON 解析,
+			// 报出难以定位的错误(拼错接口名时尤其致命)。
+			if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/media/") {
+				writeErr(w, http.StatusNotFound, "接口不存在")
 				return
 			}
 		}
