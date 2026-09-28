@@ -13,7 +13,18 @@ import type { Config, RecordFile, RecordingsResponse, Status } from '../api/type
 import { PageHeader } from '../components/PageHeader'
 import { EmptyState, ErrorState, InitialLoading } from '../components/StateViews'
 import { useAsync } from '../hooks/useAsync'
-import { formatBytes, formatDateTime } from '../utils/format'
+import { formatBytes, formatDateTime, formatTime } from '../utils/format'
+
+/** 同一天只显示时刻（设计稿 05：17:12:01 → 17:53:46），跨天带日期 */
+function rangeText(a: string, b: string): string {
+  const da = new Date(a)
+  const db = new Date(b)
+  const sameDay =
+    !Number.isNaN(da.getTime()) &&
+    !Number.isNaN(db.getTime()) &&
+    da.toDateString() === db.toDateString()
+  return sameDay ? `${formatTime(a)} → ${formatTime(b)}` : `${formatDateTime(a)} → ${formatDateTime(b)}`
+}
 
 const PAGE_SIZE = 20
 
@@ -222,9 +233,7 @@ export function RecordingsPage() {
                       <td className="num">{formatBytes(r.size_bytes)}</td>
                       <td className="num" style={{ color: 'var(--ch-text-2)' }}>
                         {r.start && r.end ? (
-                          <>
-                            {formatDateTime(r.start)} → {formatDateTime(r.end)}
-                          </>
+                          <>{rangeText(r.start, r.end)}</>
                         ) : (
                           <Tooltip content="文件名未匹配 %Y-%m-%d_%H-%M-%S.mp4，无法解析起止时间">
                             <span>无法解析</span>

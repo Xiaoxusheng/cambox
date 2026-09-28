@@ -67,6 +67,14 @@ export function formatDateTime(iso: string | null | undefined): string {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
+/** RFC3339 → 本地 "YYYY-MM-DD HH:mm:ss"（事件中心时间列，设计稿 03） */
+export function formatDateTimeFull(iso: string | null | undefined): string {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '-'
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
 /** RFC3339 → 本地 "HH:mm:ss" */
 export function formatTime(iso: string | null | undefined): string {
   if (!iso) return '-'

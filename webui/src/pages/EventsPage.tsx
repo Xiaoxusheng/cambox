@@ -13,7 +13,7 @@ import type { Event, EventType, TimelineData } from '../api/types'
 import { PageHeader } from '../components/PageHeader'
 import { EmptyState, InitialLoading } from '../components/StateViews'
 import { useAsync } from '../hooks/useAsync'
-import { eventTypeLabel, formatDateTime, toLocalDateStr } from '../utils/format'
+import { eventTypeLabel, formatDateTime, formatDateTimeFull, toLocalDateStr } from '../utils/format'
 
 type TypeFilter = '' | EventType
 type DetailFilter = '' | 'frozen' | 'occlusion'
@@ -36,9 +36,9 @@ const dayStart = (s: string) => new Date(`${s}T00:00:00`).toISOString()
 const dayEnd = (s: string) => new Date(`${s}T23:59:59.999`).toISOString()
 
 function typeBadge(e: Event) {
-  if (e.type === 'motion') return <span className="ch-badge cyan">移动侦测</span>
-  if (e.detail === 'frozen') return <span className="ch-badge warn">画面冻结</span>
-  return <span className="ch-badge danger">画面异常</span>
+  if (e.type === 'motion') return <span className="ch-badge lg cyan">移动侦测</span>
+  if (e.detail === 'frozen') return <span className="ch-badge lg warn">画面冻结</span>
+  return <span className="ch-badge lg danger">画面异常</span>
 }
 
 function detailText(e: Event, cameraName: string): string {
@@ -326,10 +326,10 @@ export function EventsPage() {
                         alt={`${eventTypeLabel(e.type, e.detail)}快照`}
                         loading="lazy"
                         style={{
-                          width: 88,
-                          height: 50,
+                          width: 110,
+                          height: 62,
                           objectFit: 'cover',
-                          borderRadius: 8,
+                          borderRadius: 10,
                           display: 'block',
                           cursor: 'zoom-in',
                           background: '#0a1017',
@@ -338,7 +338,7 @@ export function EventsPage() {
                       />
                     </td>
                     <td>{typeBadge(e)}</td>
-                    <td className="num">{formatDateTime(e.time)}</td>
+                    <td className="num">{formatDateTimeFull(e.time)}</td>
                     <td style={{ color: 'var(--ch-text-2)' }}>{detailText(e, cameraName)}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <button type="button" className="ch-linkbtn" onClick={() => setDetail(e)}>
