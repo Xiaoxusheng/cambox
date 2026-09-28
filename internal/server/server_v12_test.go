@@ -8,7 +8,7 @@ import (
 	"camhub/internal/config"
 )
 
-// previewInterval 由 camera.preview_fps 换算; 0 应回退默认值(老客户端漏字段时)。
+// previewInterval 由 camera.preview_fps 换算; <=0 的兜底为防御性(正常路径 Sanitize 已钳到 1~30)。
 func TestPreviewInterval(t *testing.T) {
 	cases := []struct {
 		fps  int
@@ -17,8 +17,8 @@ func TestPreviewInterval(t *testing.T) {
 		{30, time.Second / 30},
 		{15, time.Second / 15},
 		{1, time.Second},
-		{0, time.Second / config.DefaultPreviewFPS},  // 未填 → 默认
-		{-5, time.Second / config.DefaultPreviewFPS}, // 脏值 → 默认
+		{0, time.Second / config.DefaultPreviewFPS},  // 防御性兜底 → 默认
+		{-5, time.Second / config.DefaultPreviewFPS}, // 防御性兜底 → 默认
 		{999, time.Second / 30},                      // 超上限 → 30
 	}
 	for _, tc := range cases {

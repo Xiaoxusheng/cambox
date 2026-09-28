@@ -131,6 +131,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 // previewInterval 由 camera.preview_fps 换算 MJPEG 推送间隔。
 // 这是**预览**帧率上限, 不是录像帧率(录像帧率由源本身决定); 面板文案要如实说明。
+// fps<=0 的兜底是防御性的: 正常路径 Sanitize 已把 PreviewFPS 钳到 1~30。
 func previewInterval(cfg config.Config) time.Duration {
 	fps := cfg.Camera.PreviewFPS
 	if fps <= 0 {

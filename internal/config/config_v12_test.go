@@ -27,15 +27,15 @@ func TestV12Clamps(t *testing.T) {
 		wantCRF         int
 		wantDefaultHint string
 	}{
-		{"未填(0)回到默认", func(c *Config) {
+		{"越界 0 钳到下限", func(c *Config) {
 			c.Camera.PreviewQuality, c.Camera.PreviewFPS, c.Record.EncodeCRF = 0, 0, 0
-		}, 80, 15, 0, "crf=0 是合法的无损值, 不能被当成未填"},
+		}, 1, 1, 0, "契约 §1 纯钳制: 0 按越界处理; crf=0 合法(无损)"},
 		{"上限", func(c *Config) {
 			c.Camera.PreviewQuality, c.Camera.PreviewFPS, c.Record.EncodeCRF = 101, 31, 52
 		}, 100, 30, 51, ""},
-		{"负数为未填", func(c *Config) {
+		{"负数钳到下限", func(c *Config) {
 			c.Camera.PreviewQuality, c.Camera.PreviewFPS, c.Record.EncodeCRF = -1, -1, -1
-		}, 80, 15, 26, ""},
+		}, 1, 1, 0, ""},
 		{"中间值保留", func(c *Config) {
 			c.Camera.PreviewQuality, c.Camera.PreviewFPS, c.Record.EncodeCRF = 50, 24, 18
 		}, 50, 24, 18, ""},

@@ -366,15 +366,10 @@ func (c *Config) Sanitize() {
 	c.Camera.FPS = clampInt(c.Camera.FPS, 1, 60)
 	c.Camera.ReconnectDelay = clampInt(c.Camera.ReconnectDelay, 1, 300)
 	c.Camera.URL = strings.TrimSpace(c.Camera.URL)
-	// 0 视为"没填", 回到默认值: 老配置文件/老客户端的 JSON 里没有这些字段时就是 0。
-	// (Load 会先用 Default() 兜底, 所以从文件读到的一定有值; 这里是防 API 侧漏字段。)
-	if c.Camera.PreviewQuality <= 0 {
-		c.Camera.PreviewQuality = DefaultPreviewQuality
-	}
+	// 画质三项按契约 §1 纯钳制: 越界值(含 0/负数)裁到最近合法值, 不回退默认值。
+	// 文件升级路径(v1.1 配置缺这些键)由 Load 的 Default() 叠加兜底, 不依赖这里;
+	// API 全量替换语义下缺失字段解码为 0, 按越界处理钳到下限(见契约 §1 说明)。
 	c.Camera.PreviewQuality = clampInt(c.Camera.PreviewQuality, 1, 100)
-	if c.Camera.PreviewFPS <= 0 {
-		c.Camera.PreviewFPS = DefaultPreviewFPS
-	}
 	c.Camera.PreviewFPS = clampInt(c.Camera.PreviewFPS, 1, 30)
 
 	if c.Record.Dir == "" {
@@ -383,11 +378,7 @@ func (c *Config) Sanitize() {
 	c.Record.SegmentSeconds = clampInt(c.Record.SegmentSeconds, 10, 86400)
 	c.Record.RetentionDays = clampInt(c.Record.RetentionDays, 1, 365)
 	c.Record.MaxDiskGB = clampFloat(c.Record.MaxDiskGB, 0.1, 10000)
-	// CRF 与上面两项不同: 0 是合法值(无损), 不能用 0 判"未填"。
-	// 因此用负数判未填; 从文件加载时 Load 已用 Default() 兜底。
-	if c.Record.EncodeCRF < 0 {
-		c.Record.EncodeCRF = DefaultEncodeCRF
-	}
+	// CRF 与其它钳制一致: 0 是合法的无损值, 也按范围内值对待; 负数钳到 0。
 	c.Record.EncodeCRF = clampInt(c.Record.EncodeCRF, 0, 51)
 
 	c.Motion.Threshold = clampInt(c.Motion.Threshold, 1, 255)
