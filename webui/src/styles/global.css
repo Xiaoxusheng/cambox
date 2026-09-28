@@ -1,54 +1,61 @@
+/* Tailwind：细节样式引擎（preflight 已关闭，不干扰 Arco） */
+@tailwind components;
+@tailwind utilities;
+
 /* =====================================================================
-   camhub webui · v1.3 视觉层（按 camhub-ui-4k 设计稿 100% 重做）
-   暗色玻璃拟态 · 青色主色 · 等宽数字 · 悬浮顶栏
-   动效规格：cubic-bezier(0.16,1,0.3,1) / 进入 320ms / 退出 180ms / 错峰 +60ms
+   camhub webui · v1.3 视觉层（Liquid Glass · 向 Apple 设计语言看齐）
+   中性深色底 + 白透明玻璃材质 + 高光描边 + 苹果蓝点缀
+   动效：入场 easeOutExpo 320ms；交互统一 Apple 曲线 cubic-bezier(0.32,0.72,0,1)
    ===================================================================== */
 
 :root {
-  /* ---- 色板（8K 设计稿 21:36 版：靛紫主色 + 青绿次要强调） ---- */
-  --ch-bg: #0a0c1e;
-  --ch-primary: #6e63f2;
-  --ch-primary-hi: #9a91f7;
-  --ch-primary-soft: rgba(110, 99, 242, 0.14);
-  --ch-primary-line: rgba(110, 99, 242, 0.5);
-  --ch-teal: #2dd4bf;
-  --ch-ok: #35d49a;
-  --ch-ok-soft: rgba(53, 212, 154, 0.12);
-  --ch-ok-line: rgba(53, 212, 154, 0.4);
-  --ch-warn: #efb93f;
-  --ch-warn-soft: rgba(239, 185, 63, 0.12);
-  --ch-warn-line: rgba(239, 185, 63, 0.42);
-  --ch-danger: #f87171;
-  --ch-danger-soft: rgba(248, 113, 113, 0.12);
-  --ch-danger-line: rgba(248, 113, 113, 0.42);
+  /* ---- 色板（Apple 系统色 · 暗色） ---- */
+  --ch-bg: #0a0d13;
+  --ch-primary: #0a84ff;
+  --ch-primary-hi: #4da3ff;
+  --ch-primary-soft: rgba(10, 132, 255, 0.16);
+  --ch-primary-line: rgba(10, 132, 255, 0.55);
+  --ch-teal: #64d2ff;
+  --ch-ok: #30d158;
+  --ch-ok-soft: rgba(48, 209, 88, 0.14);
+  --ch-ok-line: rgba(48, 209, 88, 0.42);
+  --ch-warn: #ff9f0a;
+  --ch-warn-soft: rgba(255, 159, 10, 0.14);
+  --ch-warn-line: rgba(255, 159, 10, 0.45);
+  --ch-danger: #ff453a;
+  --ch-danger-soft: rgba(255, 69, 58, 0.14);
+  --ch-danger-line: rgba(255, 69, 58, 0.45);
 
   /* ---- 文本 ---- */
-  --ch-text-1: #eef0fa;
-  --ch-text-2: #a9adc9;
-  --ch-text-3: #6a6f92;
-  --ch-text-4: #474b68;
+  --ch-text-1: #f5f7fb;
+  --ch-text-2: #aab4c4;
+  --ch-text-3: #6d7686;
+  --ch-text-4: #49515e;
 
-  /* ---- 玻璃面（紫调） ---- */
-  --ch-glass: rgba(36, 38, 74, 0.58);
-  --ch-glass-deep: rgba(18, 20, 42, 0.82);
-  --ch-line: rgba(255, 255, 255, 0.1);
-  --ch-line-soft: rgba(255, 255, 255, 0.06);
-  --ch-fill: rgba(255, 255, 255, 0.05);
-  --ch-fill-2: rgba(255, 255, 255, 0.09);
+  /* ---- 液态玻璃面：白透明材质，靠 backdrop 折射出玻璃感 ---- */
+  --ch-glass: rgba(255, 255, 255, 0.055);
+  --ch-glass-deep: rgba(12, 16, 24, 0.66);
+  --ch-line: rgba(255, 255, 255, 0.12);
+  --ch-line-soft: rgba(255, 255, 255, 0.07);
+  --ch-fill: rgba(255, 255, 255, 0.06);
+  --ch-fill-2: rgba(255, 255, 255, 0.1);
 
-  --ch-blur: blur(14px) saturate(130%);
-  --ch-blur-deep: blur(24px) saturate(150%);
+  --ch-blur: blur(20px) saturate(170%);
+  --ch-blur-deep: blur(28px) saturate(180%);
   --ch-radius: 20px;
   --ch-radius-sm: 12px;
-  --ch-shadow: 0 18px 48px rgba(0, 0, 10, 0.5);
-  /* 玻璃内侧高光：上缘一道 1px 亮线，模拟真实磨砂厚度 */
-  --ch-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --ch-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  /* 液态玻璃高光：上缘亮线 + 下缘弱回光，模拟曲面折射 */
+  --ch-glass-highlight:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+  /* Apple 交互曲线：丝滑、带轻微阻滞感 */
+  --ch-ease: cubic-bezier(0.32, 0.72, 0, 1);
 
   --ch-mono:
     'JetBrains Mono', 'Cascadia Mono', 'SF Mono', 'Roboto Mono', ui-monospace,
     Consolas, 'Courier New', monospace;
 
-  /* 间距刻度：8 的倍数 */
   --ch-space-xs: 4px;
   --ch-space-sm: 8px;
   --ch-space-md: 16px;
@@ -60,31 +67,31 @@
 
 /* ---- Arco 暗色变量映射：让全部 Arco 组件跟随设计稿色板 ---- */
 body[arco-theme='dark'] {
-  --primary-1: 16, 14, 44;
-  --primary-2: 30, 27, 80;
-  --primary-3: 48, 43, 120;
-  --primary-4: 66, 59, 158;
-  --primary-5: 88, 79, 200;
-  --primary-6: 110, 99, 242;
-  --primary-7: 138, 128, 246;
-  --primary-8: 166, 160, 250;
-  --primary-9: 195, 191, 252;
-  --primary-10: 224, 222, 253;
+  --primary-1: 3, 20, 42;
+  --primary-2: 4, 42, 80;
+  --primary-3: 6, 62, 122;
+  --primary-4: 7, 83, 166;
+  --primary-5: 8, 105, 210;
+  --primary-6: 10, 132, 255;
+  --primary-7: 74, 158, 255;
+  --primary-8: 110, 180, 255;
+  --primary-9: 153, 205, 255;
+  --primary-10: 196, 227, 255;
 
-  --success-6: 53, 212, 154;
-  --warning-6: 239, 185, 63;
-  --danger-6: 248, 113, 113;
+  --success-6: 48, 209, 88;
+  --warning-6: 255, 159, 10;
+  --danger-6: 255, 69, 58;
 
-  --color-bg-1: #0a0c1e;
-  --color-bg-2: #12142c;
-  --color-bg-3: #181b36;
-  --color-bg-4: #1e2142;
-  --color-bg-5: #252850;
-  --color-bg-popup: #141633;
-  --color-text-1: #eef0fa;
-  --color-text-2: #a9adc9;
-  --color-text-3: #6a6f92;
-  --color-text-4: #474b68;
+  --color-bg-1: #0a0d13;
+  --color-bg-2: #10141b;
+  --color-bg-3: #151a23;
+  --color-bg-4: #1a2029;
+  --color-bg-5: #202734;
+  --color-bg-popup: #0f131a;
+  --color-text-1: #f5f7fb;
+  --color-text-2: #aab4c4;
+  --color-text-3: #6d7686;
+  --color-text-4: #49515e;
   --color-fill-1: rgba(255, 255, 255, 0.05);
   --color-fill-2: rgba(255, 255, 255, 0.09);
   --color-fill-3: rgba(255, 255, 255, 0.12);
@@ -93,7 +100,7 @@ body[arco-theme='dark'] {
   --color-border-1: rgba(255, 255, 255, 0.07);
   --color-border-2: rgba(255, 255, 255, 0.11);
   --color-border-3: rgba(255, 255, 255, 0.17);
-  --color-link: #6e63f2;
+  --color-link: #0a84ff;
 }
 
 html,
@@ -121,15 +128,15 @@ body {
   pointer-events: none;
   background-color: var(--ch-bg);
   background-image:
-    radial-gradient(1100px 460px at 50% -180px, rgba(110, 99, 242, 0.10), transparent 62%),
-    radial-gradient(820px 460px at 90% 110%, rgba(110, 99, 242, 0.05), transparent 62%),
+    radial-gradient(1100px 460px at 50% -180px, rgba(10, 132, 255, 0.10), transparent 62%),
+    radial-gradient(820px 460px at 90% 110%, rgba(10, 132, 255, 0.05), transparent 62%),
     linear-gradient(rgba(255, 255, 255, 0.021) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.021) 1px, transparent 1px);
   background-size: auto, auto, 56px 56px, 56px 56px;
 }
 
 ::selection {
-  background: rgba(110, 99, 242, 0.32);
+  background: rgba(10, 132, 255, 0.32);
 }
 
 /* 数字统一等宽，对齐不跳动 */
@@ -159,7 +166,7 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid rgba(110, 99, 242, 0.55);
+  outline: 2px solid rgba(10, 132, 255, 0.55);
   outline-offset: 2px;
 }
 
@@ -296,7 +303,7 @@ body {
   height: 9px;
   border-radius: 50%;
   background: var(--ch-primary);
-  box-shadow: 0 0 10px rgba(110, 99, 242, 0.9);
+  box-shadow: 0 0 10px rgba(10, 132, 255, 0.9);
   flex: none;
 }
 
@@ -453,8 +460,8 @@ button.ch-rec:disabled {
   color: var(--ch-primary);
   font-weight: 600;
   box-shadow:
-    0 0 18px rgba(110, 99, 242, 0.16),
-    inset 0 0 14px rgba(110, 99, 242, 0.05);
+    0 0 18px rgba(10, 132, 255, 0.16),
+    inset 0 0 14px rgba(10, 132, 255, 0.05);
 }
 
 /* 状态点 */
@@ -513,7 +520,7 @@ button.ch-rec:disabled {
 }
 .ch-badge.cyan {
   border-color: var(--ch-primary-line);
-  background: rgba(110, 99, 242, 0.16);
+  background: rgba(10, 132, 255, 0.16);
   color: var(--ch-primary);
 }
 /* 大号全圆角胶囊徽章（事件中心类型列，设计稿 03） */
@@ -571,20 +578,48 @@ button.ch-rec:disabled {
    通用元件：玻璃面板 / 按钮 / 表格 / 分页 / 输入
    ===================================================================== */
 
-/* 玻璃面板：半透明 + 局部磨砂 + 内侧高光（backdrop-filter 只给真正悬浮的元素用，
-   面板背后只有背景层，磨砂观感靠半透明即可，滚动性能更好） */
+/* 玻璃面板：白透明材质 + backdrop 折射 + hover 扫光（液态玻璃） */
 .ch-panel {
+  position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 140px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 140px),
     var(--ch-glass);
+  backdrop-filter: var(--ch-blur);
+  -webkit-backdrop-filter: var(--ch-blur);
   border: 1px solid var(--ch-line);
   border-radius: var(--ch-radius);
   box-shadow: var(--ch-glass-highlight);
   overflow: hidden;
+  transition:
+    border-color 0.45s var(--ch-ease),
+    box-shadow 0.45s var(--ch-ease),
+    transform 0.45s var(--ch-ease);
 }
-.ch-panel.float {
-  backdrop-filter: var(--ch-blur);
-  -webkit-backdrop-filter: var(--ch-blur);
+.ch-panel:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    var(--ch-glass-highlight),
+    0 24px 60px rgba(0, 0, 0, 0.4);
+}
+/* hover 掠过的高光扫光 */
+.ch-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 32%,
+    rgba(255, 255, 255, 0.05) 45%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.05) 55%,
+    transparent 68%
+  );
+  transform: translateX(-130%) skewX(-8deg);
+  transition: transform 1.1s var(--ch-ease);
+}
+.ch-panel:hover::after {
+  transform: translateX(130%) skewX(-8deg);
 }
 .ch-panel-head {
   display: flex;
@@ -668,13 +703,13 @@ button.ch-rec:disabled {
 }
 .ch-btn.primary {
   border: none;
-  background: linear-gradient(180deg, #7d73f5, #5b50e8);
+  background: linear-gradient(180deg, #3b9dff, #0a84ff);
   color: #fff;
   font-weight: 700;
-  box-shadow: 0 4px 18px rgba(110, 99, 242, 0.28);
+  box-shadow: 0 4px 18px rgba(10, 132, 255, 0.28);
 }
 .ch-btn.primary:hover {
-  background: linear-gradient(180deg, #8d84f7, #6a5ff0);
+  background: linear-gradient(180deg, #4da3ff, #1a90ff);
   color: #fff;
 }
 
@@ -763,7 +798,7 @@ button.ch-rec:disabled {
   position: relative;
 }
 .ch-table.rows-cards tr.row-selected td {
-  background: rgba(110, 99, 242, 0.08);
+  background: rgba(10, 132, 255, 0.08);
 }
 .ch-table.rows-cards tr.row-selected td:first-child {
   border-left-color: transparent;
@@ -778,7 +813,7 @@ button.ch-rec:disabled {
   height: 58%;
   border-radius: 3px;
   background: var(--ch-primary);
-  box-shadow: 0 0 8px rgba(110, 99, 242, 0.55);
+  box-shadow: 0 0 8px rgba(10, 132, 255, 0.55);
 }
 /* 列头排序指示（时间↓ / 大小↓，装饰性提示当前排序） */
 .ch-sort-arrow {
@@ -809,10 +844,10 @@ button.ch-rec:disabled {
 .ch-check:checked {
   background: var(--ch-primary);
   border-color: var(--ch-primary);
-  box-shadow: 0 0 10px rgba(110, 99, 242, 0.45);
+  box-shadow: 0 0 10px rgba(10, 132, 255, 0.45);
 }
 .ch-check:indeterminate {
-  background: rgba(110, 99, 242, 0.45);
+  background: rgba(10, 132, 255, 0.45);
   border-color: var(--ch-primary);
 }
 
@@ -883,7 +918,7 @@ button.ch-rec:disabled {
 }
 .ch-evrow:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(110, 99, 242, 0.28);
+  border-color: rgba(10, 132, 255, 0.28);
 }
 .ch-evthumb {
   flex: none;
@@ -939,7 +974,7 @@ button.ch-rec:disabled {
   height: 100%;
   border-radius: 4px;
   background: var(--ch-primary);
-  box-shadow: 0 0 12px rgba(110, 99, 242, 0.5);
+  box-shadow: 0 0 12px rgba(10, 132, 255, 0.5);
   transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1093,9 +1128,9 @@ button.ch-rec:disabled {
 .ch-roiovl {
   position: absolute;
   z-index: 3;
-  border: 1.5px dashed rgba(110, 99, 242, 0.8);
+  border: 1.5px dashed rgba(10, 132, 255, 0.8);
   border-radius: 10px;
-  background: rgba(110, 99, 242, 0.05);
+  background: rgba(10, 132, 255, 0.05);
   pointer-events: none;
 }
 .ch-roiovl-tag {
@@ -1183,14 +1218,27 @@ button.ch-rec:disabled {
 .ch-statcard {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 120px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 120px),
     var(--ch-glass);
+  backdrop-filter: var(--ch-blur);
+  -webkit-backdrop-filter: var(--ch-blur);
   border: 1px solid var(--ch-line);
   border-radius: 16px;
   padding: 16px 18px;
   min-width: 0;
   box-shadow: var(--ch-glass-highlight);
   overflow: hidden;
+  transition:
+    transform 0.45s var(--ch-ease),
+    border-color 0.45s var(--ch-ease),
+    box-shadow 0.45s var(--ch-ease);
+}
+.ch-statcard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    var(--ch-glass-highlight),
+    0 16px 40px rgba(0, 0, 0, 0.35);
 }
 /* 顶部状态 accent 线（设计稿 02：按卡片语义着色的渐变短线） */
 .ch-statcard::before {
@@ -1211,7 +1259,7 @@ button.ch-rec:disabled {
   --ch-accent: linear-gradient(90deg, var(--ch-danger), rgba(248, 113, 113, 0));
 }
 .ch-statcard.accent-cyan {
-  --ch-accent: linear-gradient(90deg, var(--ch-primary), rgba(110, 99, 242, 0));
+  --ch-accent: linear-gradient(90deg, var(--ch-primary), rgba(10, 132, 255, 0));
 }
 .ch-statcard.accent-muted {
   --ch-accent: linear-gradient(90deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
@@ -1417,8 +1465,8 @@ button.ch-rec:disabled {
   top: 36px;
   height: 26px;
   border-radius: 4px;
-  background: linear-gradient(180deg, #6e63f2, #4f45d8);
-  box-shadow: 0 0 14px rgba(110, 99, 242, 0.35);
+  background: linear-gradient(180deg, #0a84ff, #0060df);
+  box-shadow: 0 0 14px rgba(10, 132, 255, 0.35);
   cursor: pointer;
   min-width: 3px;
   transition: filter 0.15s;
@@ -1504,7 +1552,7 @@ button.ch-rec:disabled {
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(180deg, #7d73f5, #5b50e8);
+  background: linear-gradient(180deg, #3b9dff, #0a84ff);
   color: #fff;
   font-size: 13px;
   cursor: pointer;
@@ -1512,7 +1560,7 @@ button.ch-rec:disabled {
   align-items: center;
   justify-content: center;
   flex: none;
-  box-shadow: 0 4px 16px rgba(110, 99, 242, 0.35);
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.35);
   transition: filter 0.15s;
 }
 .ch-playbtn:hover:not(:disabled) {
@@ -1549,7 +1597,7 @@ button.ch-rec:disabled {
   height: 100%;
   border-radius: 3px;
   background: var(--ch-primary);
-  box-shadow: 0 0 10px rgba(110, 99, 242, 0.5);
+  box-shadow: 0 0 10px rgba(10, 132, 255, 0.5);
 }
 .ch-seek-knob {
   position: absolute;
@@ -1559,7 +1607,7 @@ button.ch-rec:disabled {
   border-radius: 50%;
   background: #fff;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 10px rgba(110, 99, 242, 0.8);
+  box-shadow: 0 0 10px rgba(10, 132, 255, 0.8);
   pointer-events: none;
 }
 .ch-speedgroup {
@@ -1730,7 +1778,7 @@ button.ch-rec:disabled {
 .ch-roi-rect {
   position: absolute;
   border: 1.5px solid var(--ch-primary);
-  background: rgba(110, 99, 242, 0.1);
+  background: rgba(10, 132, 255, 0.1);
   border-radius: 4px;
   box-sizing: border-box;
   cursor: move;
@@ -1763,7 +1811,7 @@ button.ch-rec:disabled {
   height: 14px;
   border-radius: 4px;
   background: var(--ch-primary);
-  border: 2px solid #12142e;
+  border: 2px solid #0a0d13;
   cursor: nwse-resize;
 }
 .ch-roi-list {
@@ -1840,19 +1888,19 @@ button.ch-rec:disabled {
    ===================================================================== */
 
 .arco-btn-primary {
-  background: linear-gradient(180deg, #7d73f5, #5b50e8);
+  background: linear-gradient(180deg, #3b9dff, #0a84ff);
   color: #fff;
   font-weight: 600;
   border: none;
 }
 .arco-btn-primary:hover,
 .arco-btn-primary:focus-visible {
-  background: linear-gradient(180deg, #8d84f7, #6a5ff0);
+  background: linear-gradient(180deg, #4da3ff, #1a90ff);
   color: #fff;
 }
 .arco-btn-primary.arco-btn-disabled,
 .arco-btn-primary.arco-btn-loading {
-  background: rgba(110, 99, 242, 0.35);
+  background: rgba(10, 132, 255, 0.35);
   color: rgba(4, 34, 43, 0.8);
 }
 .arco-btn-secondary,
@@ -1900,7 +1948,7 @@ button.ch-rec:disabled {
 .arco-select-view-multiple.arco-select-view-focus,
 .arco-picker:focus-within {
   border-color: var(--ch-primary) !important;
-  box-shadow: 0 0 0 3px rgba(110, 99, 242, 0.15) !important;
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15) !important;
   background: var(--ch-fill) !important;
 }
 .arco-input-inner,
@@ -2113,5 +2161,151 @@ button.ch-rec:disabled {
     right: 380px;
     bottom: 20px;
     z-index: 10;
+  }
+}
+
+/* =====================================================================
+   Tailwind 细节层：按钮 / 徽章 / pill 用 @apply 工具类编写（液态玻璃 + Apple 曲线）
+   同名类在后声明覆盖前面的手写块，页面 DOM 不变
+   ===================================================================== */
+
+@layer components {
+  /* 玻璃按钮 */
+  .ch-btn {
+    @apply inline-flex items-center justify-center gap-[7px] h-[34px] px-[15px]
+      rounded-[10px] border border-white/10 bg-white/5 text-[13px]
+      text-[#dfe6f0] whitespace-nowrap select-none
+      backdrop-blur-md transition-all duration-300 ease-apple;
+    box-shadow: var(--ch-glass-highlight);
+  }
+  .ch-btn:hover:not(:disabled) {
+    @apply bg-white/10 border-white/25 text-white -translate-y-px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+  .ch-btn:active:not(:disabled) {
+    @apply translate-y-0 scale-[0.98];
+  }
+  .ch-btn:disabled {
+    @apply opacity-40 cursor-not-allowed translate-y-0;
+  }
+  .ch-btn.sm {
+    @apply h-[30px] px-3 text-[12.5px] rounded-[9px];
+  }
+  .ch-btn.icon {
+    @apply w-[34px] p-0;
+  }
+  .ch-btn.danger {
+    @apply border-[color:var(--ch-danger-line)] bg-[color:var(--ch-danger-soft)] text-[color:var(--ch-danger)];
+  }
+  .ch-btn.danger:hover:not(:disabled) {
+    @apply bg-[rgba(255,69,58,0.22)] border-[color:var(--ch-danger)] text-[#ffb4ad] -translate-y-px;
+  }
+  .ch-btn.primary {
+    @apply border-none bg-gradient-to-b from-[#3b9dff] to-[#0a84ff] text-white font-bold;
+    box-shadow: 0 6px 22px rgba(10, 132, 255, 0.35);
+  }
+  .ch-btn.primary:hover:not(:disabled) {
+    @apply from-[#4da3ff] to-[#1a90ff] text-white -translate-y-px;
+    box-shadow: 0 10px 28px rgba(10, 132, 255, 0.45);
+  }
+
+  /* 导航 pill */
+  .ch-navpill {
+    @apply inline-flex items-center h-9 px-[15px] rounded-[11px] border border-transparent
+      text-[13.5px] text-[#9aa6ba] whitespace-nowrap cursor-pointer
+      transition-all duration-300 ease-apple;
+    font-family: inherit;
+  }
+  .ch-navpill:hover {
+    @apply bg-white/10 text-white scale-[1.04];
+  }
+  .ch-navpill:active {
+    @apply scale-[0.98];
+  }
+  .ch-navpill.active {
+    @apply border-[color:var(--ch-primary-line)] bg-[color:var(--ch-primary-soft)]
+      text-[color:var(--ch-primary)] font-semibold scale-100;
+    box-shadow: 0 0 20px rgba(10, 132, 255, 0.22), inset 0 0 14px rgba(10, 132, 255, 0.07);
+  }
+
+  /* 玻璃设置页 tab pill */
+  .ch-tabpill {
+    @apply h-9 px-[17px] rounded-[11px] border border-transparent text-[13.5px] text-[#9aa6ba]
+      cursor-pointer transition-all duration-300 ease-apple;
+    font-family: inherit;
+  }
+  .ch-tabpill:hover {
+    @apply bg-white/10 text-white scale-[1.03];
+  }
+  .ch-tabpill.active {
+    @apply border-[color:var(--ch-primary-line)] bg-[color:var(--ch-primary-soft)]
+      text-[color:var(--ch-primary)] font-semibold;
+  }
+
+  /* 倍速 / 预设 pill */
+  .ch-speedbtn {
+    @apply h-[30px] min-w-[44px] px-[10px] rounded-[9px] border border-white/10 bg-white/5
+      text-[12.5px] text-[color:var(--ch-text-2)] cursor-pointer
+      backdrop-blur-md transition-all duration-300 ease-apple;
+    font-family: var(--ch-mono);
+  }
+  .ch-speedbtn:hover {
+    @apply text-white border-white/25;
+  }
+  .ch-speedbtn.active {
+    @apply border-[color:var(--ch-primary-line)] bg-[color:var(--ch-primary-soft)]
+      text-[color:var(--ch-primary)] font-bold;
+  }
+
+  /* 分页 pill */
+  .ch-pagebtn {
+    @apply min-w-[34px] h-[34px] px-[10px] rounded-[10px] border border-white/10 bg-white/5
+      text-[13px] text-[color:var(--ch-text-2)] cursor-pointer
+      transition-all duration-300 ease-apple;
+    font-family: var(--ch-mono);
+  }
+  .ch-pagebtn:hover:not(:disabled) {
+    @apply border-white/25 text-white -translate-y-px;
+  }
+  .ch-pagebtn.active {
+    @apply bg-[color:var(--ch-primary)] border-transparent text-white font-bold translate-y-0;
+    box-shadow: 0 4px 16px rgba(10, 132, 255, 0.4);
+  }
+  .ch-pagebtn:disabled {
+    @apply opacity-40 cursor-not-allowed translate-y-0;
+  }
+  .ch-pagebtn.plain {
+    @apply font-sans;
+  }
+
+  /* 日期圆形按钮 */
+  .ch-datebtn {
+    @apply w-[38px] h-[38px] rounded-full border border-white/10 bg-white/5
+      text-[color:var(--ch-text-2)] text-[15px] cursor-pointer
+      inline-flex items-center justify-center
+      transition-all duration-300 ease-apple;
+  }
+  .ch-datebtn:hover:not(:disabled) {
+    @apply bg-white/10 text-white scale-105;
+  }
+  .ch-datebtn:disabled {
+    @apply opacity-40 cursor-not-allowed;
+  }
+
+  /* 徽章 */
+  .ch-badge {
+    @apply inline-flex items-center gap-[5px] px-[10px] rounded-lg border border-white/10
+      bg-white/5 text-[11.5px] leading-4 text-[color:var(--ch-text-2)] whitespace-nowrap
+      transition-colors duration-300 ease-apple;
+  }
+
+  /* 文本链接按钮 */
+  .ch-linkbtn {
+    @apply border-none bg-transparent p-0 text-[13px] text-[color:var(--ch-text-2)] cursor-pointer
+      transition-colors duration-300 ease-apple;
+    font-family: inherit;
+  }
+  .ch-linkbtn:hover {
+    @apply text-white;
   }
 }
