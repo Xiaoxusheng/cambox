@@ -30,6 +30,14 @@ v1.1 五层验证中这三层在 v1.2 轮未重跑（代码路径未触碰，单
 ### A4. GitHub 仓库描述/Topics 完善 — P3
 **验证**：仓库页简介与 README 首段一致。
 
+### A5. 前端依赖漏洞收敛 — P2
+GitHub Dependabot 报 1 high + 5 moderate；`npm audit` 实际为 4 项：
+- esbuild/vite ≤6.4.2 dev-server 请求伪造（moderate）——**仅影响 `npm run dev`**，内嵌产物不受影响；修复需升 vite 8（breaking）
+- react-router open redirect via backslash（moderate）——面板内全部是固定内部路径，实际风险低；SSR 反序列化（high）——项目未用 SSR，**不适用**；修复需升 react-router-dom 7.18.4（breaking）
+
+**验证**：升级后 `npx tsc --noEmit` + `npm run build` 通过，probe-v12 165 断言全绿，Dependabot 告警清零。
+**择机做**：属于工具链升级，别在功能开发中途顺手升。
+
 ---
 
 ## B. 相机到手后（硬件门控）
