@@ -331,7 +331,7 @@ body {
 }
 
 .ch-topbar-fps {
-  color: var(--ch-teal);
+  color: var(--ch-text-1);
   font-weight: 600;
 }
 .ch-topbar-res {
@@ -405,7 +405,7 @@ button.ch-rec:disabled {
 }
 .ch-arm-label {
   font-size: 13px;
-  color: var(--ch-teal);
+  color: var(--ch-text-1);
 }
 .ch-arm-label.off {
   color: var(--ch-text-3);
@@ -472,8 +472,8 @@ button.ch-rec:disabled {
   vertical-align: middle;
 }
 .ch-status-dot.ok {
-  background: var(--ch-ok);
-  box-shadow: 0 0 8px rgba(53, 212, 154, 0.7);
+  background: var(--ch-text-1);
+  box-shadow: none;
 }
 .ch-status-dot.warn {
   background: var(--ch-warn);
@@ -502,9 +502,9 @@ button.ch-rec:disabled {
   white-space: nowrap;
 }
 .ch-badge.ok {
-  border-color: var(--ch-ok-line);
-  background: rgba(53, 212, 154, 0.16);
-  color: var(--ch-ok);
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ch-text-1);
 }
 .ch-badge.warn {
   border-color: var(--ch-warn-line);
@@ -1211,7 +1211,7 @@ button.ch-rec:disabled {
   opacity: 0.9;
 }
 .ch-statcard.accent-ok {
-  --ch-accent: linear-gradient(90deg, var(--ch-ok), rgba(53, 212, 154, 0));
+  --ch-accent: linear-gradient(90deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0));
 }
 .ch-statcard.accent-danger {
   --ch-accent: linear-gradient(90deg, var(--ch-danger), rgba(248, 113, 113, 0));
@@ -1243,7 +1243,7 @@ button.ch-rec:disabled {
   color: var(--ch-primary);
 }
 .ch-stat-value.ok {
-  color: var(--ch-ok);
+  color: var(--ch-text-1);
 }
 .ch-stat-value.warn {
   color: var(--ch-warn);
@@ -1822,7 +1822,7 @@ button.ch-rec:disabled {
   font-weight: 600;
 }
 .ch-log-level.INFO {
-  color: #8fc7dd;
+  color: var(--ch-text-2);
 }
 .ch-log-level.WARN {
   color: var(--ch-warn);
@@ -2127,14 +2127,12 @@ button.ch-rec:disabled {
   /* 玻璃按钮 */
   .ch-btn {
     @apply inline-flex items-center justify-center gap-[7px] h-[34px] px-[15px]
-      rounded-[10px] border border-white/10 bg-white/5 text-[13px]
-      text-[#dfe6f0] whitespace-nowrap select-none
+      rounded-[8px] border border-transparent bg-[#2a2a2a] text-[13px]
+      text-white whitespace-nowrap select-none
       transition-all duration-300 ease-apple;
-    box-shadow: var(--ch-glass-highlight);
   }
   .ch-btn:hover:not(:disabled) {
-    @apply bg-white/10 border-white/25 text-white -translate-y-px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    @apply bg-[#333333] text-white -translate-y-px;
   }
   .ch-btn:active:not(:disabled) {
     @apply translate-y-0 scale-[0.98];
@@ -2149,10 +2147,10 @@ button.ch-rec:disabled {
     @apply w-[34px] p-0;
   }
   .ch-btn.danger {
-    @apply border-[color:var(--ch-danger-line)] bg-[color:var(--ch-danger-soft)] text-[color:var(--ch-danger)];
+    @apply bg-[#2a2a2a] text-[color:var(--ch-danger)];
   }
   .ch-btn.danger:hover:not(:disabled) {
-    @apply bg-[rgba(255,69,58,0.22)] border-[color:var(--ch-danger)] text-[#ffb4ad] -translate-y-px;
+    @apply bg-[#333333] text-[#ff6b62] -translate-y-px;
   }
   .ch-btn.primary {
     @apply border-none bg-white text-[#222222] font-semibold;
@@ -2177,9 +2175,7 @@ button.ch-rec:disabled {
     @apply scale-[0.98];
   }
   .ch-navpill.active {
-    @apply border-[color:var(--ch-primary-line)] bg-[color:var(--ch-primary-soft)]
-      text-[color:var(--ch-primary)] font-semibold scale-100;
-    box-shadow: 0 0 20px rgba(255, 108, 6, 0.22), inset 0 0 14px rgba(255, 108, 6, 0.07);
+    @apply border-white/20 bg-white/10 text-white font-semibold scale-100;
   }
 
   /* 玻璃设置页 tab pill */
@@ -2213,13 +2209,13 @@ button.ch-rec:disabled {
 
   /* 分页 pill */
   .ch-pagebtn {
-    @apply min-w-[34px] h-[34px] px-[10px] rounded-[10px] border border-white/10 bg-white/5
-      text-[13px] text-[color:var(--ch-text-2)] cursor-pointer
+    @apply min-w-[34px] h-[34px] px-[10px] rounded-[8px] border border-transparent bg-[#2a2a2a]
+      text-[13px] text-white cursor-pointer
       transition-all duration-300 ease-apple;
     font-family: var(--ch-mono);
   }
   .ch-pagebtn:hover:not(:disabled) {
-    @apply border-white/25 text-white -translate-y-px;
+    @apply bg-[#333333] text-white -translate-y-px;
   }
   .ch-pagebtn.active {
     @apply bg-white border-transparent text-[#222222] font-bold translate-y-0;
@@ -2234,13 +2230,13 @@ button.ch-rec:disabled {
 
   /* 日期圆形按钮 */
   .ch-datebtn {
-    @apply w-[38px] h-[38px] rounded-full border border-white/10 bg-white/5
-      text-[color:var(--ch-text-2)] text-[15px] cursor-pointer
+    @apply w-[38px] h-[38px] rounded-full bg-[#2a2a2a]
+      text-white text-[15px] cursor-pointer
       inline-flex items-center justify-center
       transition-all duration-300 ease-apple;
   }
   .ch-datebtn:hover:not(:disabled) {
-    @apply bg-white/10 text-white scale-105;
+    @apply bg-[#333333] scale-105;
   }
   .ch-datebtn:disabled {
     @apply opacity-40 cursor-not-allowed;

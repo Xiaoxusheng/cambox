@@ -132,7 +132,7 @@ export function eventSubLabel(type: string, cameraName?: string): string {
   return type === 'motion' ? cameraName || '摄像头' : '画面自检 C3'
 }
 
-/** 自检状态 → 文案 / 颜色 / 状态点（概览与监控页共用） */
+/** 自检状态 → 文案 / 颜色 / 状态点（概览与监控页共用）；正常态用中性白（Profound 单色风） */
 export function selfCheckView(s: {
   enabled: boolean
   state: string
@@ -140,5 +140,5 @@ export function selfCheckView(s: {
   if (!s.enabled) return { text: '已关闭', color: 'var(--color-text-3)', dot: 'off' }
   if (s.state === 'frozen') return { text: '画面冻结', color: 'var(--ch-danger)', dot: 'err' }
   if (s.state === 'occlusion') return { text: '画面异常', color: 'var(--ch-warn)', dot: 'warn' }
-  return { text: '正常', color: 'var(--ch-ok)', dot: 'ok' }
+  return { text: '正常', color: 'var(--ch-text-1)', dot: 'ok' }
 }
