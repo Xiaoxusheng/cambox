@@ -28,17 +28,20 @@
   --ch-text-4: #45586b;
 
   /* ---- 玻璃面 ---- */
-  --ch-glass: rgba(15, 22, 32, 0.62);
-  --ch-glass-deep: rgba(10, 16, 24, 0.82);
+  --ch-glass: rgba(17, 25, 36, 0.58);
+  --ch-glass-deep: rgba(10, 16, 24, 0.78);
   --ch-line: rgba(255, 255, 255, 0.09);
   --ch-line-soft: rgba(255, 255, 255, 0.05);
   --ch-fill: rgba(255, 255, 255, 0.045);
   --ch-fill-2: rgba(255, 255, 255, 0.08);
 
-  --ch-blur: blur(20px) saturate(140%);
+  --ch-blur: blur(14px) saturate(130%);
+  --ch-blur-deep: blur(24px) saturate(150%);
   --ch-radius: 20px;
   --ch-radius-sm: 12px;
   --ch-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  /* 玻璃内侧高光：上缘一道 1px 亮线，模拟真实磨砂厚度 */
+  --ch-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
   --ch-mono:
     'JetBrains Mono', 'Cascadia Mono', 'SF Mono', 'Roboto Mono', ui-monospace,
@@ -100,6 +103,21 @@ body,
 
 body {
   margin: 0;
+  background: var(--ch-bg);
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--ch-text-1);
+}
+
+/* 背景层：独立 fixed 元素。不用 body 的 background-attachment: fixed——
+   Chromium 上它与 backdrop-filter 组合会导致磨砂采样错位 / 滚动闪烁 */
+.ch-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-color: var(--ch-bg);
   background-image:
     radial-gradient(1100px 460px at 50% -180px, rgba(62, 201, 231, 0.09), transparent 62%),
@@ -107,12 +125,6 @@ body {
     linear-gradient(rgba(255, 255, 255, 0.021) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.021) 1px, transparent 1px);
   background-size: auto, auto, 56px 56px, 56px 56px;
-  background-attachment: fixed;
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  color: var(--ch-text-1);
 }
 
 ::selection {
@@ -148,6 +160,16 @@ body {
 :focus-visible {
   outline: 2px solid rgba(62, 201, 231, 0.55);
   outline-offset: 2px;
+}
+
+/* 文本类控件由 Arco 容器统一画聚焦环（边框 + 光晕），
+   原生 input 上再叠 outline 会形成设计稿之外的双框 */
+.arco-input-inner:focus-visible,
+.arco-input-number input:focus-visible,
+.arco-select-view input:focus-visible,
+.arco-picker input:focus-visible,
+.arco-textarea-inner:focus-visible {
+  outline: none;
 }
 
 /* =====================================================================
@@ -249,10 +271,10 @@ body {
   padding: 0 18px;
   border-radius: 18px;
   background: var(--ch-glass-deep);
-  backdrop-filter: var(--ch-blur);
-  -webkit-backdrop-filter: var(--ch-blur);
+  backdrop-filter: var(--ch-blur-deep);
+  -webkit-backdrop-filter: var(--ch-blur-deep);
   border: 1px solid var(--ch-line);
-  box-shadow: var(--ch-shadow);
+  box-shadow: var(--ch-glass-highlight), var(--ch-shadow);
   animation: ch-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -439,13 +461,13 @@ body {
   background: var(--ch-text-4);
 }
 
-/* 徽章 pill（在线 / 今日 12 / 类型标签） */
+/* 徽章 pill（在线 / 今日 12 / 类型标签）——类型徽章为低饱和填充式 */
 .ch-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2.5px 9px;
-  border-radius: 8px;
+  padding: 2.5px 10px;
+  border-radius: 9px;
   border: 1px solid var(--ch-line);
   background: var(--ch-fill);
   color: var(--ch-text-2);
@@ -455,22 +477,22 @@ body {
 }
 .ch-badge.ok {
   border-color: var(--ch-ok-line);
-  background: var(--ch-ok-soft);
+  background: rgba(53, 212, 154, 0.16);
   color: var(--ch-ok);
 }
 .ch-badge.warn {
   border-color: var(--ch-warn-line);
-  background: var(--ch-warn-soft);
+  background: rgba(239, 185, 63, 0.16);
   color: var(--ch-warn);
 }
 .ch-badge.danger {
   border-color: var(--ch-danger-line);
-  background: var(--ch-danger-soft);
+  background: rgba(248, 113, 113, 0.16);
   color: var(--ch-danger);
 }
 .ch-badge.cyan {
   border-color: var(--ch-primary-line);
-  background: var(--ch-primary-soft);
+  background: rgba(62, 201, 231, 0.16);
   color: var(--ch-primary);
 }
 
@@ -520,20 +542,33 @@ body {
    通用元件：玻璃面板 / 按钮 / 表格 / 分页 / 输入
    ===================================================================== */
 
-/* 玻璃面板 */
+/* 玻璃面板：半透明 + 局部磨砂 + 内侧高光（backdrop-filter 只给真正悬浮的元素用，
+   面板背后只有背景层，磨砂观感靠半透明即可，滚动性能更好） */
 .ch-panel {
-  background: var(--ch-glass);
-  backdrop-filter: var(--ch-blur);
-  -webkit-backdrop-filter: var(--ch-blur);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 140px),
+    var(--ch-glass);
   border: 1px solid var(--ch-line);
   border-radius: var(--ch-radius);
+  box-shadow: var(--ch-glass-highlight);
   overflow: hidden;
+}
+.ch-panel.float {
+  backdrop-filter: var(--ch-blur);
+  -webkit-backdrop-filter: var(--ch-blur);
 }
 .ch-panel-head {
   display: flex;
   align-items: center;
   gap: var(--ch-space-sm);
   padding: 18px 20px 0;
+}
+.ch-panel-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ch-primary);
+  font-size: 15px;
+  flex: none;
 }
 .ch-panel-title {
   flex: 1;
@@ -604,14 +639,14 @@ body {
 }
 .ch-btn.primary {
   border: none;
-  background: linear-gradient(180deg, #4fd2ec, #2fb8d8);
-  color: #04222b;
+  background: linear-gradient(180deg, #3fd6f0, #1fb5d6);
+  color: #fff;
   font-weight: 700;
   box-shadow: 0 4px 18px rgba(62, 201, 231, 0.28);
 }
 .ch-btn.primary:hover {
-  background: linear-gradient(180deg, #64dbf2, #3cc4e2);
-  color: #04222b;
+  background: linear-gradient(180deg, #55ddf3, #2cc0e0);
+  color: #fff;
 }
 
 /* 文本链接按钮（表格操作列） */
@@ -667,6 +702,44 @@ body {
 }
 .ch-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+/* 行卡片化变体（设计稿 05：每行独立圆角条） */
+.ch-table.rows-cards {
+  border-collapse: separate;
+  border-spacing: 0 8px;
+  min-width: 720px;
+}
+.ch-table.rows-cards th {
+  border-bottom: 1px solid var(--ch-line);
+}
+.ch-table.rows-cards td {
+  background: rgba(255, 255, 255, 0.035);
+  border-bottom: none;
+}
+.ch-table.rows-cards td:first-child {
+  border-radius: 12px 0 0 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+.ch-table.rows-cards td:last-child {
+  border-radius: 0 12px 12px 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+.ch-table.rows-cards tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.055);
+}
+/* 选中行：左侧青色指示条 + 微青底（设计稿 03） */
+.ch-table.rows-cards tr.row-selected td {
+  background: rgba(62, 201, 231, 0.07);
+}
+.ch-table.rows-cards tr.row-selected td:first-child {
+  border-left: 3px solid var(--ch-primary);
+}
+/* 列头排序指示（时间↓ / 大小↓，装饰性提示当前排序） */
+.ch-sort-arrow {
+  color: var(--ch-primary);
+  font-family: var(--ch-mono);
+  margin-left: 4px;
 }
 
 /* 自绘复选框 */
@@ -759,35 +832,39 @@ body {
   font-family: inherit;
 }
 
-/* 事件列表行（监控侧栏 / 概览最新事件共用） */
+/* 事件列表行（监控侧栏 / 概览最新事件共用）——设计稿 01/02：行卡片化 */
 .ch-event-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 .ch-evrow {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 9px 10px;
-  border: none;
-  border-radius: 12px;
-  background: transparent;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   min-width: 0;
+  box-sizing: border-box;
 }
 .ch-evrow:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(62, 201, 231, 0.28);
 }
 .ch-evthumb {
   flex: none;
-  width: 96px;
-  height: 54px;
+  width: 104px;
+  height: 58px;
   border-radius: 9px;
   object-fit: cover;
   background: #0a1017;
@@ -1029,6 +1106,7 @@ body {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: var(--ch-glass-highlight);
   font-size: 12.5px;
   color: var(--ch-text-2);
   flex-wrap: nowrap;
@@ -1079,13 +1157,40 @@ body {
   margin-bottom: 18px;
 }
 .ch-statcard {
-  background: var(--ch-glass);
-  backdrop-filter: var(--ch-blur);
-  -webkit-backdrop-filter: var(--ch-blur);
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 120px),
+    var(--ch-glass);
   border: 1px solid var(--ch-line);
   border-radius: 16px;
   padding: 16px 18px;
   min-width: 0;
+  box-shadow: var(--ch-glass-highlight);
+  overflow: hidden;
+}
+/* 顶部状态 accent 线（设计稿 02：按卡片语义着色的渐变短线） */
+.ch-statcard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18px;
+  width: 64px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--ch-accent, transparent);
+  opacity: 0.9;
+}
+.ch-statcard.accent-ok {
+  --ch-accent: linear-gradient(90deg, var(--ch-ok), rgba(53, 212, 154, 0));
+}
+.ch-statcard.accent-danger {
+  --ch-accent: linear-gradient(90deg, var(--ch-danger), rgba(248, 113, 113, 0));
+}
+.ch-statcard.accent-cyan {
+  --ch-accent: linear-gradient(90deg, var(--ch-primary), rgba(62, 201, 231, 0));
+}
+.ch-statcard.accent-muted {
+  --ch-accent: linear-gradient(90deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
 }
 .ch-stat-label {
   font-size: 12px;
@@ -1214,37 +1319,39 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
 }
+/* 回看页日期组合胶囊（设计稿 04：「2026-09-28 · 今天」一体）：
+   DatePicker 无边框嵌入胶囊，「· 今天」作后缀 */
 .ch-datepill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   height: 38px;
-  padding: 0 18px;
+  padding: 0 14px 0 8px;
   border-radius: 19px;
   border: 1px solid var(--ch-primary-line);
   background: var(--ch-primary-soft);
-  color: var(--ch-primary);
-  font-size: 14px;
-  font-family: var(--ch-mono);
-  font-weight: 600;
-  cursor: pointer;
 }
-
-/* 回看页日期选择器 → 胶囊样式 */
-.ch-datepill-picker .arco-picker {
-  height: 38px !important;
-  border-radius: 19px !important;
-  border-color: var(--ch-primary-line) !important;
-  background: var(--ch-primary-soft) !important;
+.ch-datepill .arco-picker {
+  height: 36px !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  width: 132px;
 }
-.ch-datepill-picker .arco-picker input {
+.ch-datepill .arco-picker input {
   color: var(--ch-primary) !important;
   font-family: var(--ch-mono);
   font-weight: 600;
   text-align: center;
+  cursor: pointer;
 }
-.ch-datepill-picker .arco-picker-suffix {
+.ch-datepill .arco-picker-suffix {
+  display: none;
+}
+.ch-datepill-today {
   color: var(--ch-primary);
+  font-size: 13.5px;
+  white-space: nowrap;
 }
 
 /* 24h 时间轴 */
@@ -1373,9 +1480,9 @@ body {
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(180deg, #4fd2ec, #2fb8d8);
-  color: #04222b;
-  font-size: 16px;
+  background: linear-gradient(180deg, #3fd6f0, #1fb5d6);
+  color: #fff;
+  font-size: 13px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1384,8 +1491,12 @@ body {
   box-shadow: 0 4px 16px rgba(62, 201, 231, 0.35);
   transition: filter 0.15s;
 }
-.ch-playbtn:hover {
-  filter: brightness(1.1);
+.ch-playbtn:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+.ch-playbtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .ch-playtime {
   font-family: var(--ch-mono);
@@ -1419,8 +1530,8 @@ body {
 .ch-seek-knob {
   position: absolute;
   top: 50%;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: #fff;
   transform: translate(-50%, -50%);
@@ -1451,9 +1562,9 @@ body {
   color: var(--ch-text-1);
 }
 .ch-speedbtn.active {
-  background: var(--ch-primary);
-  border-color: transparent;
-  color: #04222b;
+  background: var(--ch-primary-soft);
+  border-color: var(--ch-primary-line);
+  color: var(--ch-primary);
   font-weight: 700;
 }
 
@@ -1564,7 +1675,7 @@ body {
   -webkit-backdrop-filter: var(--ch-blur);
   border: 1px solid var(--ch-line);
   border-radius: 16px;
-  box-shadow: var(--ch-shadow);
+  box-shadow: var(--ch-glass-highlight), var(--ch-shadow);
 }
 .ch-savebar-text {
   flex: 1;
@@ -1607,15 +1718,16 @@ body {
 }
 .ch-roi-tag {
   position: absolute;
-  top: -24px;
+  top: -26px;
   left: -1px;
   line-height: 20px;
   font-size: 11px;
   font-family: var(--ch-mono);
-  color: #04222b;
-  background: var(--ch-primary);
-  border-radius: 5px;
-  padding: 0 7px;
+  color: var(--ch-primary);
+  background: rgba(4, 8, 13, 0.72);
+  border: 1px solid var(--ch-primary-line);
+  border-radius: 6px;
+  padding: 0 8px;
   white-space: nowrap;
   pointer-events: none;
 }
@@ -1883,6 +1995,22 @@ body {
 @media (max-width: 560px) {
   /* 窄屏 LIVE 行空间有限：分辨率/FPS chip 与 livebar 重复，隐藏 */
   .ch-ovl.tr {
+    display: none;
+  }
+}
+
+/* 顶栏中窄宽度逐级收纳，避免状态区挤压重叠 */
+@media (max-width: 1240px) {
+  .ch-topbar-res {
+    display: none;
+  }
+}
+@media (max-width: 1080px) {
+  .ch-topbar-fps {
+    display: none;
+  }
+  /* 相机名让位，保留状态点与在线徽章 */
+  .ch-topbar-cam > span:nth-child(2) {
     display: none;
   }
 }

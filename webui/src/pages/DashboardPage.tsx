@@ -2,9 +2,11 @@
  * /dashboard 概览（v1.3 按 camhub-ui-4k/02 设计稿重做）
  * 信息层级：① 六张状态卡 ② 今日事件趋势（侦测/自检双系列） ③ 最新事件。
  */
-import { Button } from '@arco-design/web-react'
-import { IconRefresh } from '@arco-design/web-react/icon'
-import { fetchEvents, fetchStatus, fetchTimeline } from '../api/endpoints'
+import { useState } from 'react'
+import { Button, Message, Switch } from '@arco-design/web-react'
+import { IconDashboard, IconNotification, IconRefresh } from '@arco-design/web-react/icon'
+import { fetchEvents, fetchStatus, fetchTimeline, setArmed } from '../api/endpoints'
+import { errorText } from '../api/errors'
 import type { Event, Status, TimelineData } from '../api/types'
 import { HourlyChart } from '../components/HourlyChart'
 import { EventList } from '../components/EventList'
@@ -32,6 +34,7 @@ function bucketSelfcheck(events: Event[]): number[] {
 
 export function DashboardPage() {
   const today = toLocalDateStr(new Date())
+  const [armPending, setArmPending] = useState(false)
 
   const { data, loading, error, reload } = useAsync<DashboardData>(
     (signal) =>
@@ -65,6 +68,21 @@ export function DashboardPage() {
     status.recorder.mode === 'copy' ? '流复制' : status.recorder.mode === 'encode' ? '编码' : status.recorder.mode
   const selfcheckHourly = bucketSelfcheck(selfcheckEvents?.items ?? [])
 
+  async function toggleArm(next: boolean) {
+    setArmPending(true)
+    try {
+      await setArmed(next)
+      Message.success(
+        next ? '已布防，移动侦测事件将入库并推送' : '已撤防，仅停止事件入库与推送（录像不受影响）',
+      )
+      reload()
+    } catch (e) {
+      Message.error(errorText(e))
+    } finally {
+      setArmPending(false)
+    }
+  }
+
   return (
     <>
       <PageHeader
@@ -83,7 +101,7 @@ export function DashboardPage() {
       />
 
       <div className="ch-stats">
-        <div className="ch-statcard">
+        <div className={`ch-statcard ${cam.connected ? 'accent-ok' : 'accent-danger'}`}>
           <div className="ch-stat-label">连接</div>
           <div className={`ch-stat-value ${cam.connected ? 'ok' : 'danger'}`}>
             <span className={`ch-status-dot ${cam.connected ? 'ok' : 'err'}`} />
@@ -94,7 +112,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="ch-statcard">
+        <div className={`ch-statcard ${status.recorder.running ? 'accent-danger' : 'accent-muted'}`}>
           <div className="ch-stat-label">录像</div>
           <div className="ch-stat-value">{status.recorder.running ? '录像中' : '已停止'}</div>
           <div className="ch-stat-sub num" title={status.recorder.current_file}>
@@ -104,10 +122,19 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="ch-statcard">
+        <div className={`ch-statcard ${status.armed ? 'accent-cyan' : 'accent-muted'}`}>
           <div className="ch-stat-label">布防</div>
-          <div className={`ch-stat-value ${status.armed ? 'ok' : ''}`}>
-            {status.armed ? '布防中' : '已撤防'}
+          <div className="ch-stat-value" style={{ justifyContent: 'space-between' }}>
+            <span style={{ color: status.armed ? 'var(--ch-primary)' : 'var(--ch-text-3)' }}>
+              {status.armed ? '布防中' : '已撤防'}
+            </span>
+            <Switch
+              size="small"
+              checked={status.armed}
+              loading={armPending}
+              onChange={toggleArm}
+              aria-label="布防开关"
+            />
           </div>
           <div className="ch-stat-sub">
             日程 · 侦测 {status.schedule_active.motion ? '开' : '关'} / 录像{' '}
@@ -115,7 +142,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="ch-statcard">
+        <div className="ch-statcard accent-cyan">
           <div className="ch-stat-label">磁盘水位</div>
           <div
             className={`ch-stat-value num ${diskPct >= 90 ? 'danger' : diskPct >= 75 ? 'warn' : 'cyan'}`}
@@ -138,13 +165,13 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="ch-statcard">
+        <div className="ch-statcard accent-muted">
           <div className="ch-stat-label">运行时长</div>
           <div className="ch-stat-value num">{formatUptime(status.uptime_sec)}</div>
           <div className="ch-stat-sub num">累计事件 {status.events_count} 条</div>
         </div>
 
-        <div className="ch-statcard">
+        <div className={`ch-statcard ${sc.dot === 'ok' ? 'accent-ok' : sc.dot === 'warn' ? 'accent-cyan' : 'accent-danger'}`}>
           <div className="ch-stat-label">自检状态</div>
           <div className="ch-stat-value" style={{ color: sc.color }}>
             <span className={`ch-status-dot ${sc.dot}`} />
@@ -159,6 +186,9 @@ export function DashboardPage() {
       <div className="ch-dash-split">
         <section className="ch-panel">
           <header className="ch-panel-head">
+            <span className="ch-panel-icon">
+              <IconDashboard />
+            </span>
             <div className="ch-panel-title">今日事件趋势</div>
             <div className="ch-panel-extra">
               <span className="ch-badge num">{timeline.date}</span>
@@ -186,6 +216,9 @@ export function DashboardPage() {
 
         <section className="ch-panel">
           <header className="ch-panel-head">
+            <span className="ch-panel-icon">
+              <IconNotification />
+            </span>
             <div className="ch-panel-title">最新事件</div>
             <div className="ch-panel-extra">
               <a className="ch-linkbtn" href="#/events">

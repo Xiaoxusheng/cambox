@@ -113,7 +113,7 @@ export function RecordingsPage() {
           <>
             共 <span className="num">{items.length}</span> 个分段 ·{' '}
             <span className="num">{formatBytes(totalSize)}</span> · 按天数与容量自动循环清理
-            {IS_MOCK ? '（mock 模式为模拟文件列表）' : ''}
+            {IS_MOCK ? '（mock 模式不生成模拟录像文件）' : ''}
           </>
         }
         actions={
@@ -176,12 +176,17 @@ export function RecordingsPage() {
 
       <section className="ch-panel ch-tablecard">
         <div className="ch-table-wrap">
-          <table className="ch-table">
+          <table className="ch-table rows-cards">
             <thead>
               <tr>
                 <th>文件名</th>
                 <th style={{ width: 120 }}>模式</th>
-                <th style={{ width: 110 }}>大小</th>
+                <th style={{ width: 110 }}>
+                  大小
+                  <span className="ch-sort-arrow" title="按文件名倒序排列，大小仅供参考">
+                    ↓
+                  </span>
+                </th>
                 <th style={{ width: 300 }}>起止</th>
                 <th style={{ width: 130, textAlign: 'right' }}>操作</th>
               </tr>

@@ -56,6 +56,13 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 const num = (v: number | undefined, fallback: number) =>
   typeof v === 'number' && !Number.isNaN(v) ? v : fallback
 
+/** 灵敏度预设（设计稿 06）：一键套用阈值 / 面积 / 冷却组合 */
+const MOTION_PRESETS = [
+  { key: 'loose', label: '宽松', threshold: 40, min_area: 1200, cooldown_sec: 15 },
+  { key: 'standard', label: '标准', threshold: 22, min_area: 500, cooldown_sec: 8 },
+  { key: 'sensitive', label: '灵敏', threshold: 12, min_area: 200, cooldown_sec: 5 },
+] as const
+
 /** 行式设置项：label+描述 左，控件 右 */
 function Row({
   label,
@@ -470,6 +477,16 @@ export function SettingsPage() {
                 onChange={(v) => patchSection('camera', { preview_fps: num(v, cam.preview_fps) })}
               />
             </Row>
+            <Row label="检测降采样宽度" sub="移动侦测的解码降采样宽度，越小越快、越省 CPU">
+              <InputNumber
+                value={motion.downscale_width}
+                min={64}
+                max={1920}
+                onChange={(v) =>
+                  patchSection('motion', { downscale_width: num(v, motion.downscale_width) })
+                }
+              />
+            </Row>
           </Card>
         </div>
       ) : null}
@@ -493,14 +510,29 @@ export function SettingsPage() {
                 onChange={(v) => patchSection('motion', { threshold: num(v, motion.threshold) })}
               />
             </Row>
-            <Row label={<>最小面积 <span className="num">min_area (px)</span></>} sub="小于该面积的变动忽略">
+            <Row
+              label={
+                <>
+                  最小面积 <span className="num">min_area (px)</span>
+                </>
+              }
+              sub="小于该面积的变动忽略"
+            >
               <InputNumber
                 value={motion.min_area}
                 min={1}
+                suffix="px"
                 onChange={(v) => patchSection('motion', { min_area: num(v, motion.min_area) })}
               />
             </Row>
-            <Row label={<>冷却时间 <span className="num">cooldown_sec</span></>} sub="同一次事件的合并窗口">
+            <Row
+              label={
+                <>
+                  冷却时间 <span className="num">cooldown_sec</span>
+                </>
+              }
+              sub="同一次事件的合并窗口"
+            >
               <InputNumber
                 value={motion.cooldown_sec}
                 min={1}
@@ -509,15 +541,31 @@ export function SettingsPage() {
                 suffix="s"
               />
             </Row>
-            <Row label="检测降采样宽度" sub="越小越快、越省 CPU">
-              <InputNumber
-                value={motion.downscale_width}
-                min={64}
-                max={1920}
-                onChange={(v) =>
-                  patchSection('motion', { downscale_width: num(v, motion.downscale_width) })
-                }
-              />
+            <Row label="灵敏度预设" sub="一键套用阈值 / 面积 / 冷却组合">
+              <div className="ch-speedgroup">
+                {MOTION_PRESETS.map((p) => {
+                  const active =
+                    motion.threshold === p.threshold &&
+                    motion.min_area === p.min_area &&
+                    motion.cooldown_sec === p.cooldown_sec
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      className={`ch-speedbtn ${active ? 'active' : ''}`}
+                      onClick={() =>
+                        patchSection('motion', {
+                          threshold: p.threshold,
+                          min_area: p.min_area,
+                          cooldown_sec: p.cooldown_sec,
+                        })
+                      }
+                    >
+                      {p.label}
+                    </button>
+                  )
+                })}
+              </div>
             </Row>
             <div className="ch-hint">提示：光照突变（开关灯）可能误报，调大三项参数可缓解。</div>
           </Card>

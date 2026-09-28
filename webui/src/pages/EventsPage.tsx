@@ -5,7 +5,7 @@
  */
 import { useMemo, useState } from 'react'
 import { Button, DatePicker, Message, Modal, Select } from '@arco-design/web-react'
-import { IconRefresh } from '@arco-design/web-react/icon'
+import { IconDelete, IconRefresh } from '@arco-design/web-react/icon'
 import { batchDeleteEvents, fetchEvents, fetchStatus, fetchTimeline } from '../api/endpoints'
 import { errorText } from '../api/errors'
 import { mediaUrl } from '../api/media'
@@ -197,6 +197,7 @@ export function EventsPage() {
             disabled={selected.length === 0 || deleting}
             onClick={onBatchDelete}
           >
+            <IconDelete />
             删除选中{selected.length > 0 ? ` · ${selected.length}` : ''}
           </button>
         }
@@ -259,7 +260,7 @@ export function EventsPage() {
 
       <section className="ch-panel ch-tablecard">
         <div className="ch-table-wrap">
-          <table className="ch-table">
+          <table className="ch-table rows-cards">
             <thead>
               <tr>
                 <th style={{ width: 44 }}>
@@ -276,7 +277,12 @@ export function EventsPage() {
                 </th>
                 <th style={{ width: 128 }}>快照</th>
                 <th style={{ width: 120 }}>类型</th>
-                <th style={{ width: 180 }}>时间</th>
+                <th style={{ width: 180 }}>
+                  时间
+                  <span className="ch-sort-arrow" title="按时间倒序">
+                    ↓
+                  </span>
+                </th>
                 <th>详情</th>
                 <th style={{ width: 120, textAlign: 'right' }}>操作</th>
               </tr>
@@ -304,7 +310,7 @@ export function EventsPage() {
                 </tr>
               ) : (
                 items.map((e) => (
-                  <tr key={e.id}>
+                  <tr key={e.id} className={selected.includes(e.id) ? 'row-selected' : ''}>
                     <td>
                       <input
                         type="checkbox"

@@ -102,6 +102,8 @@ export function AppLayout() {
 
   return (
     <div className="ch-shell">
+      {/* 固定背景层：网格 + 光晕。独立于 body，规避 backdrop-filter 采样异常 */}
+      <div className="ch-bg" aria-hidden="true" />
       <header className="ch-topbar">
         {isMobile ? (
           <button

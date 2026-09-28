@@ -49,7 +49,6 @@ function rfc3339(d: Date): string {
 }
 
 const dateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-const timeStr = (d: Date) => `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`
 const compactDate = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`
 const compactTime = (d: Date) => `${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
 
@@ -210,7 +209,6 @@ function defaultConfig(): Config {
 // ---------------------------------------------------------------------------
 
 const EVENT_DAYS = 7
-const RECORD_DAYS = 3
 const MAX_ROIS = 8
 
 function snapPath(t: Date, kind: 'events' | 'manual', seq = 1): string {
@@ -250,35 +248,10 @@ function seedEvents(): Event[] {
   return out
 }
 
+// mock 不伪造录像文件：mp4 无法造假，列表保持为空（录像管理/回看显示空态），
+// 真实模式由后端提供真实分段
 function seedRecordings(): RecordFile[] {
-  const rnd = mulberry32(20260977)
-  const out: RecordFile[] = []
-  const today = startOfDay(new Date())
-  const now = Date.now()
-  const segMs = 600_000
-  for (let d = RECORD_DAYS - 1; d >= 0; d--) {
-    const day = new Date(today.getTime() - d * 86400000)
-    const end = new Date(day)
-    end.setHours(22, 0, 0, 0)
-    let cursor = new Date(day)
-    cursor.setHours(8, 0, 0, 0)
-    while (cursor.getTime() + segMs <= end.getTime()) {
-      const start = new Date(cursor)
-      const stop = new Date(cursor.getTime() + segMs)
-      cursor = stop
-      if (start.getTime() > now) break
-      if (rnd() < 0.12) continue // 真实场景会有断档
-      out.push({
-        name: `${dateStr(start)}_${timeStr(start)}.mp4`,
-        size_bytes: Math.floor((42 + rnd() * 46) * 1024 * 1024),
-        modified: rfc3339(stop),
-        start: rfc3339(start),
-        end: rfc3339(stop),
-      })
-    }
-  }
-  out.sort((a, b) => (a.name < b.name ? -1 : 1))
-  return out
+  return []
 }
 
 // ---------------------------------------------------------------------------

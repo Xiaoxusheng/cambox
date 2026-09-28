@@ -31,6 +31,21 @@ function LiveClock() {
   return <span className="num">{formatClockFull(now)}</span>
 }
 
+/** 「实时事件」标题前的脉搏图标（设计稿 01） */
+function PulseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M1.5 8.5h3l2-5 3 9 2-5.5h3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 /** object-fit: contain 后图像实际渲染的矩形（ROI 覆盖对齐用） */
 function useContainedRect(
   ref: React.RefObject<HTMLDivElement | null>,
@@ -234,7 +249,7 @@ export function MonitorPage() {
             </span>
           ) : null}
           <span className="ch-livebar-spacer" />
-          <button type="button" className="ch-btn sm" disabled={snapBusy} onClick={doSnapshot}>
+          <button type="button" className="ch-btn sm primary" disabled={snapBusy} onClick={doSnapshot}>
             {snapBusy ? '抓拍中…' : '抓拍'}
           </button>
           <button type="button" className="ch-btn sm" onClick={() => setRoiOpen(true)}>
@@ -248,6 +263,9 @@ export function MonitorPage() {
 
       <section className="ch-panel ch-monitor-events">
         <header className="ch-panel-head">
+          <span className="ch-panel-icon">
+            <PulseIcon />
+          </span>
           <div className="ch-panel-title">实时事件</div>
           <div className="ch-panel-extra">
             {todayCount !== null ? <span className="ch-badge cyan num">今日 {todayCount}</span> : null}
