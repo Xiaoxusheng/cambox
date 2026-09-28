@@ -20,6 +20,7 @@ import (
 	"camhub/internal/imgconv"
 	"camhub/internal/notify"
 	"camhub/internal/recorder"
+	"camhub/internal/selfcheck"
 	"camhub/internal/source"
 	"camhub/internal/store"
 )
@@ -32,6 +33,7 @@ type Pipeline struct {
 	det     *detector.Motion
 	rec     *recorder.Recorder
 	nt      *notify.Notifier
+	sc      *selfcheck.Checker
 
 	mu       sync.RWMutex
 	settings config.Config
@@ -58,11 +60,15 @@ func New(cfg *config.Config, cfgPath string, st *store.Store) *Pipeline {
 	p.armed.Store(true) // 重启默认布防
 	p.det = detector.New(cfg.Motion)
 	p.rec = recorder.New(src, p.Settings, p.RecordEffective)
+	p.sc = selfcheck.New(cfg.SelfCheck, src, p.onSelfCheckAlert)
 	return p
 }
 
 // Notifier 供 HTTP 层执行「发送测试」。
 func (p *Pipeline) Notifier() *notify.Notifier { return p.nt }
+
+// SelfCheck 供 HTTP 层读取自检状态。
+func (p *Pipeline) SelfCheck() *selfcheck.Checker { return p.sc }
 
 // Settings 返回运行时配置副本。
 func (p *Pipeline) Settings() config.Config {
@@ -112,12 +118,13 @@ func (p *Pipeline) StartedAt() time.Time { return p.startedAt }
 func (p *Pipeline) Start(ctx context.Context) {
 	p.startedAt = time.Now()
 	ctx, p.cancel = context.WithCancel(ctx)
-	p.wg.Add(5)
+	p.wg.Add(6)
 	go func() { defer p.wg.Done(); p.src.Run(ctx) }()
 	go func() { defer p.wg.Done(); p.detectLoop(ctx) }()
 	go func() { defer p.wg.Done(); p.rec.Run(ctx) }()
 	go func() { defer p.wg.Done(); p.cleanLoop(ctx) }()
 	go func() { defer p.wg.Done(); p.nt.Run(ctx) }()
+	go func() { defer p.wg.Done(); p.sc.Run(ctx) }()
 	slog.Info("流水线已启动", "source", p.Settings().Camera.Type)
 }
 
@@ -228,6 +235,34 @@ func (p *Pipeline) eventBody(ev store.Event, kind string) string {
 		body += "\n详情: " + ev.Detail
 	}
 	return body
+}
+
+// onSelfCheckAlert 自检告警出口(契约 §2.4): 截图 + 事件入库 + 推送。
+// 与移动侦测不同, 画面自检是设备健康检查, 不受 armed 影响(撤防时仍应告警)。
+func (p *Pipeline) onSelfCheckAlert(alert string, f *source.Frame) {
+	dir := filepath.Join(p.Settings().Server.SnapshotDir, "events")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		slog.Error("创建事件快照目录失败", "err", err)
+		return
+	}
+	name := fmt.Sprintf("sc-%s-%03d.jpg", time.Now().Format("20060102-150405"), p.snapCounter.Add(1)%1000)
+	path := filepath.Join(dir, name)
+	if err := writeJPEG(path, imgconv.ToRGBA(f)); err != nil {
+		slog.Error("保存自检截图失败", "err", err)
+		return
+	}
+
+	kind := "画面冻结"
+	if alert == selfcheck.AlertOcclusion {
+		kind = "画面异常"
+	}
+	ev, err := p.store.Append("selfcheck", 0, "/media/snapshots/events/"+name, alert)
+	if err != nil {
+		slog.Error("自检事件入库失败", "err", err)
+		return
+	}
+	slog.Warn("画面自检告警", "id", ev.ID, "detail", alert, "snapshot", name)
+	p.notifyEvent(ev, path, kind)
 }
 
 func (p *Pipeline) cleanLoop(ctx context.Context) {
