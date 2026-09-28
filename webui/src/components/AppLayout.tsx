@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Drawer, Message, Modal, Switch, Tag, Tooltip } from '@arco-design/web-react'
-import { IconFileVideo, IconMenu, IconMoon, IconSun } from '@arco-design/web-react/icon'
+import { IconMenu, IconMoon, IconSun } from '@arco-design/web-react/icon'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { IS_MOCK } from '../api/client'
 import { fetchConfig, fetchStatus, saveConfig, setArmed } from '../api/endpoints'
@@ -201,7 +201,6 @@ export function AppLayout() {
             aria-label={recording ? '结束录像' : '开始录像'}
             aria-pressed={recording}
           >
-            <IconFileVideo />
             {recording ? <span className="ch-rec-dot" /> : null}
             {recPending ? (recording ? '结束中…' : '开启中…') : 'REC'}
           </button>

@@ -61,9 +61,10 @@ function useContainedRect(
       const ch = el.clientHeight
       if (cw <= 0 || ch <= 0) return
       const ar = imgW / imgH
+      // cover：铺满容器、溢出裁边（全出血监控画面），ROI 覆盖仍按图像矩形映射
       let w = cw
       let h = w / ar
-      if (h > ch) {
+      if (h < ch) {
         h = ch
         w = h * ar
       }

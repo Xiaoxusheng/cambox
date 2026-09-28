@@ -11,6 +11,7 @@
 :root {
   /* ---- 色板（Profound 风格：纯黑 + 橙 #FF6C06 + 白色主按钮） ---- */
   --ch-bg: #050505;
+  --ch-modal-bg: #14161c;
   --ch-primary: #ff6c06;
   --ch-primary-hi: #ff9a4d;
   --ch-primary-soft: rgba(255, 108, 6, 0.14);
@@ -1035,7 +1036,7 @@ button.ch-rec:disabled {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 /* 画面遮罩（未连接 / 加载失败） */
@@ -1950,7 +1951,7 @@ button.ch-rec:disabled {
 }
 
 .arco-modal {
-  background: rgba(12, 18, 25, 0.96) !important;
+  background: var(--ch-modal-bg) !important;
   border: 1px solid var(--ch-line);
   border-radius: 18px !important;
   box-shadow: var(--ch-shadow) !important;
@@ -1963,11 +1964,11 @@ button.ch-rec:disabled {
   border-top: 1px solid var(--ch-line-soft);
 }
 .arco-drawer {
-  background: rgba(10, 16, 24, 0.97) !important;
+  background: var(--ch-glass-deep) !important;
   border-right: 1px solid var(--ch-line);
 }
 .arco-message {
-  background: rgba(16, 24, 34, 0.96) !important;
+  background: var(--ch-glass-deep) !important;
   border: 1px solid var(--ch-line) !important;
   border-radius: 12px !important;
   box-shadow: var(--ch-shadow) !important;
@@ -2270,6 +2271,7 @@ button.ch-rec:disabled {
 
 body[data-theme='light'] {
   --ch-bg: #f5f5f7;
+  --ch-modal-bg: #ffffff;
   --ch-primary-soft: rgba(255, 108, 6, 0.1);
   --ch-primary-line: rgba(255, 108, 6, 0.45);
   --ch-teal: #1a1d21;
