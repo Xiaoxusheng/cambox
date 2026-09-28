@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"camhub/internal/logbuf"
 	"camhub/internal/pipeline"
 	"camhub/internal/store"
 )
@@ -19,11 +20,15 @@ var webFiles embed.FS
 type Server struct {
 	pl   *pipeline.Pipeline
 	st   *store.Store
+	logs *logbuf.Buffer
 	disk *diskCache
 }
 
-func New(pl *pipeline.Pipeline, st *store.Store) *Server {
-	return &Server{pl: pl, st: st, disk: &diskCache{}}
+func New(pl *pipeline.Pipeline, st *store.Store, logs *logbuf.Buffer) *Server {
+	if logs == nil {
+		logs = logbuf.New(logbuf.DefaultMax)
+	}
+	return &Server{pl: pl, st: st, logs: logs, disk: &diskCache{}}
 }
 
 // Handler 构建全部路由。
