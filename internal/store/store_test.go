@@ -16,7 +16,7 @@ func TestAppendAndList(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 	for i := 0; i < 5; i++ {
-		if _, err := s.Append("motion", 100+i, "/media/snapshots/x.jpg"); err != nil {
+		if _, err := s.Append("motion", 100+i, "/media/snapshots/x.jpg", ""); err != nil {
 			t.Fatalf("Append %d: %v", i, err)
 		}
 	}
@@ -55,7 +55,7 @@ func TestPersistenceAcrossReopen(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 3; i++ {
-		if _, err := s1.Append("motion", i, ""); err != nil {
+		if _, err := s1.Append("motion", i, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -67,7 +67,7 @@ func TestPersistenceAcrossReopen(t *testing.T) {
 	if got := s2.Count(); got != 3 {
 		t.Fatalf("重开后应加载 3 条, got %d", got)
 	}
-	ev, err := s2.Append("motion", 9, "")
+	ev, err := s2.Append("motion", 9, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestMaxEventsCapAndBadLines(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 5; i++ {
-		if _, err := s.Append("motion", i, ""); err != nil {
+		if _, err := s.Append("motion", i, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}

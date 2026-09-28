@@ -13,13 +13,15 @@ import (
 	"time"
 )
 
-// Event 一次移动侦测事件。Image 为面板可直接引用的相对 URL。
+// Event 一次事件。Image 为面板可直接引用的相对 URL。
+// Detail 仅 selfcheck 事件使用(契约 §3.4): frozen | occlusion, 其余为空串。
 type Event struct {
-	ID    int64     `json:"id"`
-	Time  time.Time `json:"time"`
-	Type  string    `json:"type"`
-	Score int       `json:"score"`
-	Image string    `json:"image"`
+	ID     int64     `json:"id"`
+	Time   time.Time `json:"time"`
+	Type   string    `json:"type"`
+	Score  int       `json:"score"`
+	Image  string    `json:"image"`
+	Detail string    `json:"detail"`
 }
 
 // Store 并发安全的事件存储。
@@ -83,11 +85,12 @@ func (s *Store) loadFile(path string) error {
 }
 
 // Append 追加一条事件并落盘(文件按月自动切换)。
-func (s *Store) Append(typ string, score int, image string) (Event, error) {
+// detail 仅 selfcheck 事件使用, 其余传空串。
+func (s *Store) Append(typ string, score int, image, detail string) (Event, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	ev := Event{ID: s.nextID, Time: time.Now(), Type: typ, Score: score, Image: image}
+	ev := Event{ID: s.nextID, Time: time.Now(), Type: typ, Score: score, Image: image, Detail: detail}
 	line, err := json.Marshal(ev)
 	if err != nil {
 		return Event{}, err

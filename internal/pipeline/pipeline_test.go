@@ -2,7 +2,9 @@ package pipeline
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"camhub/internal/config"
 	"camhub/internal/store"
@@ -105,5 +107,49 @@ func TestScheduleActiveAtRuntime(t *testing.T) {
 	}
 	if !p.MotionEffective() || !p.RecordEffective() {
 		t.Error("全天日程下两个 effective 都应为 true")
+	}
+}
+
+// 推送正文应包含排查所需的关键信息。
+func TestEventBodyContainsKeyFields(t *testing.T) {
+	p := newTestPipeline(t, func(c *config.Config) { c.Camera.Name = "前门" })
+	ev := store.Event{
+		ID:     42,
+		Time:   time.Date(2026, 9, 28, 15, 4, 5, 0, time.Local),
+		Type:   "selfcheck",
+		Score:  900,
+		Detail: "frozen",
+	}
+	body := p.eventBody(ev, "画面冻结")
+	for _, want := range []string{"前门", "画面冻结", "2026-09-28 15:04:05", "42", "900", "frozen"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("推送正文缺少 %q: %s", want, body)
+		}
+	}
+
+	// 无 detail / 无 score 的 motion 事件不应出现空行噪声
+	body = p.eventBody(store.Event{ID: 1, Time: time.Now(), Type: "motion"}, "移动侦测")
+	if strings.Contains(body, "详情:") {
+		t.Errorf("detail 为空时不应输出详情行: %s", body)
+	}
+}
+
+// 无启用通道时 notifyEvent 必须是空操作(不得 panic / 不得阻塞)。
+func TestNotifyEventNoopWithoutChannels(t *testing.T) {
+	p := newTestPipeline(t, nil)
+	if n := len(p.Notifier().EnabledChannels(p.Notifier().Config())); n != 0 {
+		t.Fatalf("默认配置不应有启用通道, got %d", n)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 200; i++ {
+			p.notifyEvent(store.Event{ID: int64(i)}, "", "移动侦测")
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("notifyEvent 阻塞")
 	}
 }

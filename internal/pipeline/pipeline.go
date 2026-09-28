@@ -18,6 +18,7 @@ import (
 	"camhub/internal/config"
 	"camhub/internal/detector"
 	"camhub/internal/imgconv"
+	"camhub/internal/notify"
 	"camhub/internal/recorder"
 	"camhub/internal/source"
 	"camhub/internal/store"
@@ -30,6 +31,7 @@ type Pipeline struct {
 	src     *source.Source
 	det     *detector.Motion
 	rec     *recorder.Recorder
+	nt      *notify.Notifier
 
 	mu       sync.RWMutex
 	settings config.Config
@@ -51,12 +53,16 @@ func New(cfg *config.Config, cfgPath string, st *store.Store) *Pipeline {
 		store:    st,
 		src:      src,
 		settings: *cfg,
+		nt:       notify.New(cfg.Notify),
 	}
 	p.armed.Store(true) // 重启默认布防
 	p.det = detector.New(cfg.Motion)
 	p.rec = recorder.New(src, p.Settings, p.RecordEffective)
 	return p
 }
+
+// Notifier 供 HTTP 层执行「发送测试」。
+func (p *Pipeline) Notifier() *notify.Notifier { return p.nt }
 
 // Settings 返回运行时配置副本。
 func (p *Pipeline) Settings() config.Config {
@@ -106,11 +112,12 @@ func (p *Pipeline) StartedAt() time.Time { return p.startedAt }
 func (p *Pipeline) Start(ctx context.Context) {
 	p.startedAt = time.Now()
 	ctx, p.cancel = context.WithCancel(ctx)
-	p.wg.Add(4)
+	p.wg.Add(5)
 	go func() { defer p.wg.Done(); p.src.Run(ctx) }()
 	go func() { defer p.wg.Done(); p.detectLoop(ctx) }()
 	go func() { defer p.wg.Done(); p.rec.Run(ctx) }()
 	go func() { defer p.wg.Done(); p.cleanLoop(ctx) }()
+	go func() { defer p.wg.Done(); p.nt.Run(ctx) }()
 	slog.Info("流水线已启动", "source", p.Settings().Camera.Type)
 }
 
@@ -185,13 +192,42 @@ func (p *Pipeline) recordEvent(f *source.Frame, d detector.Detection, eventsDir 
 		return
 	}
 
-	ev, err := p.store.Append("motion", d.Score, "/media/snapshots/events/"+name)
+	ev, err := p.store.Append("motion", d.Score, "/media/snapshots/events/"+name, "")
 	if err != nil {
 		slog.Error("事件入库失败", "err", err)
 		return
 	}
 	slog.Info("侦测到移动", "id", ev.ID, "score", d.Score,
 		"rect", fmt.Sprintf("(%d,%d)-(%d,%d)", d.Rect.Min.X, d.Rect.Min.Y, d.Rect.Max.X, d.Rect.Max.Y))
+
+	p.notifyEvent(ev, path, "移动侦测")
+}
+
+// notifyEvent 事件推送(契约 §2: 撤防只关事件入库+推送)。
+// 走 Notifier 异步队列, 不会阻塞侦测循环; 无启用通道时为空操作。
+func (p *Pipeline) notifyEvent(ev store.Event, imagePath, kind string) {
+	if len(p.nt.EnabledChannels(p.nt.Config())) == 0 {
+		return
+	}
+	p.nt.Send(notify.Message{
+		Title:     fmt.Sprintf("camhub %s", kind),
+		Body:      p.eventBody(ev, kind),
+		ImagePath: imagePath,
+		ImageURL:  ev.Image,
+		Link:      ev.Image,
+	})
+}
+
+func (p *Pipeline) eventBody(ev store.Event, kind string) string {
+	body := fmt.Sprintf("摄像头: %s\n类型: %s\n时间: %s\n事件 ID: %d",
+		p.Settings().Camera.Name, kind, ev.Time.Format("2006-01-02 15:04:05"), ev.ID)
+	if ev.Score > 0 {
+		body += fmt.Sprintf("\n得分: %d", ev.Score)
+	}
+	if ev.Detail != "" {
+		body += "\n详情: " + ev.Detail
+	}
+	return body
 }
 
 func (p *Pipeline) cleanLoop(ctx context.Context) {
