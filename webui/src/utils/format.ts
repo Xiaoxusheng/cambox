@@ -30,6 +30,31 @@ export function formatDuration(totalSec: number): string {
   return parts.join(' ')
 }
 
+/** 运行时长（概览卡样式）：3天 14:06；不足 1 天只显示 时:分 */
+export function formatUptime(totalSec: number): string {
+  if (!Number.isFinite(totalSec) || totalSec < 0) return '-'
+  const d = Math.floor(totalSec / 86400)
+  const h = Math.floor((totalSec / 3600) % 24)
+  const m = Math.floor((totalSec / 60) % 60)
+  const hm = `${pad(h)}:${pad(m)}`
+  return d > 0 ? `${d}天 ${hm}` : hm
+}
+
+/** 字节数 → GB（一位小数，配「x.x / 20 GB」展示） */
+export function formatGB(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return '-'
+  return (n / (1024 ** 3)).toFixed(1)
+}
+
+/** 时长（播放器用）：恒 HH:MM:SS */
+export function formatClockLong(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) return '00:00:00'
+  const s = Math.floor(sec % 60)
+  const m = Math.floor((sec / 60) % 60)
+  const h = Math.floor(sec / 3600)
+  return `${pad(h)}:${pad(m)}:${pad(s)}`
+}
+
 function pad(n: number): string {
   return n.toString().padStart(2, '0')
 }
@@ -60,6 +85,11 @@ export function formatClock(d: Date): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
+/** 时钟显示 "YYYY-MM-DD HH:mm:ss"（监控页 LIVE 遮罩用） */
+export function formatClockFull(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${formatClock(d)}`
+}
+
 /** 秒 → "MM:SS" / "HH:MM:SS"（播放器用） */
 export function formatClockDuration(sec: number): string {
   if (!Number.isFinite(sec) || sec < 0) return '00:00'
@@ -79,6 +109,19 @@ export function eventTypeLabel(type: string, detail?: string): string {
     return '自检'
   }
   return type
+}
+
+/** 事件标题强调色（设计稿：侦测=青 / 冻结=黄 / 异常=红） */
+export function eventAccent(type: string, detail?: string): '' | 'cyan' | 'warn' | 'danger' {
+  if (type === 'motion') return 'cyan'
+  if (detail === 'occlusion') return 'danger'
+  if (type === 'selfcheck') return 'warn'
+  return ''
+}
+
+/** 事件副标题：motion → 相机名；selfcheck → 画面自检 C3 */
+export function eventSubLabel(type: string, cameraName?: string): string {
+  return type === 'motion' ? cameraName || '摄像头' : '画面自检 C3'
 }
 
 /** 自检状态 → 文案 / 颜色 / 状态点（概览与监控页共用） */

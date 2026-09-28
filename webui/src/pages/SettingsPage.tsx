@@ -1,41 +1,29 @@
 /**
- * /settings 设置
- * Tabs：摄像头 / 侦测 / 录像存储 / 通知 / 布防日程 / 自检与日报 / Bot
- * 保存 = POST /api/config 全量（契约 §3.2）；camera 改动后提示"需重启生效"。
+ * /settings 设置（v1.3 按 camhub-ui-4k/06 设计稿重做）
+ * pill 标签页：摄像头 / 侦测 / 录像存储 / 通知 / 布防日程 / 自检与日报 / Bot。
+ * 行式设置卡（label+描述 左，控件 右）；ROI 内联编辑进 draft，随「保存全部」提交。
+ * 保存 = POST /api/config 全量（契约 §3.2）；camera 来源/解码改动提示需重启。
  */
 import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Checkbox,
-  Form,
   Input,
   InputNumber,
   Message,
   Modal,
   Select,
-  Space,
   Switch,
-  Tabs,
-  Tag,
   TimePicker,
   Tooltip,
 } from '@arco-design/web-react'
-import {
-  IconDelete,
-  IconEdit,
-  IconPlus,
-  IconRefresh,
-  IconSave,
-  IconSend,
-  IconUndo,
-} from '@arco-design/web-react/icon'
+import { IconPlus, IconRefresh, IconSend, IconUndo } from '@arco-design/web-react/icon'
 import { fetchConfig, fetchStatus, saveConfig, testNotify } from '../api/endpoints'
 import { errorText } from '../api/errors'
 import type { CameraConfig, Config, NotifyConfig, ScheduleRule, Status } from '../api/types'
 import { PageHeader } from '../components/PageHeader'
-import { Panel } from '../components/Panel'
 import { EmptyState, ErrorState, InitialLoading } from '../components/StateViews'
-import { StorageMeter } from '../components/StorageMeter'
+import { RoiEditorCard } from '../components/RoiEditorCard'
 import { useAsync } from '../hooks/useAsync'
 import { formatBytes } from '../utils/format'
 
@@ -52,43 +40,74 @@ const CAMERA_TYPES = [
   { label: 'dshow（Windows 采集设备）', value: 'dshow' },
 ]
 
+const TABS = [
+  { key: 'camera', label: '摄像头' },
+  { key: 'motion', label: '侦测' },
+  { key: 'record', label: '录像存储' },
+  { key: 'notify', label: '通知' },
+  { key: 'schedule', label: '布防日程' },
+  { key: 'selfcheck', label: '自检与日报' },
+  { key: 'bot', label: 'Bot' },
+] as const
+
+type TabKey = (typeof TABS)[number]['key']
+
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T
-const num = (v: number | undefined, fallback: number) => (typeof v === 'number' && !Number.isNaN(v) ? v : fallback)
+const num = (v: number | undefined, fallback: number) =>
+  typeof v === 'number' && !Number.isNaN(v) ? v : fallback
 
-/** 表单网格：窄屏自动单列 */
-const grid: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: 'var(--ch-space-md)',
-}
-
-function Field({ label, extra, children }: { label: string; extra?: string; children: React.ReactNode }) {
-  return (
-    <Form.Item label={label} extra={extra} style={{ marginBottom: 0 }}>
-      {children}
-    </Form.Item>
-  )
-}
-
-function SwitchField({
+/** 行式设置项：label+描述 左，控件 右 */
+function Row({
   label,
-  extra,
-  checked,
-  onChange,
+  sub,
+  children,
 }: {
-  label: string
-  extra?: string
-  checked: boolean
-  onChange: (v: boolean) => void
+  label: React.ReactNode
+  sub?: React.ReactNode
+  children: React.ReactNode
 }) {
   return (
-    <Form.Item label={label} extra={extra} style={{ marginBottom: 0 }}>
-      <Switch checked={checked} onChange={onChange} aria-label={label} />
-    </Form.Item>
+    <div className="ch-setrow">
+      <div className="ch-setrow-main">
+        <div className="ch-setrow-label">{label}</div>
+        {sub ? <div className="ch-setrow-desc">{sub}</div> : null}
+      </div>
+      <div className="ch-setrow-control">{children}</div>
+    </div>
   )
 }
 
-function ChannelBlock({
+/** 设置卡片 */
+function Card({
+  title,
+  sub,
+  extra,
+  children,
+  bodyStyle,
+}: {
+  title: React.ReactNode
+  sub?: React.ReactNode
+  extra?: React.ReactNode
+  children: React.ReactNode
+  bodyStyle?: React.CSSProperties
+}) {
+  return (
+    <section className="ch-panel">
+      <header className="ch-panel-head" style={{ paddingBottom: 14 }}>
+        <div>
+          <div className="ch-panel-title">{title}</div>
+          {sub ? <div className="ch-setrow-desc" style={{ marginTop: 3 }}>{sub}</div> : null}
+        </div>
+        {extra ? <div className="ch-panel-extra">{extra}</div> : null}
+      </header>
+      <div className="ch-panel-body" style={bodyStyle}>
+        {children}
+      </div>
+    </section>
+  )
+}
+
+function ChannelCard({
   title,
   hint,
   enabled,
@@ -106,35 +125,28 @@ function ChannelBlock({
   children?: React.ReactNode
 }) {
   return (
-    <div
-      style={{
-        border: '1px solid var(--color-border-2)',
-        borderRadius: 'var(--ch-radius-md)',
-        padding: 'var(--ch-space-md)',
-        marginBottom: 'var(--ch-space-md)',
-      }}
+    <Card
+      title={title}
+      sub={hint}
+      extra={
+        <>
+          <Tooltip content={enabled ? '向该通道发送一条测试消息' : '请先启用该通道'}>
+            <Button
+              size="small"
+              icon={<IconSend />}
+              disabled={!enabled}
+              loading={testing}
+              onClick={onTest}
+            >
+              测试
+            </Button>
+          </Tooltip>
+          <Switch checked={enabled} onChange={onToggle} aria-label={`启用${title}`} />
+        </>
+      }
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--ch-space-sm)',
-          marginBottom: enabled ? 'var(--ch-space-md)' : 0,
-        }}
-      >
-        <Switch size="small" checked={enabled} onChange={onToggle} aria-label={`启用${title}`} />
-        <span style={{ fontWeight: 600, fontSize: 13, flex: 1 }}>
-          {title}
-          {hint ? <span className="ch-muted" style={{ marginLeft: 8, fontWeight: 400 }}>{hint}</span> : null}
-        </span>
-        <Tooltip content={enabled ? '向该通道发送一条测试消息' : '请先启用该通道'}>
-          <Button size="small" icon={<IconSend />} disabled={!enabled} loading={testing} onClick={onTest}>
-            发送测试
-          </Button>
-        </Tooltip>
-      </div>
-      {enabled && children ? <div style={grid}>{children}</div> : null}
-    </div>
+      {enabled ? children : <div className="ch-muted">已停用：不接收该通道推送。</div>}
+    </Card>
   )
 }
 
@@ -144,6 +156,7 @@ export function SettingsPage() {
     [],
   )
 
+  const [tab, setTab] = useState<TabKey>('motion')
   const [draft, setDraft] = useState<Config | null>(null)
   const [baseline, setBaseline] = useState<Config | null>(null)
   const [saving, setSaving] = useState(false)
@@ -171,6 +184,20 @@ export function SettingsPage() {
     () => !!draft && !!baseline && JSON.stringify(draft) !== JSON.stringify(baseline),
     [draft, baseline],
   )
+  const dirtyCount = useMemo(() => {
+    if (!draft || !baseline) return 0
+    const keys: (keyof Config)[] = [
+      'camera',
+      'motion',
+      'record',
+      'notify',
+      'schedules',
+      'selfcheck',
+      'digest',
+      'bot',
+    ]
+    return keys.filter((k) => JSON.stringify(draft[k]) !== JSON.stringify(baseline[k])).length
+  }, [draft, baseline])
   const cameraDirty = useMemo(
     () => !!draft && !!baseline && JSON.stringify(draft.camera) !== JSON.stringify(baseline.camera),
     [draft, baseline],
@@ -195,8 +222,7 @@ export function SettingsPage() {
     })
   }
 
-  const setRules = (rules: ScheduleRule[]) =>
-    setDraft((d) => (d ? { ...d, schedules: { rules } } : d))
+  const setRules = (rules: ScheduleRule[]) => setDraft((d) => (d ? { ...d, schedules: { rules } } : d))
 
   async function onSave() {
     if (!draft) return
@@ -229,7 +255,9 @@ export function SettingsPage() {
       const res = await testNotify(channel)
       const failed = res.results.filter((r) => !r.ok)
       if (failed.length === 0) {
-        Message.success(`测试消息已发送：${res.results.map((r) => r.channel).join('、') || '（无启用通道）'}`)
+        Message.success(
+          `测试消息已发送：${res.results.map((r) => r.channel).join('、') || '（无启用通道）'}`,
+        )
       } else {
         Message.error(failed.map((r) => `${r.channel}：${r.error || '发送失败'}`).join('；'))
       }
@@ -287,427 +315,453 @@ export function SettingsPage() {
     <>
       <PageHeader
         title="设置"
-        description="所有修改在点击「保存配置」后提交；来源与解码参数需重启生效，其余配置（含预览质量/帧率）热更新生效。"
+        description="保存后写入 configs/config.yaml · 摄像头与端口改动需重启生效"
         actions={
-          <Button icon={<IconRefresh />} loading={loading} onClick={reload}>
+          <Button className="ch-btn" icon={<IconRefresh />} loading={loading} onClick={reload}>
             重新加载
           </Button>
         }
       />
 
-      <Panel bodyStyle={{ paddingTop: 'var(--ch-space-sm)' }}>
-        <Tabs defaultActiveTab="camera" type="line">
-          {/* ---------------- 摄像头 ---------------- */}
-          <Tabs.TabPane key="camera" title="摄像头">
-            <div className="ch-note" style={{ marginBottom: 'var(--ch-space-md)' }}>
-              来源类型 / 流地址 / 解码尺寸等参数保存后<strong>需重启服务</strong>才会生效；
-              预览质量与预览帧率热更新即时生效。
-            </div>
-            <Form layout="vertical">
-              <div style={grid}>
-                <Field label="名称">
+      <div className="ch-tabs" role="tablist" aria-label="设置分组">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
+            className={`ch-tabpill ${tab === t.key ? 'active' : ''}`}
+            onClick={() => setTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ---------------- 摄像头 ---------------- */}
+      {tab === 'camera' ? (
+        <div className="ch-settings-grid">
+          <Card
+            title="摄像头来源"
+            sub="来源类型 / 流地址 / 解码尺寸保存后需重启服务生效"
+            bodyStyle={{ paddingTop: 4 }}
+          >
+            <Row label="名称" sub="显示在面板顶部栏与事件副标题">
+              <Input
+                value={cam.name}
+                onChange={(v) => patchSection('camera', { name: v })}
+                style={{ width: 220 }}
+                placeholder="如：前门摄像头"
+              />
+            </Row>
+            <Row label="来源类型">
+              <Select
+                value={cam.type}
+                onChange={(v) => patchSection('camera', { type: v as CameraConfig['type'] })}
+                options={CAMERA_TYPES}
+                style={{ width: 220 }}
+              />
+            </Row>
+            {cam.type === 'rtsp' ? (
+              <>
+                <Row label="主码流地址" sub="用于流复制录像">
                   <Input
-                    value={cam.name}
-                    onChange={(v) => patchSection('camera', { name: v })}
-                    placeholder="显示在面板标题上的相机名"
+                    value={cam.rtsp}
+                    onChange={(v) => patchSection('camera', { rtsp: v })}
+                    style={{ width: 340 }}
+                    placeholder="rtsp://user:pass@192.168.1.10:554/stream0"
                   />
-                </Field>
-                <Field label="来源类型">
-                  <Select
-                    value={cam.type}
-                    onChange={(v) => patchSection('camera', { type: v as CameraConfig['type'] })}
-                    options={CAMERA_TYPES}
-                  />
-                </Field>
-
-                {cam.type === 'rtsp' ? (
-                  <>
-                    <Field label="主码流地址（录像用）">
-                      <Input
-                        value={cam.rtsp}
-                        onChange={(v) => patchSection('camera', { rtsp: v })}
-                        placeholder="rtsp://user:pass@192.168.1.10:554/stream1"
-                      />
-                    </Field>
-                    <Field label="子码流地址（预览 + 检测解码）" extra="留空则使用主码流；子码流分辨率不一致时由服务端统一缩放到下方尺寸">
-                      <Input
-                        value={cam.sub_rtsp}
-                        onChange={(v) => patchSection('camera', { sub_rtsp: v })}
-                        placeholder="rtsp://user:pass@192.168.1.10:554/stream2"
-                      />
-                    </Field>
-                  </>
-                ) : null}
-
-                {cam.type === 'url' ? (
-                  <Field
-                    label="流地址（必填）"
-                    extra="HTTP-FLV / HLS / RTMP 网络流地址。直播平台地址通常带签名且会过期，失效后需更新；留空时服务端将报「未配置流地址」并按重连间隔重试"
-                  >
-                    <Input
-                      value={cam.url}
-                      onChange={(v) => patchSection('camera', { url: v })}
-                      placeholder="https://.../live.flv 或 rtmp://..."
-                      allowClear
-                    />
-                  </Field>
-                ) : null}
-
-                {cam.type === 'file' ? (
-                  <Field label="视频文件路径">
-                    <Input value={cam.file} onChange={(v) => patchSection('camera', { file: v })} />
-                  </Field>
-                ) : null}
-
-                {cam.type === 'dshow' ? (
-                  <Field label="DirectShow 设备名">
-                    <Input
-                      value={cam.dshow_device}
-                      onChange={(v) => patchSection('camera', { dshow_device: v })}
-                      placeholder='video="USB Camera"'
-                    />
-                  </Field>
-                ) : null}
-
-                <Field label="解码宽度" extra="解码输出会被强制缩放到该尺寸">
-                  <InputNumber
-                    value={cam.width}
-                    min={64}
-                    max={7680}
-                    onChange={(v) => patchSection('camera', { width: num(v, cam.width) })}
-                  />
-                </Field>
-                <Field label="解码高度">
-                  <InputNumber
-                    value={cam.height}
-                    min={64}
-                    max={4320}
-                    onChange={(v) => patchSection('camera', { height: num(v, cam.height) })}
-                  />
-                </Field>
-                <Field label="目标帧率">
-                  <InputNumber
-                    value={cam.fps}
-                    min={1}
-                    max={120}
-                    onChange={(v) => patchSection('camera', { fps: num(v, cam.fps) })}
-                  />
-                </Field>
-                <Field label="断流重连间隔（秒）">
-                  <InputNumber
-                    value={cam.reconnect_delay_sec}
-                    min={1}
-                    max={60}
-                    onChange={(v) =>
-                      patchSection('camera', { reconnect_delay_sec: num(v, cam.reconnect_delay_sec) })
-                    }
-                  />
-                </Field>
-                <Field
-                  label="预览质量"
-                  extra="MJPEG 预览与抓拍的 JPEG 画质（1–100），保存后热更新即时生效；预览观感低于录像属预期"
+                </Row>
+                <Row
+                  label="子码流地址"
+                  sub="用于解码 / 检测 / 预览；留空用主码流，分辨率不一致会统一缩放"
                 >
-                  <InputNumber
-                    value={cam.preview_quality}
-                    min={1}
-                    max={100}
-                    onChange={(v) =>
-                      patchSection('camera', { preview_quality: num(v, cam.preview_quality) })
-                    }
+                  <Input
+                    value={cam.sub_rtsp}
+                    onChange={(v) => patchSection('camera', { sub_rtsp: v })}
+                    style={{ width: 340 }}
+                    placeholder="rtsp://user:pass@192.168.1.10:554/stream1"
                   />
-                </Field>
-                <Field
-                  label="预览帧率"
-                  extra="MJPEG 推送帧率上限（1–30，不是录像帧率），热更新即时生效、无需刷新页面"
-                >
-                  <InputNumber
-                    value={cam.preview_fps}
-                    min={1}
-                    max={30}
-                    onChange={(v) => patchSection('camera', { preview_fps: num(v, cam.preview_fps) })}
-                  />
-                </Field>
-              </div>
-            </Form>
-          </Tabs.TabPane>
-
-          {/* ---------------- 侦测 ---------------- */}
-          <Tabs.TabPane key="motion" title="侦测">
-            <Form layout="vertical">
-              <div style={grid}>
-                <SwitchField
-                  label="启用移动侦测"
-                  extra="关闭后不再产生侦测事件（受布防日程约束）"
-                  checked={motion.enabled}
-                  onChange={(v) => patchSection('motion', { enabled: v })}
+                </Row>
+              </>
+            ) : null}
+            {cam.type === 'url' ? (
+              <Row label="流地址" sub="HTTP-FLV / HLS / RTMP；直播地址带签名会过期，失效后更新">
+                <Input
+                  value={cam.url}
+                  onChange={(v) => patchSection('camera', { url: v })}
+                  style={{ width: 340 }}
+                  placeholder="https://.../live.flv"
+                  allowClear
                 />
-                <Field label="像素差阈值（1–255）" extra="越小越敏感">
-                  <InputNumber
-                    value={motion.threshold}
-                    min={1}
-                    max={255}
-                    onChange={(v) => patchSection('motion', { threshold: num(v, motion.threshold) })}
-                  />
-                </Field>
-                <Field label="最小变化面积（像素）">
-                  <InputNumber
-                    value={motion.min_area}
-                    min={1}
-                    onChange={(v) => patchSection('motion', { min_area: num(v, motion.min_area) })}
-                  />
-                </Field>
-                <Field label="事件冷却（秒）" extra="同一通道在该时间内只记录一次">
-                  <InputNumber
-                    value={motion.cooldown_sec}
-                    min={1}
-                    max={3600}
-                    onChange={(v) =>
-                      patchSection('motion', { cooldown_sec: num(v, motion.cooldown_sec) })
-                    }
-                  />
-                </Field>
-                <Field label="检测降采样宽度" extra="越小越快、越省 CPU">
-                  <InputNumber
-                    value={motion.downscale_width}
-                    min={64}
-                    max={1920}
-                    onChange={(v) =>
-                      patchSection('motion', { downscale_width: num(v, motion.downscale_width) })
-                    }
-                  />
-                </Field>
-              </div>
-
-              <div style={{ marginTop: 'var(--ch-space-lg)' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-                  检测区域（ROI）
-                  <span className="ch-muted" style={{ marginLeft: 8, fontWeight: 400 }}>
-                    {motion.rois.length === 0 ? '未设置，按全屏检测' : `已设置 ${motion.rois.length} 个`}
-                  </span>
-                </div>
-                {motion.rois.length === 0 ? (
-                  <div className="ch-muted">
-                    当前统计全部画面内的变化像素。
-                  </div>
-                ) : (
-                  <Space wrap size={8}>
-                    {motion.rois.map((r, i) => (
-                      <Tag key={i} className="num" size="small">
-                        #{i + 1} x{r[0].toFixed(2)} y{r[1].toFixed(2)} w{r[2].toFixed(2)} h{r[3].toFixed(2)}
-                      </Tag>
-                    ))}
-                  </Space>
-                )}
-                <div className="ch-muted" style={{ marginTop: 8 }}>
-                  在「监控」页的「检测区域」弹层里拖拽画框即可编辑检测区域。
-                </div>
-              </div>
-            </Form>
-          </Tabs.TabPane>
-
-          {/* ---------------- 录像存储 ---------------- */}
-          <Tabs.TabPane key="record" title="录像存储">
-            <Form layout="vertical">
-              <div style={grid}>
-                <SwitchField
-                  label="启用录像"
-                  extra="受布防日程中的 record 开关约束"
-                  checked={record.enabled}
-                  onChange={(v) => patchSection('record', { enabled: v })}
+              </Row>
+            ) : null}
+            {cam.type === 'file' ? (
+              <Row label="视频文件路径">
+                <Input
+                  value={cam.file}
+                  onChange={(v) => patchSection('camera', { file: v })}
+                  style={{ width: 340 }}
                 />
-                <Field label="存储目录" extra="相对路径基于服务运行目录">
-                  <Input value={record.dir} onChange={(v) => patchSection('record', { dir: v })} />
-                </Field>
-                <Field label="分段时长（秒）" extra={`约 ${(record.segment_seconds / 60).toFixed(1)} 分钟`}>
-                  <InputNumber
-                    value={record.segment_seconds}
-                    min={10}
-                    max={86400}
-                    onChange={(v) =>
-                      patchSection('record', { segment_seconds: num(v, record.segment_seconds) })
-                    }
-                  />
-                </Field>
-                <Field label="保留天数">
-                  <InputNumber
-                    value={record.retention_days}
-                    min={1}
-                    max={3650}
-                    onChange={(v) =>
-                      patchSection('record', { retention_days: num(v, record.retention_days) })
-                    }
-                  />
-                </Field>
-                <Field label="磁盘上限（GB）" extra="超出后自动清理最早录像">
-                  <InputNumber
-                    value={record.max_disk_gb}
-                    min={1}
-                    onChange={(v) => patchSection('record', { max_disk_gb: num(v, record.max_disk_gb) })}
-                  />
-                </Field>
-                <Field
-                  label="编码 CRF"
-                  extra="仅对 synthetic / file / dshow 源生效（0–51，越小越清晰、体积越大）；rtsp/url 源为原始码流复制，此值无效。下一次录像分段启动时生效"
-                >
-                  <InputNumber
-                    value={record.encode_crf}
-                    min={0}
-                    max={51}
-                    onChange={(v) => patchSection('record', { encode_crf: num(v, record.encode_crf) })}
-                  />
-                </Field>
-              </div>
+              </Row>
+            ) : null}
+            {cam.type === 'dshow' ? (
+              <Row label="DirectShow 设备名">
+                <Input
+                  value={cam.dshow_device}
+                  onChange={(v) => patchSection('camera', { dshow_device: v })}
+                  style={{ width: 340 }}
+                  placeholder='video="USB Camera"'
+                />
+              </Row>
+            ) : null}
+          </Card>
 
-              <div style={{ marginTop: 'var(--ch-space-lg)', maxWidth: 480 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>当前磁盘水位</div>
-                <StorageMeter usedBytes={status.disk.recordings_bytes} maxGb={status.disk.max_gb} />
-                <div className="ch-muted" style={{ marginTop: 8 }}>
-                  快照占用 <span className="num">{formatBytes(status.disk.snapshots_bytes)}</span>；修改上限需保存后生效。
-                </div>
-              </div>
-            </Form>
-          </Tabs.TabPane>
+          <Card title="解码与预览" sub="预览质量与预览帧率热更新即时生效，其余需重启" bodyStyle={{ paddingTop: 4 }}>
+            <Row label="解码宽度" sub="解码输出统一缩放到该尺寸">
+              <InputNumber
+                value={cam.width}
+                min={64}
+                max={7680}
+                onChange={(v) => patchSection('camera', { width: num(v, cam.width) })}
+              />
+            </Row>
+            <Row label="解码高度">
+              <InputNumber
+                value={cam.height}
+                min={64}
+                max={4320}
+                onChange={(v) => patchSection('camera', { height: num(v, cam.height) })}
+              />
+            </Row>
+            <Row label="目标帧率">
+              <InputNumber
+                value={cam.fps}
+                min={1}
+                max={120}
+                onChange={(v) => patchSection('camera', { fps: num(v, cam.fps) })}
+              />
+            </Row>
+            <Row label="断流重连间隔" sub="单位：秒">
+              <InputNumber
+                value={cam.reconnect_delay_sec}
+                min={1}
+                max={60}
+                onChange={(v) =>
+                  patchSection('camera', { reconnect_delay_sec: num(v, cam.reconnect_delay_sec) })
+                }
+              />
+            </Row>
+            <Row label="预览质量" sub="MJPEG 预览与抓拍的 JPEG 画质 1–100">
+              <InputNumber
+                value={cam.preview_quality}
+                min={1}
+                max={100}
+                onChange={(v) =>
+                  patchSection('camera', { preview_quality: num(v, cam.preview_quality) })
+                }
+              />
+            </Row>
+            <Row label="预览帧率" sub="MJPEG 推送帧率上限 1–30（不是录像帧率）">
+              <InputNumber
+                value={cam.preview_fps}
+                min={1}
+                max={30}
+                onChange={(v) => patchSection('camera', { preview_fps: num(v, cam.preview_fps) })}
+              />
+            </Row>
+          </Card>
+        </div>
+      ) : null}
 
-          {/* ---------------- 通知 ---------------- */}
-          <Tabs.TabPane key="notify" title="通知">
-            <Form layout="vertical">
-              <div style={{ maxWidth: 280 }}>
-                <Field label="推送限流（秒）" extra="同一通道在该时间内最多推送一次（10–3600）">
-                  <InputNumber
-                    value={notify.cooldown_sec}
-                    min={10}
-                    max={3600}
-                    onChange={(v) => patchSection('notify', { cooldown_sec: num(v, notify.cooldown_sec) })}
-                  />
-                </Field>
-              </div>
+      {/* ---------------- 侦测 ---------------- */}
+      {tab === 'motion' ? (
+        <div className="ch-settings-grid">
+          <Card title="移动侦测" sub="帧差法 · 解码子码流 · 实时计算" bodyStyle={{ paddingTop: 4 }}>
+            <Row label="移动侦测启用" sub="关闭后停止事件入库与推送">
+              <Switch
+                checked={motion.enabled}
+                onChange={(v) => patchSection('motion', { enabled: v })}
+                aria-label="移动侦测启用"
+              />
+            </Row>
+            <Row label={<>触发阈值 <span className="num">threshold</span></>} sub="帧差得分超过该值判定为移动">
+              <InputNumber
+                value={motion.threshold}
+                min={1}
+                max={255}
+                onChange={(v) => patchSection('motion', { threshold: num(v, motion.threshold) })}
+              />
+            </Row>
+            <Row label={<>最小面积 <span className="num">min_area (px)</span></>} sub="小于该面积的变动忽略">
+              <InputNumber
+                value={motion.min_area}
+                min={1}
+                onChange={(v) => patchSection('motion', { min_area: num(v, motion.min_area) })}
+              />
+            </Row>
+            <Row label={<>冷却时间 <span className="num">cooldown_sec</span></>} sub="同一次事件的合并窗口">
+              <InputNumber
+                value={motion.cooldown_sec}
+                min={1}
+                max={3600}
+                onChange={(v) => patchSection('motion', { cooldown_sec: num(v, motion.cooldown_sec) })}
+                suffix="s"
+              />
+            </Row>
+            <Row label="检测降采样宽度" sub="越小越快、越省 CPU">
+              <InputNumber
+                value={motion.downscale_width}
+                min={64}
+                max={1920}
+                onChange={(v) =>
+                  patchSection('motion', { downscale_width: num(v, motion.downscale_width) })
+                }
+              />
+            </Row>
+            <div className="ch-hint">提示：光照突变（开关灯）可能误报，调大三项参数可缓解。</div>
+          </Card>
 
-              <div style={{ marginTop: 'var(--ch-space-md)' }}>
-                <ChannelBlock
-                  title="钉钉"
-                  enabled={notify.dingtalk.enabled}
-                  onToggle={(v) => patchNotify('dingtalk', { enabled: v })}
-                  testing={testing === 'dingtalk'}
-                  onTest={() => onTest('dingtalk')}
-                >
-                  <Field label="Webhook 地址">
-                    <Input
-                      value={notify.dingtalk.webhook}
-                      onChange={(v) => patchNotify('dingtalk', { webhook: v })}
-                      placeholder="https://oapi.dingtalk.com/robot/send?access_token=..."
-                    />
-                  </Field>
-                  <Field label="加签密钥（可选）">
-                    <Input
-                      value={notify.dingtalk.secret}
-                      onChange={(v) => patchNotify('dingtalk', { secret: v })}
-                      placeholder="SEC..."
-                    />
-                  </Field>
-                </ChannelBlock>
-
-                <ChannelBlock
-                  title="企业微信"
-                  enabled={notify.wecom.enabled}
-                  onToggle={(v) => patchNotify('wecom', { enabled: v })}
-                  testing={testing === 'wecom'}
-                  onTest={() => onTest('wecom')}
-                >
-                  <Field label="Webhook 地址">
-                    <Input
-                      value={notify.wecom.webhook}
-                      onChange={(v) => patchNotify('wecom', { webhook: v })}
-                      placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..."
-                    />
-                  </Field>
-                </ChannelBlock>
-
-                <ChannelBlock
-                  title="Telegram"
-                  enabled={notify.telegram.enabled}
-                  onToggle={(v) => patchNotify('telegram', { enabled: v })}
-                  testing={testing === 'telegram'}
-                  onTest={() => onTest('telegram')}
-                >
-                  <Field label="Bot Token">
-                    <Input
-                      value={notify.telegram.bot_token}
-                      onChange={(v) => patchNotify('telegram', { bot_token: v })}
-                      placeholder="123456:ABC-DEF..."
-                    />
-                  </Field>
-                  <Field label="Chat ID">
-                    <Input
-                      value={notify.telegram.chat_id}
-                      onChange={(v) => patchNotify('telegram', { chat_id: v })}
-                      placeholder="会话或群组 ID"
-                    />
-                  </Field>
-                </ChannelBlock>
-
-                <ChannelBlock
-                  title="Bark"
-                  enabled={notify.bark.enabled}
-                  onToggle={(v) => patchNotify('bark', { enabled: v })}
-                  testing={testing === 'bark'}
-                  onTest={() => onTest('bark')}
-                >
-                  <Field label="服务地址">
-                    <Input
-                      value={notify.bark.server}
-                      onChange={(v) => patchNotify('bark', { server: v })}
-                      placeholder="https://api.day.app"
-                    />
-                  </Field>
-                  <Field label="Device Key">
-                    <Input
-                      value={notify.bark.device_key}
-                      onChange={(v) => patchNotify('bark', { device_key: v })}
-                    />
-                  </Field>
-                </ChannelBlock>
-
-                <ChannelBlock
-                  title="自定义 Webhook"
-                  enabled={notify.webhook.enabled}
-                  onToggle={(v) => patchNotify('webhook', { enabled: v })}
-                  testing={testing === 'webhook'}
-                  onTest={() => onTest('webhook')}
-                >
-                  <Field label="回调地址">
-                    <Input
-                      value={notify.webhook.url}
-                      onChange={(v) => patchNotify('webhook', { url: v })}
-                      placeholder="https://example.com/hook"
-                    />
-                  </Field>
-                  <Field label="签名密钥（可选）">
-                    <Input
-                      value={notify.webhook.secret}
-                      onChange={(v) => patchNotify('webhook', { secret: v })}
-                    />
-                  </Field>
-                </ChannelBlock>
-              </div>
-              <div className="ch-muted">
-                未启用的通道不会收到推送；「发送测试」会立即向已启用通道发送一条测试消息。
-              </div>
-            </Form>
-          </Tabs.TabPane>
-
-          {/* ---------------- 布防日程 ---------------- */}
-          <Tabs.TabPane key="schedule" title="布防日程">
-            <div className="ch-note info" style={{ marginBottom: 'var(--ch-space-md)' }}>
-              日程为空时全天按「侦测 / 录像」总开关执行。开始时间等于结束时间表示全天；结束早于开始表示跨零点。
+          <Card
+            title="检测区域 ROI"
+            sub="最多 8 个 · 归一化坐标 0~1 · 留空 = 全屏检测"
+            bodyStyle={{ paddingTop: 4 }}
+          >
+            <div style={{ paddingTop: 12 }}>
+              <RoiEditorCard rois={motion.rois} onChange={(rois) => patchSection('motion', { rois })} />
             </div>
-            <div style={{ marginBottom: 'var(--ch-space-md)' }}>
-              <Button type="primary" icon={<IconPlus />} onClick={() => openRuleEditor(-1)}>
+          </Card>
+        </div>
+      ) : null}
+
+      {/* ---------------- 录像存储 ---------------- */}
+      {tab === 'record' ? (
+        <div className="ch-settings-grid">
+          <Card title="录像" sub="循环分段写入，按天数与容量自动清理" bodyStyle={{ paddingTop: 4 }}>
+            <Row label="启用录像" sub="受布防日程中的录像开关约束">
+              <Switch
+                checked={record.enabled}
+                onChange={(v) => patchSection('record', { enabled: v })}
+                aria-label="启用录像"
+              />
+            </Row>
+            <Row label="存储目录" sub="相对路径基于服务运行目录">
+              <Input
+                value={record.dir}
+                onChange={(v) => patchSection('record', { dir: v })}
+                style={{ width: 260 }}
+              />
+            </Row>
+            <Row label="分段时长" sub={`当前约 ${(record.segment_seconds / 60).toFixed(1)} 分钟`}>
+              <InputNumber
+                value={record.segment_seconds}
+                min={10}
+                max={86400}
+                onChange={(v) =>
+                  patchSection('record', { segment_seconds: num(v, record.segment_seconds) })
+                }
+                suffix="s"
+              />
+            </Row>
+            <Row label="编码 CRF" sub="仅 synthetic / file / dshow 源生效（0–51，越小越清晰）；rtsp/url 为流复制，此值无效">
+              <InputNumber
+                value={record.encode_crf}
+                min={0}
+                max={51}
+                onChange={(v) => patchSection('record', { encode_crf: num(v, record.encode_crf) })}
+              />
+            </Row>
+          </Card>
+
+          <Card title="循环清理" sub="按天数 + 按容量双阈值，快照同受天数管理" bodyStyle={{ paddingTop: 4 }}>
+            <Row label="保留天数" sub="超过后自动删除最旧录像">
+              <InputNumber
+                value={record.retention_days}
+                min={1}
+                max={3650}
+                onChange={(v) =>
+                  patchSection('record', { retention_days: num(v, record.retention_days) })
+                }
+                suffix="天"
+              />
+            </Row>
+            <Row label="磁盘上限" sub="到达后自动清理最旧分段">
+              <InputNumber
+                value={record.max_disk_gb}
+                min={1}
+                onChange={(v) => patchSection('record', { max_disk_gb: num(v, record.max_disk_gb) })}
+                suffix="GB"
+              />
+            </Row>
+            <div style={{ marginTop: 16 }}>
+              <div className="ch-setrow-label" style={{ marginBottom: 8 }}>
+                当前磁盘水位
+              </div>
+              <div className="ch-meter">
+                <span
+                  className="ch-meter-fill"
+                  style={{
+                    display: 'block',
+                    width: `${Math.min(100, (status.disk.recordings_bytes / Math.max(1, status.disk.max_gb * 1024 ** 3)) * 100)}%`,
+                  }}
+                />
+              </div>
+              <div className="ch-muted" style={{ marginTop: 8 }}>
+                录像 <span className="num">{formatBytes(status.disk.recordings_bytes)}</span> /{' '}
+                <span className="num">{status.disk.max_gb} GB</span> · 快照{' '}
+                <span className="num">{formatBytes(status.disk.snapshots_bytes)}</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {/* ---------------- 通知 ---------------- */}
+      {tab === 'notify' ? (
+        <div className="ch-settings-grid">
+          <Card title="推送限流" sub="同一通道在该时间内最多推送一次" bodyStyle={{ paddingTop: 4 }}>
+            <Row label="限流间隔" sub="10–3600 秒">
+              <InputNumber
+                value={notify.cooldown_sec}
+                min={10}
+                max={3600}
+                onChange={(v) => patchSection('notify', { cooldown_sec: num(v, notify.cooldown_sec) })}
+                suffix="s"
+              />
+            </Row>
+          </Card>
+
+          <ChannelCard
+            title="钉钉"
+            enabled={notify.dingtalk.enabled}
+            onToggle={(v) => patchNotify('dingtalk', { enabled: v })}
+            testing={testing === 'dingtalk'}
+            onTest={() => onTest('dingtalk')}
+          >
+            <Row label="Webhook 地址">
+              <Input
+                value={notify.dingtalk.webhook}
+                onChange={(v) => patchNotify('dingtalk', { webhook: v })}
+                style={{ width: 320 }}
+                placeholder="https://oapi.dingtalk.com/robot/send?access_token=..."
+              />
+            </Row>
+            <Row label="加签密钥" sub="可选，SEC 开头">
+              <Input
+                value={notify.dingtalk.secret}
+                onChange={(v) => patchNotify('dingtalk', { secret: v })}
+                style={{ width: 320 }}
+                placeholder="SEC..."
+              />
+            </Row>
+          </ChannelCard>
+
+          <ChannelCard
+            title="企业微信"
+            enabled={notify.wecom.enabled}
+            onToggle={(v) => patchNotify('wecom', { enabled: v })}
+            testing={testing === 'wecom'}
+            onTest={() => onTest('wecom')}
+          >
+            <Row label="Webhook 地址">
+              <Input
+                value={notify.wecom.webhook}
+                onChange={(v) => patchNotify('wecom', { webhook: v })}
+                style={{ width: 320 }}
+                placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..."
+              />
+            </Row>
+          </ChannelCard>
+
+          <ChannelCard
+            title="Telegram"
+            enabled={notify.telegram.enabled}
+            onToggle={(v) => patchNotify('telegram', { enabled: v })}
+            testing={testing === 'telegram'}
+            onTest={() => onTest('telegram')}
+          >
+            <Row label="Bot Token">
+              <Input
+                value={notify.telegram.bot_token}
+                onChange={(v) => patchNotify('telegram', { bot_token: v })}
+                style={{ width: 320 }}
+                placeholder="123456:ABC-DEF..."
+              />
+            </Row>
+            <Row label="Chat ID" sub="会话或群组 ID">
+              <Input
+                value={notify.telegram.chat_id}
+                onChange={(v) => patchNotify('telegram', { chat_id: v })}
+                style={{ width: 320 }}
+              />
+            </Row>
+          </ChannelCard>
+
+          <ChannelCard
+            title="Bark"
+            enabled={notify.bark.enabled}
+            onToggle={(v) => patchNotify('bark', { enabled: v })}
+            testing={testing === 'bark'}
+            onTest={() => onTest('bark')}
+          >
+            <Row label="服务地址">
+              <Input
+                value={notify.bark.server}
+                onChange={(v) => patchNotify('bark', { server: v })}
+                style={{ width: 320 }}
+                placeholder="https://api.day.app"
+              />
+            </Row>
+            <Row label="Device Key">
+              <Input
+                value={notify.bark.device_key}
+                onChange={(v) => patchNotify('bark', { device_key: v })}
+                style={{ width: 320 }}
+              />
+            </Row>
+          </ChannelCard>
+
+          <ChannelCard
+            title="自定义 Webhook"
+            enabled={notify.webhook.enabled}
+            onToggle={(v) => patchNotify('webhook', { enabled: v })}
+            testing={testing === 'webhook'}
+            onTest={() => onTest('webhook')}
+          >
+            <Row label="回调地址">
+              <Input
+                value={notify.webhook.url}
+                onChange={(v) => patchNotify('webhook', { url: v })}
+                style={{ width: 320 }}
+                placeholder="https://example.com/hook"
+              />
+            </Row>
+            <Row label="签名密钥" sub="可选">
+              <Input
+                value={notify.webhook.secret}
+                onChange={(v) => patchNotify('webhook', { secret: v })}
+                style={{ width: 320 }}
+              />
+            </Row>
+          </ChannelCard>
+        </div>
+      ) : null}
+
+      {/* ---------------- 布防日程 ---------------- */}
+      {tab === 'schedule' ? (
+        <div style={{ maxWidth: 920 }}>
+          <div className="ch-note info ch-gap-md">
+            日程为空时全天按「侦测 / 录像」总开关执行。开始时间等于结束时间表示全天；结束早于开始表示跨零点。
+          </div>
+          <Card
+            title="日程规则"
+            sub={`最多 16 条 · 当前 ${draft.schedules.rules.length} 条`}
+            extra={
+              <Button type="primary" size="small" icon={<IconPlus />} onClick={() => openRuleEditor(-1)}>
                 添加规则
               </Button>
-              <span className="ch-muted" style={{ marginLeft: 12 }}>
-                {draft.schedules.rules.length}/16 条
-              </span>
-            </div>
+            }
+          >
             {draft.schedules.rules.length === 0 ? (
               <EmptyState
                 title="暂无布防日程"
@@ -719,205 +773,197 @@ export function SettingsPage() {
                 }
               />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ch-space-sm)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {draft.schedules.rules.map((r, i) => (
-                  <div
-                    className="ch-roi-item"
-                    key={i}
-                    style={{ gap: 'var(--ch-space-md)', flexWrap: 'wrap' }}
-                  >
-                    <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap', minWidth: 176 }}>
-                      {r.days.length === 0 ? (
-                        <span className="ch-muted">未选择星期</span>
-                      ) : (
-                        r.days.map((d) => (
-                          <Tag key={d} size="small">
-                            {DAY_LABELS[d - 1] ?? d}
-                          </Tag>
-                        ))
-                      )}
+                  <div className="ch-roi-item" key={i} style={{ color: 'var(--ch-text-1)', flexWrap: 'wrap', rowGap: 6 }}>
+                    <span style={{ display: 'inline-flex', gap: 4 }}>
+                      {(r.days.length === 0 ? [] : r.days).map((d) => (
+                        <span key={d} className="ch-badge num">
+                          {DAY_LABELS[d - 1] ?? d}
+                        </span>
+                      ))}
+                      {r.days.length === 0 ? <span className="ch-muted">未选择星期</span> : null}
                     </span>
-                    <span className="num" style={{ minWidth: 148 }}>
+                    <span className="num">
                       {r.start} – {r.end}
                       {r.start === r.end ? '（全天）' : r.end < r.start ? '（跨零点）' : ''}
                     </span>
-                    <Tag color={r.motion ? 'arcoblue' : undefined} size="small">
+                    <span className={`ch-badge ${r.motion ? 'cyan' : ''}`}>
                       侦测 {r.motion ? '开' : '关'}
-                    </Tag>
-                    <Tag color={r.record ? 'green' : undefined} size="small">
+                    </span>
+                    <span className={`ch-badge ${r.record ? 'ok' : ''}`}>
                       录像 {r.record ? '开' : '关'}
-                    </Tag>
+                    </span>
                     <span style={{ flex: 1 }} />
-                    <Button size="mini" type="text" icon={<IconEdit />} onClick={() => openRuleEditor(i)}>
+                    <button type="button" className="ch-linkbtn" onClick={() => openRuleEditor(i)}>
                       编辑
-                    </Button>
-                    <Button
-                      size="mini"
-                      type="text"
-                      status="danger"
-                      icon={<IconDelete />}
+                    </button>
+                    <button
+                      type="button"
+                      className="ch-linkbtn danger"
                       onClick={() => setRules(draft.schedules.rules.filter((_, k) => k !== i))}
                     >
                       删除
-                    </Button>
+                    </button>
                   </div>
                 ))}
               </div>
             )}
-          </Tabs.TabPane>
+          </Card>
+        </div>
+      ) : null}
 
-          {/* ---------------- 自检与日报 ---------------- */}
-          <Tabs.TabPane key="selfcheck" title="自检与日报">
-            <Form layout="vertical">
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>画面自检</div>
-              <div style={grid}>
-                <SwitchField
-                  label="启用画面自检"
-                  extra="周期性检测画面冻结与被遮挡"
-                  checked={selfcheck.enabled}
-                  onChange={(v) => patchSection('selfcheck', { enabled: v })}
-                />
-                <Field label="自检周期（秒）" extra="60–3600">
-                  <InputNumber
-                    value={selfcheck.interval_sec}
-                    min={60}
-                    max={3600}
-                    onChange={(v) =>
-                      patchSection('selfcheck', { interval_sec: num(v, selfcheck.interval_sec) })
-                    }
-                  />
-                </Field>
-                <Field label="冻结判定连续次数" extra="连续 N 次画面完全静止判为冻结">
-                  <InputNumber
-                    value={selfcheck.frozen_checks}
-                    min={1}
-                    max={60}
-                    onChange={(v) =>
-                      patchSection('selfcheck', { frozen_checks: num(v, selfcheck.frozen_checks) })
-                    }
-                  />
-                </Field>
-                <Field label="画面突变阈值（1–255）">
-                  <InputNumber
-                    value={selfcheck.change_threshold}
-                    min={1}
-                    max={255}
-                    onChange={(v) =>
-                      patchSection('selfcheck', {
-                        change_threshold: num(v, selfcheck.change_threshold),
-                      })
-                    }
-                  />
-                </Field>
-                <Field label="突变判定连续次数">
-                  <InputNumber
-                    value={selfcheck.change_checks}
-                    min={1}
-                    max={60}
-                    onChange={(v) =>
-                      patchSection('selfcheck', { change_checks: num(v, selfcheck.change_checks) })
-                    }
-                  />
-                </Field>
-              </div>
+      {/* ---------------- 自检与日报 ---------------- */}
+      {tab === 'selfcheck' ? (
+        <div className="ch-settings-grid">
+          <Card title="画面自检" sub="周期比对帧，识别画面冻结与被遮挡（C3）" bodyStyle={{ paddingTop: 4 }}>
+            <Row label="启用画面自检">
+              <Switch
+                checked={selfcheck.enabled}
+                onChange={(v) => patchSection('selfcheck', { enabled: v })}
+                aria-label="启用画面自检"
+              />
+            </Row>
+            <Row label="自检周期" sub="60–3600 秒">
+              <InputNumber
+                value={selfcheck.interval_sec}
+                min={60}
+                max={3600}
+                onChange={(v) =>
+                  patchSection('selfcheck', { interval_sec: num(v, selfcheck.interval_sec) })
+                }
+                suffix="s"
+              />
+            </Row>
+            <Row label="冻结判定连续次数" sub="连续 N 次画面完全静止判为冻结">
+              <InputNumber
+                value={selfcheck.frozen_checks}
+                min={1}
+                max={60}
+                onChange={(v) =>
+                  patchSection('selfcheck', { frozen_checks: num(v, selfcheck.frozen_checks) })
+                }
+              />
+            </Row>
+            <Row label="画面突变阈值" sub="1–255">
+              <InputNumber
+                value={selfcheck.change_threshold}
+                min={1}
+                max={255}
+                onChange={(v) =>
+                  patchSection('selfcheck', { change_threshold: num(v, selfcheck.change_threshold) })
+                }
+              />
+            </Row>
+            <Row label="突变判定连续次数">
+              <InputNumber
+                value={selfcheck.change_checks}
+                min={1}
+                max={60}
+                onChange={(v) =>
+                  patchSection('selfcheck', { change_checks: num(v, selfcheck.change_checks) })
+                }
+              />
+            </Row>
+            <Row label="当前状态">
+              <span className={`ch-badge ${status.selfcheck.state === 'ok' ? 'ok' : 'warn'}`}>
+                {status.selfcheck.state === 'ok'
+                  ? '正常'
+                  : status.selfcheck.state === 'frozen'
+                    ? '画面冻结'
+                    : '画面异常'}
+              </span>
+            </Row>
+            <div className="ch-hint num">
+              连续冻结 {status.selfcheck.consecutive_frozen} 次 · 连续突变{' '}
+              {status.selfcheck.consecutive_change} 次
+            </div>
+          </Card>
 
-              <div style={{ marginTop: 'var(--ch-space-lg)', maxWidth: 480 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>当前自检状态</div>
-                <div style={{ fontSize: 13, color: 'var(--color-text-2)', lineHeight: '22px' }}>
-                  <div>
-                    状态：
-                    <Tag
-                      size="small"
-                      color={status.selfcheck.state === 'ok' ? 'green' : 'orange'}
-                    >
-                      {status.selfcheck.state === 'ok'
-                        ? '正常'
-                        : status.selfcheck.state === 'frozen'
-                          ? '画面冻结'
-                          : '画面异常'}
-                    </Tag>
-                  </div>
-                  <div className="num">
-                    连续冻结 {status.selfcheck.consecutive_frozen} 次 · 连续突变{' '}
-                    {status.selfcheck.consecutive_change} 次
-                  </div>
-                </div>
-              </div>
+          <Card title="每日日报" sub="每天定时推送过去 24h 事件统计" bodyStyle={{ paddingTop: 4 }}>
+            <Row label="启用每日日报">
+              <Switch
+                checked={digest.enabled}
+                onChange={(v) => patchSection('digest', { enabled: v })}
+                aria-label="启用每日日报"
+              />
+            </Row>
+            <Row label="推送时刻" sub="当地时间">
+              <TimePicker
+                value={digest.time}
+                format="HH:mm"
+                onChange={(v) => patchSection('digest', { time: v || digest.time })}
+              />
+            </Row>
+          </Card>
+        </div>
+      ) : null}
 
-              <div style={{ fontSize: 13, fontWeight: 600, margin: '24px 0 12px' }}>每日日报</div>
-              <div style={grid}>
-                <SwitchField
-                  label="启用每日日报"
-                  extra="每天统计过去 24 小时事件并推送"
-                  checked={digest.enabled}
-                  onChange={(v) => patchSection('digest', { enabled: v })}
-                />
-                <Field label="推送时刻（当地时间）">
-                  <TimePicker
-                    value={digest.time}
-                    format="HH:mm"
-                    onChange={(v) => patchSection('digest', { time: v || digest.time })}
-                  />
-                </Field>
-              </div>
-            </Form>
-          </Tabs.TabPane>
+      {/* ---------------- Bot ---------------- */}
+      {tab === 'bot' ? (
+        <div style={{ maxWidth: 760 }}>
+          <div className="ch-note info ch-gap-md">
+            Telegram 双向控制。命令：<code>/status</code> <code>/arm</code> <code>/disarm</code>{' '}
+            <code>/snap</code> <code>/events [n]</code> <code>/help</code>。Bot Token
+            变更后需重启服务才会重新建立轮询。
+          </div>
+          <Card title="Telegram Bot" bodyStyle={{ paddingTop: 4 }}>
+            <Row label="启用 Bot">
+              <Switch
+                checked={bot.enabled}
+                onChange={(v) => patchSection('bot', { enabled: v })}
+                aria-label="启用 Bot"
+              />
+            </Row>
+            <Row label="Bot Token" sub="可与通知中的 Telegram Token 相同">
+              <Input
+                value={bot.bot_token}
+                onChange={(v) => patchSection('bot', { bot_token: v })}
+                style={{ width: 340 }}
+                placeholder="123456:ABC-DEF..."
+              />
+            </Row>
+            <Row label="允许的用户 ID" sub="Telegram 数字用户 ID；留空则拒绝所有请求">
+              <Select
+                mode="multiple"
+                allowCreate
+                value={bot.allowed_users}
+                onChange={(v) =>
+                  patchSection('bot', {
+                    allowed_users: (v as string[]).filter((s) => /^\d+$/.test(s)),
+                  })
+                }
+                placeholder="输入数字 ID 后回车"
+                allowClear
+                style={{ width: 340 }}
+              />
+            </Row>
+            <div className="ch-hint">
+              出于安全考虑，只有白名单内的用户才能通过 Bot 操作布防、抓拍与查询事件。
+            </div>
+          </Card>
+        </div>
+      ) : null}
 
-          {/* ---------------- Bot ---------------- */}
-          <Tabs.TabPane key="bot" title="Bot">
-            <Form layout="vertical">
-              <div className="ch-note info" style={{ marginBottom: 'var(--ch-space-md)' }}>
-                Telegram 双向控制。命令：<code>/status</code> <code>/arm</code> <code>/disarm</code>{' '}
-                <code>/snap</code> <code>/events [n]</code> <code>/help</code>。
-                Bot Token 变更后需重启服务才会重新建立轮询。
-              </div>
-              <div style={grid}>
-                <SwitchField
-                  label="启用 Bot"
-                  checked={bot.enabled}
-                  onChange={(v) => patchSection('bot', { enabled: v })}
-                />
-                <Field label="Bot Token" extra="可与通知中的 Telegram Token 相同">
-                  <Input
-                    value={bot.bot_token}
-                    onChange={(v) => patchSection('bot', { bot_token: v })}
-                    placeholder="123456:ABC-DEF..."
-                  />
-                </Field>
-                <Field label="允许的用户 ID" extra="Telegram 数字用户 ID；留空则拒绝所有请求">
-                  <Select
-                    mode="multiple"
-                    allowCreate
-                    value={bot.allowed_users}
-                    onChange={(v) =>
-                      patchSection('bot', {
-                        allowed_users: (v as string[]).filter((s) => /^\d+$/.test(s)),
-                      })
-                    }
-                    placeholder="输入数字 ID 后回车"
-                    allowClear
-                  />
-                </Field>
-              </div>
-              <div className="ch-muted" style={{ marginTop: 8 }}>
-                出于安全考虑，只有白名单内的用户才能通过 Bot 操作布防、抓拍与查询事件。
-              </div>
-            </Form>
-          </Tabs.TabPane>
-        </Tabs>
-      </Panel>
-
+      {/* 底部保存条 */}
       <div className="ch-savebar">
-        <Button type="primary" icon={<IconSave />} loading={saving} disabled={!dirty} onClick={onSave}>
-          保存配置
-        </Button>
-        <Button icon={<IconUndo />} disabled={!dirty} onClick={onReset}>
-          撤销修改
-        </Button>
-        <span className="ch-muted" style={{ flex: 1 }}>
-          {dirty ? '有未保存的修改' : '与服务器一致'}
-          {cameraDirty ? ' · 来源与解码参数需重启生效' : ''}
+        <span className={`ch-savebar-text ${dirty ? 'dirty' : ''}`}>
+          {dirty
+            ? `有 ${dirtyCount} 处未保存的修改 · 保存后写入 configs/config.yaml${cameraDirty ? '（摄像头来源与解码参数需重启生效）' : ''}`
+            : '与服务器一致'}
         </span>
+        <button type="button" className="ch-btn" disabled={!dirty} onClick={onReset}>
+          <IconUndo />
+          撤销
+        </button>
+        <button
+          type="button"
+          className="ch-btn primary"
+          disabled={!dirty || saving}
+          onClick={onSave}
+        >
+          {saving ? '保存中…' : '保存全部'}
+        </button>
       </div>
 
       <Modal
@@ -929,11 +975,16 @@ export function SettingsPage() {
         onCancel={() => setRuleModal(false)}
         autoFocus={false}
       >
-        <Form layout="vertical">
-          <Form.Item label="生效星期">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <div className="ch-setrow-label" style={{ marginBottom: 8 }}>
+              生效星期
+            </div>
             <Checkbox.Group
               value={ruleDraft.days}
-              onChange={(v) => setRuleDraft({ ...ruleDraft, days: (v as number[]).slice().sort((a, b) => a - b) })}
+              onChange={(v) =>
+                setRuleDraft({ ...ruleDraft, days: (v as number[]).slice().sort((a, b) => a - b) })
+              }
             >
               {DAY_LABELS.map((label, i) => (
                 <Checkbox key={i + 1} value={i + 1}>
@@ -941,38 +992,41 @@ export function SettingsPage() {
                 </Checkbox>
               ))}
             </Checkbox.Group>
-          </Form.Item>
-          <div style={grid}>
-            <Form.Item label="开始时间">
+          </div>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div className="ch-setrow-label" style={{ marginBottom: 8 }}>
+                开始时间
+              </div>
               <TimePicker
                 value={ruleDraft.start}
                 format="HH:mm"
                 onChange={(v) => setRuleDraft({ ...ruleDraft, start: v || ruleDraft.start })}
               />
-            </Form.Item>
-            <Form.Item label="结束时间" extra="与开始相同表示全天；早于开始表示跨零点">
+            </div>
+            <div>
+              <div className="ch-setrow-label" style={{ marginBottom: 8 }}>
+                结束时间
+              </div>
               <TimePicker
                 value={ruleDraft.end}
                 format="HH:mm"
                 onChange={(v) => setRuleDraft({ ...ruleDraft, end: v || ruleDraft.end })}
               />
-            </Form.Item>
+            </div>
           </div>
-          <div style={grid}>
-            <Form.Item label="允许移动侦测">
-              <Switch
-                checked={ruleDraft.motion}
-                onChange={(v) => setRuleDraft({ ...ruleDraft, motion: v })}
-              />
-            </Form.Item>
-            <Form.Item label="允许录像">
-              <Switch
-                checked={ruleDraft.record}
-                onChange={(v) => setRuleDraft({ ...ruleDraft, record: v })}
-              />
-            </Form.Item>
+          <div className="ch-muted">结束与开始相同表示全天；早于开始表示跨零点。</div>
+          <div style={{ display: 'flex', gap: 24 }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Switch checked={ruleDraft.motion} onChange={(v) => setRuleDraft({ ...ruleDraft, motion: v })} />
+              允许移动侦测
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Switch checked={ruleDraft.record} onChange={(v) => setRuleDraft({ ...ruleDraft, record: v })} />
+              允许录像
+            </label>
           </div>
-        </Form>
+        </div>
       </Modal>
     </>
   )

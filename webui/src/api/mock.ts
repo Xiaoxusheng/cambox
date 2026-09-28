@@ -168,7 +168,8 @@ function defaultConfig(): Config {
       min_area: 500,
       cooldown_sec: 8,
       downscale_width: 320,
-      rois: [],
+      // mock 默认给一个 ROI，便于离线自查监控页覆盖框与设置页 ROI 编辑器（真实后端默认全屏）
+      rois: [[0.18, 0.12, 0.37, 0.56]],
     },
     record: {
       enabled: true,

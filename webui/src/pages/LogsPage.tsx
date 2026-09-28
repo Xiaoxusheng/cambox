@@ -1,16 +1,14 @@
 /**
- * /logs 日志
+ * /logs 日志（v1.3 按 camhub-ui-4k/07 设计稿重做）
  * EventSource 消费 GET /api/logs/stream（契约 §3.3）：先回放缓冲区再实时推送。
- * 支持级别筛选、级别着色、暂停接收、清屏；贴底自动滚动。
+ * 支持级别筛选、级别着色、暂停接收、清屏；贴底自动滚动。终端风格等宽排版。
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Message, Select, Tag } from '@arco-design/web-react'
-import { IconDelete, IconPause, IconPlayArrow } from '@arco-design/web-react/icon'
+import { Select } from '@arco-design/web-react'
 import { IS_MOCK } from '../api/client'
 import { openLogStream } from '../api/logStream'
 import type { LogEntry } from '../api/types'
 import { PageHeader } from '../components/PageHeader'
-import { Panel } from '../components/Panel'
 import { EmptyState, InlineLoading } from '../components/StateViews'
 
 const MAX_LINES = 2000
@@ -88,22 +86,22 @@ export function LogsPage() {
     [entries, level],
   )
 
-  const errorCount = useMemo(() => entries.filter((e) => e.level === 'ERROR').length, [entries])
-  const warnCount = useMemo(() => entries.filter((e) => e.level === 'WARN').length, [entries])
-
-  const connTag =
+  const connView =
     conn === 'open' ? (
-      <Tag color="green" size="small">
+      <span className="ch-livebar-item" style={{ color: 'var(--ch-ok)' }}>
+        <span className="ch-status-dot ok" />
         已连接
-      </Tag>
+      </span>
     ) : conn === 'connecting' ? (
-      <Tag color="orange" size="small">
+      <span className="ch-livebar-item" style={{ color: 'var(--ch-warn)' }}>
+        <span className="ch-status-dot warn" />
         连接中
-      </Tag>
+      </span>
     ) : (
-      <Tag color="red" size="small">
+      <span className="ch-livebar-item" style={{ color: 'var(--ch-danger)' }}>
+        <span className="ch-status-dot err" />
         连接中断
-      </Tag>
+      </span>
     )
 
   return (
@@ -112,77 +110,60 @@ export function LogsPage() {
         title="日志"
         description={
           <>
-            实时日志流（内存环形缓冲 500 条 + 实时推送）
-            {IS_MOCK ? '；当前为 mock 模拟流' : ''}
-          </>
-        }
-        actions={
-          <>
-            <Button
-              icon={paused ? <IconPlayArrow /> : <IconPause />}
-              onClick={() => {
-                setPaused((p) => !p)
-                if (paused) {
-                  stickRef.current = true
-                  Message.info('已恢复接收日志')
-                }
-              }}
-            >
-              {paused ? '继续' : '暂停'}
-            </Button>
-            <Button
-              icon={<IconDelete />}
-              disabled={entries.length === 0}
-              onClick={() => setEntries([])}
-            >
-              清屏
-            </Button>
+            SSE 实时推送 · 环形缓冲 <span className="num">{MAX_LINES}</span> 条 · 贴底自动滚动
+            {IS_MOCK ? '（当前为 mock 模拟流）' : ''}
           </>
         }
       />
 
-      <Panel
-        title="运行日志"
-        extra={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {connTag}
-            <Select
-              value={level}
-              onChange={setLevel}
-              options={LEVEL_OPTIONS}
-              style={{ width: 132 }}
-              size="small"
-              aria-label="日志级别筛选"
-            />
-          </div>
-        }
-        bodyStyle={{ padding: 0 }}
-      >
-        <div
-          className="ch-toolbar"
-          style={{
-            padding: 'var(--ch-space-sm) var(--ch-space-md)',
-            borderBottom: '1px solid var(--color-border-1)',
+      <div className="ch-filterbar">
+        <Select
+          value={level}
+          onChange={setLevel}
+          options={LEVEL_OPTIONS}
+          style={{ width: 150 }}
+          aria-label="日志级别筛选"
+        />
+        <span className="ch-muted num">
+          共 {entries.length} 条
+          {level ? ` · 显示 ${shown.length} 条` : ''} · 警告{' '}
+          {entries.filter((e) => e.level === 'WARN').length} · 错误{' '}
+          {entries.filter((e) => e.level === 'ERROR').length}
+        </span>
+        <span className="ch-filterbar-spacer" />
+        {connView}
+        <button
+          type="button"
+          className={`ch-btn ${paused ? '' : ''}`}
+          onClick={() => {
+            setPaused((p) => !p)
+            if (paused) {
+              stickRef.current = true
+            }
           }}
         >
-          <span className="ch-muted num">
-            共 {entries.length} 条
-            {level ? ` · 显示 ${shown.length} 条` : ''} · 警告 {warnCount} · 错误 {errorCount}
-          </span>
-          <span className="ch-header-spacer" />
-          {paused ? (
-            <Tag color="orange" size="small">
-              已暂停接收，暂停期间的新日志不会显示
-            </Tag>
-          ) : null}
+          {paused ? '▶ 继续' : '❚❚ 暂停'}
+        </button>
+        <button
+          type="button"
+          className="ch-btn danger"
+          disabled={entries.length === 0}
+          onClick={() => setEntries([])}
+        >
+          清屏
+        </button>
+      </div>
+
+      {streamError ? (
+        <div className="ch-note danger ch-gap-md">{streamError}</div>
+      ) : null}
+      {paused ? (
+        <div className="ch-note ch-gap-md">
+          已暂停接收，暂停期间的新日志不会显示；点「继续」恢复。
         </div>
+      ) : null}
 
-        {streamError ? (
-          <div className="ch-note danger" style={{ margin: 'var(--ch-space-md)' }}>
-            {streamError}
-          </div>
-        ) : null}
-
+      <section className="ch-panel">
         <div className="ch-log-view" ref={viewRef} onScroll={onScroll}>
           {shown.length === 0 ? (
             conn === 'connecting' && entries.length === 0 ? (
@@ -197,9 +178,9 @@ export function LogsPage() {
                 }
                 action={
                   level ? (
-                    <Button size="small" onClick={() => setLevel('')}>
+                    <button type="button" className="ch-btn sm" onClick={() => setLevel('')}>
                       显示全部级别
-                    </Button>
+                    </button>
                   ) : undefined
                 }
               />
@@ -214,7 +195,7 @@ export function LogsPage() {
             ))
           )}
         </div>
-      </Panel>
+      </section>
     </>
   )
 }

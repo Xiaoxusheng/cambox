@@ -1,37 +1,37 @@
 /**
- * /dashboard 概览
- * 信息层级：① 六个运行状态（含布防开关）② 今日事件趋势 ③ 最新 5 条事件。
+ * /dashboard 概览（v1.3 按 camhub-ui-4k/02 设计稿重做）
+ * 信息层级：① 六张状态卡 ② 今日事件趋势（侦测/自检双系列） ③ 最新事件。
  */
-import { useState } from 'react'
-import { Button, Message, Switch, Tag, Tooltip } from '@arco-design/web-react'
+import { Button } from '@arco-design/web-react'
 import { IconRefresh } from '@arco-design/web-react/icon'
-import { fetchEvents, fetchStatus, fetchTimeline, setArmed } from '../api/endpoints'
-import { errorText } from '../api/errors'
-import { mediaUrl } from '../api/media'
-import type { EventsResponse, Status, TimelineData } from '../api/types'
+import { fetchEvents, fetchStatus, fetchTimeline } from '../api/endpoints'
+import type { Event, Status, TimelineData } from '../api/types'
 import { HourlyChart } from '../components/HourlyChart'
+import { EventList } from '../components/EventList'
 import { PageHeader } from '../components/PageHeader'
-import { Panel } from '../components/Panel'
-import { EmptyState, ErrorState, InitialLoading } from '../components/StateViews'
-import { StorageMeter } from '../components/StorageMeter'
+import { ErrorState, InitialLoading } from '../components/StateViews'
 import { useAsync } from '../hooks/useAsync'
-import {
-  eventTypeLabel,
-  formatBytes,
-  formatDateTime,
-  formatDuration,
-  formatTime,
-  selfCheckView,
-  toLocalDateStr,
-} from '../utils/format'
+import { formatGB, formatTime, formatUptime, selfCheckView, toLocalDateStr } from '../utils/format'
 
 const GB = 1024 ** 3
 
-type DashboardData = [Status, TimelineData, EventsResponse]
+type DashboardData = [Status, TimelineData, Event[]]
+
+const dayStart = (s: string) => new Date(`${s}T00:00:00`).toISOString()
+const dayEnd = (s: string) => new Date(`${s}T23:59:59.999`).toISOString()
+
+/** 当日自检事件按小时分桶（长度 24） */
+function bucketSelfcheck(events: Event[]): number[] {
+  const out = Array.from({ length: 24 }, () => 0)
+  for (const e of events) {
+    const d = new Date(e.time)
+    if (!Number.isNaN(d.getTime())) out[d.getHours()] += 1
+  }
+  return out
+}
 
 export function DashboardPage() {
   const today = toLocalDateStr(new Date())
-  const [armPending, setArmPending] = useState(false)
 
   const { data, loading, error, reload } = useAsync<DashboardData>(
     (signal) =>
@@ -39,31 +39,31 @@ export function DashboardPage() {
         fetchStatus(signal),
         fetchTimeline(today, signal),
         fetchEvents({ limit: 5, offset: 0 }, signal),
-      ]),
+      ]).then(([s, t, ev]) => [s, t, ev.items] as DashboardData),
     [today],
     { pollMs: 5000 },
   )
-
-  async function toggleArm(next: boolean) {
-    setArmPending(true)
-    try {
-      await setArmed(next)
-      Message.success(next ? '已布防，移动侦测事件将入库并推送' : '已撤防，仅停止事件入库与推送（录像不受影响）')
-      reload()
-    } catch (e) {
-      Message.error(errorText(e))
-    } finally {
-      setArmPending(false)
-    }
-  }
+  // 自检分桶不必每 5s 重拉：单独低频刷新
+  const { data: selfcheckEvents } = useAsync(
+    (signal) =>
+      fetchEvents({ limit: 500, offset: 0, type: 'selfcheck', from: dayStart(today), to: dayEnd(today) }, signal),
+    [today],
+  )
 
   if (loading && !data) return <InitialLoading rows={4} />
   if (error && !data) return <ErrorState error={error} onRetry={reload} />
   if (!data) return null
 
   const [status, timeline, events] = data
-  const diskPct = Math.min(100, (status.disk.recordings_bytes / Math.max(1, status.disk.max_gb * GB)) * 100)
+  const cam = status.camera
+  const diskPct = Math.min(
+    100,
+    (status.disk.recordings_bytes / Math.max(1, status.disk.max_gb * GB)) * 100,
+  )
   const sc = selfCheckView(status.selfcheck)
+  const modeLabel =
+    status.recorder.mode === 'copy' ? '流复制' : status.recorder.mode === 'encode' ? '编码' : status.recorder.mode
+  const selfcheckHourly = bucketSelfcheck(selfcheckEvents?.items ?? [])
 
   return (
     <>
@@ -71,149 +71,137 @@ export function DashboardPage() {
         title="概览"
         description={
           <>
-            数据时间 <span className="num">{formatTime(status.time)}</span>
+            数据时间 <span className="num">{formatTime(status.time)}</span> · 每 5 秒自动刷新
             {error ? <span style={{ color: 'var(--ch-danger)' }}> · 刷新失败：{error}</span> : null}
           </>
         }
         actions={
-          <Button icon={<IconRefresh />} loading={loading} onClick={reload}>
+          <Button className="ch-btn" icon={<IconRefresh />} loading={loading} onClick={reload}>
             刷新
           </Button>
         }
       />
 
-      <Panel
-        title="运行状态"
-        extra={
-          <Tag color={status.camera.connected ? 'green' : 'red'} size="small">
-            {status.camera.connected ? '在线' : '离线'}
-          </Tag>
-        }
-        bodyStyle={{ padding: 0 }}
-        style={{ marginBottom: 'var(--ch-space-md)' }}
-      >
-        <div className="ch-stat-grid">
-          <div className="ch-stat-cell">
-            <div className="ch-stat-label">连接</div>
-            <div className="ch-stat-value">
-              <span className={`ch-status-dot ${status.camera.connected ? 'ok' : 'err'}`} />
-              {status.camera.connected ? '已连接' : '未连接'}
-            </div>
-            <div className="ch-stat-sub">
-              {status.camera.type} · <span className="num">{status.camera.fps.toFixed(1)} fps</span>
-            </div>
+      <div className="ch-stats">
+        <div className="ch-statcard">
+          <div className="ch-stat-label">连接</div>
+          <div className={`ch-stat-value ${cam.connected ? 'ok' : 'danger'}`}>
+            <span className={`ch-status-dot ${cam.connected ? 'ok' : 'err'}`} />
+            {cam.connected ? '已连接' : '未连接'}
           </div>
-
-          <div className="ch-stat-cell">
-            <div className="ch-stat-label">录像</div>
-            <div className="ch-stat-value">{status.recorder.running ? '录像中' : '已停止'}</div>
-            <div className="ch-stat-sub" title={status.recorder.current_file}>
-              {status.recorder.enabled
-                ? status.recorder.current_file || '等待分段'
-                : '配置已关闭'}
-            </div>
-          </div>
-
-          <div className="ch-stat-cell">
-            <div className="ch-stat-label">布防</div>
-            <div className="ch-stat-value" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Switch
-                size="small"
-                checked={status.armed}
-                loading={armPending}
-                onChange={toggleArm}
-                aria-label="布防开关"
-              />
-              <span style={{ color: status.armed ? 'var(--ch-ok)' : 'var(--color-text-3)' }}>
-                {status.armed ? '布防中' : '已撤防'}
-              </span>
-            </div>
-            <div className="ch-stat-sub">
-              日程 侦测 {status.schedule_active.motion ? '开' : '关'} · 录像{' '}
-              {status.schedule_active.record ? '开' : '关'}
-            </div>
-          </div>
-
-          <div className="ch-stat-cell">
-            <div className="ch-stat-label">磁盘水位</div>
-            <div className="ch-stat-value num">{diskPct.toFixed(1)}%</div>
-            <div style={{ marginTop: 8 }}>
-              <StorageMeter
-                usedBytes={status.disk.recordings_bytes}
-                maxGb={status.disk.max_gb}
-                showLabel={false}
-              />
-            </div>
-            <div className="ch-stat-sub num">
-              {formatBytes(status.disk.recordings_bytes)} / {status.disk.max_gb} GB
-            </div>
-          </div>
-
-          <div className="ch-stat-cell">
-            <div className="ch-stat-label">运行时长</div>
-            <div className="ch-stat-value num">{formatDuration(status.uptime_sec)}</div>
-            <div className="ch-stat-sub num">累计事件 {status.events_count} 条</div>
-          </div>
-
-          <div className="ch-stat-cell">
-            <div className="ch-stat-label">自检状态</div>
-            <div className="ch-stat-value" style={{ color: sc.color }}>
-              <span className={`ch-status-dot ${sc.dot}`} />
-              {sc.text}
-            </div>
-            <div className="ch-stat-sub num">
-              {status.selfcheck.enabled
-                ? `上次 ${formatTime(status.selfcheck.last_run)}`
-                : '未启用画面自检'}
-            </div>
+          <div className="ch-stat-sub">
+            {cam.type.toUpperCase()} · <span className="num">{cam.fps.toFixed(1)} FPS</span>
           </div>
         </div>
-      </Panel>
 
-      <div className="ch-split">
-        <Panel
-          title="今日事件趋势"
-          extra={<span className="ch-muted num">{timeline.date}</span>}
-        >
-          <HourlyChart hourly={timeline.hourly} date={timeline.date} />
-        </Panel>
+        <div className="ch-statcard">
+          <div className="ch-stat-label">录像</div>
+          <div className="ch-stat-value">{status.recorder.running ? '录像中' : '已停止'}</div>
+          <div className="ch-stat-sub num" title={status.recorder.current_file}>
+            {status.recorder.enabled
+              ? [status.recorder.current_file || '等待分段', modeLabel].filter(Boolean).join(' · ')
+              : '配置已关闭'}
+          </div>
+        </div>
 
-        <Panel
-          title="最新事件"
-          extra={
-            <Tooltip content="前往事件中心">
-              <a className="ch-muted" href="#/events">
+        <div className="ch-statcard">
+          <div className="ch-stat-label">布防</div>
+          <div className={`ch-stat-value ${status.armed ? 'ok' : ''}`}>
+            {status.armed ? '布防中' : '已撤防'}
+          </div>
+          <div className="ch-stat-sub">
+            日程 · 侦测 {status.schedule_active.motion ? '开' : '关'} / 录像{' '}
+            {status.schedule_active.record ? '开' : '关'}
+          </div>
+        </div>
+
+        <div className="ch-statcard">
+          <div className="ch-stat-label">磁盘水位</div>
+          <div
+            className={`ch-stat-value num ${diskPct >= 90 ? 'danger' : diskPct >= 75 ? 'warn' : 'cyan'}`}
+          >
+            {diskPct.toFixed(1)}%
+          </div>
+          <div className="ch-meter" style={{ marginTop: 8 }} role="progressbar" aria-valuenow={Math.round(diskPct)} aria-valuemin={0} aria-valuemax={100} aria-label={`磁盘使用率 ${diskPct.toFixed(1)}%`}>
+            <span
+              className="ch-meter-fill"
+              style={{
+                display: 'block',
+                width: `${diskPct}%`,
+                background:
+                  diskPct >= 90 ? 'var(--ch-danger)' : diskPct >= 75 ? 'var(--ch-warn)' : 'var(--ch-primary)',
+              }}
+            />
+          </div>
+          <div className="ch-stat-sub num">
+            {formatGB(status.disk.recordings_bytes)} / {status.disk.max_gb} GB
+          </div>
+        </div>
+
+        <div className="ch-statcard">
+          <div className="ch-stat-label">运行时长</div>
+          <div className="ch-stat-value num">{formatUptime(status.uptime_sec)}</div>
+          <div className="ch-stat-sub num">累计事件 {status.events_count} 条</div>
+        </div>
+
+        <div className="ch-statcard">
+          <div className="ch-stat-label">自检状态</div>
+          <div className="ch-stat-value" style={{ color: sc.color }}>
+            <span className={`ch-status-dot ${sc.dot}`} />
+            {sc.text}
+          </div>
+          <div className="ch-stat-sub num">
+            {status.selfcheck.enabled ? `上次 ${formatTime(status.selfcheck.last_run)}` : '未启用画面自检'}
+          </div>
+        </div>
+      </div>
+
+      <div className="ch-dash-split">
+        <section className="ch-panel">
+          <header className="ch-panel-head">
+            <div className="ch-panel-title">今日事件趋势</div>
+            <div className="ch-panel-extra">
+              <span className="ch-badge num">{timeline.date}</span>
+            </div>
+          </header>
+          <div className="ch-panel-body">
+            <div className="ch-legend" style={{ marginBottom: 12 }}>
+              <span>
+                <i style={{ background: 'var(--ch-primary)' }} />
+                移动侦测
+              </span>
+              <span>
+                <i style={{ background: 'var(--ch-warn)' }} />
+                画面自检
+              </span>
+            </div>
+            <HourlyChart
+              hourly={timeline.hourly}
+              selfcheck={selfcheckHourly}
+              date={timeline.date}
+              height={252}
+            />
+          </div>
+        </section>
+
+        <section className="ch-panel">
+          <header className="ch-panel-head">
+            <div className="ch-panel-title">最新事件</div>
+            <div className="ch-panel-extra">
+              <a className="ch-linkbtn" href="#/events">
                 全部
               </a>
-            </Tooltip>
-          }
-        >
-          {events.items.length === 0 ? (
-            <EmptyState title="今日暂无事件" description="有移动侦测或画面异常时，这里会出现最新记录。" />
-          ) : (
-            <div className="ch-event-list">
-              {events.items.map((e) => (
-                <div className="ch-event-row" key={e.id}>
-                  <img
-                    className="ch-event-thumb"
-                    src={mediaUrl(e.image)}
-                    alt={`${eventTypeLabel(e.type, e.detail)} 快照`}
-                    loading="lazy"
-                  />
-                  <div className="ch-event-main">
-                    <div className="ch-event-title">
-                      {eventTypeLabel(e.type, e.detail)}
-                      {e.type === 'motion' ? (
-                        <span className="num ch-muted"> · 得分 {e.score}</span>
-                      ) : null}
-                    </div>
-                    <div className="ch-event-sub num">{formatDateTime(e.time)}</div>
-                  </div>
-                </div>
-              ))}
             </div>
-          )}
-        </Panel>
+          </header>
+          <div className="ch-panel-body">
+            <EventList items={events} cameraName={cam.name} />
+          </div>
+          <footer className="ch-monitor-events-footer">
+            <a className="ch-linkbtn" href="#/events">
+              前往事件中心
+            </a>
+          </footer>
+        </section>
       </div>
     </>
   )

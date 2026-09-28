@@ -1,4 +1,4 @@
-/** 存储水位条：用量 / 上限，按阈值着色 */
+/** 存储水位条：用量 / 上限，按阈值着色（默认青，≥75% 黄，≥90% 红） */
 import { formatBytes } from '../utils/format'
 
 const GB = 1024 ** 3
@@ -14,7 +14,8 @@ export function StorageMeter({
 }) {
   const maxBytes = Math.max(1, maxGb * GB)
   const pct = Math.min(100, (usedBytes / maxBytes) * 100)
-  const color = pct >= 90 ? 'var(--ch-danger)' : pct >= 75 ? 'var(--ch-warn)' : 'var(--ch-ok)'
+  const color =
+    pct >= 90 ? 'var(--ch-danger)' : pct >= 75 ? 'var(--ch-warn)' : 'var(--ch-primary)'
 
   return (
     <div>
