@@ -22,7 +22,7 @@ type Detector interface {
 	Detect(f *source.Frame) (Detection, bool)
 }
 
-// Motion 帧差法: 降采样灰度 → absdiff → 阈值计数 → 冷却。
+// Motion 帧差法: 降采样灰度 → absdiff → 阈值计数(可按 ROI 掩码过滤) → 冷却。
 type Motion struct {
 	mu       sync.Mutex
 	cfg      config.MotionConfig
@@ -30,10 +30,15 @@ type Motion struct {
 	cur      []byte // 复用缓冲
 	pw, ph   int
 	lastFire time.Time
+
+	mask      []bool // ROI 掩码(降采样坐标系); nil=全屏
+	maskDW    int
+	maskROIs  []config.ROI // 生成当前掩码时的 ROIs 快照
+	dirtyMask bool
 }
 
 func New(cfg config.MotionConfig) *Motion {
-	return &Motion{cfg: cfg}
+	return &Motion{cfg: cfg, dirtyMask: true}
 }
 
 // SetConfig 热更新参数, 下一次 Detect 生效; 参数变化时自动重建基线。
@@ -42,6 +47,9 @@ func (m *Motion) SetConfig(cfg config.MotionConfig) {
 	defer m.mu.Unlock()
 	if m.cfg.DownscaleWidth != cfg.DownscaleWidth {
 		m.prev = nil
+	}
+	if !roisEqual(m.cfg.ROIs, cfg.ROIs) {
+		m.dirtyMask = true
 	}
 	m.cfg = cfg
 }
@@ -68,7 +76,8 @@ func (m *Motion) Detect(f *source.Frame) (Detection, bool) {
 		return Detection{}, false
 	}
 
-	count, rect := diff(m.prev, cur, dw, dh, m.cfg.Threshold)
+	mask := m.roiMask(dw, dh)
+	count, rect := diff(m.prev, cur, dw, dh, m.cfg.Threshold, mask)
 	m.prev, m.cur = cur, m.prev // 交换复用缓冲
 	if count < m.cfg.MinArea {
 		return Detection{}, false
@@ -81,6 +90,52 @@ func (m *Motion) Detect(f *source.Frame) (Detection, bool) {
 		Score: count,
 		Rect:  scaleRect(rect, dw, dh, f.W, f.H),
 	}, true
+}
+
+// roiMask 返回降采样坐标系的 ROI 掩码; rois 为空(全屏)时返回 nil 走免过滤快速路径。
+// 缓存按 (宽度, ROIs 快照) 失效。
+func (m *Motion) roiMask(dw, dh int) []bool {
+	if len(m.cfg.ROIs) == 0 {
+		return nil
+	}
+	if !m.dirtyMask && m.mask != nil && m.maskDW == dw && roisEqual(m.maskROIs, m.cfg.ROIs) {
+		return m.mask
+	}
+	mask := make([]bool, dw*dh)
+	for y := 0; y < dh; y++ {
+		ny := (float64(y) + 0.5) / float64(dh)
+		row := y * dw
+		for x := 0; x < dw; x++ {
+			nx := (float64(x) + 0.5) / float64(dw)
+			if pointInROIs(nx, ny, m.cfg.ROIs) {
+				mask[row+x] = true
+			}
+		}
+	}
+	m.mask, m.maskDW, m.maskROIs, m.dirtyMask = mask, dw, append([]config.ROI(nil), m.cfg.ROIs...), false
+	return mask
+}
+
+// pointInROIs 判断归一化坐标是否落在任一 ROI 内(左闭右开)。
+func pointInROIs(nx, ny float64, rois []config.ROI) bool {
+	for _, r := range rois {
+		if nx >= r.X && nx < r.X+r.W && ny >= r.Y && ny < r.Y+r.H {
+			return true
+		}
+	}
+	return false
+}
+
+func roisEqual(a, b []config.ROI) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // toGray 最近邻降采样为灰度图。
@@ -98,13 +153,17 @@ func toGray(f *source.Frame, dst []byte, dw, dh int) {
 }
 
 // diff 统计变化像素并求外接框(降采样坐标系)。
-func diff(prev, cur []byte, w, h, threshold int) (int, image.Rectangle) {
+// mask 非 nil 时只统计掩码内的像素(契约 §2.3); nil=全屏。
+func diff(prev, cur []byte, w, h, threshold int, mask []bool) (int, image.Rectangle) {
 	count := 0
 	rect := image.Rectangle{}
 	first := true
 	for y := 0; y < h; y++ {
 		row := y * w
 		for x := 0; x < w; x++ {
+			if mask != nil && !mask[row+x] {
+				continue
+			}
 			d := int(cur[row+x]) - int(prev[row+x])
 			if d > threshold || d < -threshold {
 				count++
