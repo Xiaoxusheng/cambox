@@ -176,15 +176,15 @@ export function PlaybackPage() {
         >
           <IconLeft />
         </button>
-        <DatePicker
-          value={date}
-          format="YYYY-MM-DD"
-          allowClear={false}
-          onChange={(v) => setDate(String(v))}
-          className="ch-datepill-picker"
-          style={{ width: 190 }}
-        />
-        {date === today ? <span className="ch-badge cyan">今天</span> : null}
+        <span className="ch-datepill">
+          <DatePicker
+            value={date}
+            format="YYYY-MM-DD"
+            allowClear={false}
+            onChange={(v) => setDate(String(v))}
+          />
+          {date === today ? <span className="ch-datepill-today num">· 今天</span> : null}
+        </span>
         <button
           type="button"
           className="ch-datebtn"

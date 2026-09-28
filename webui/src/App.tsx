@@ -12,7 +12,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        {/* v1.2：监控是默认路由；/live 并入监控视图 */}
+        {/* 监控是默认路由；/live 并入监控视图 */}
         <Route path="/" element={<MonitorPage />} />
         <Route path="/playback" element={<PlaybackPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
