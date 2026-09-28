@@ -119,15 +119,22 @@ export interface RecordingsResponse {
 
 export interface CameraConfig {
   name: string
-  type: 'synthetic' | 'rtsp' | 'file' | 'dshow' | string
+  /** v1.2 新增 'url'：任意网络流（HTTP-FLV / HLS / RTMP），如直播拉流地址 */
+  type: 'synthetic' | 'rtsp' | 'file' | 'dshow' | 'url' | string
   rtsp: string
   sub_rtsp: string
   file: string
   dshow_device: string
+  /** v1.2：type=url 时的流地址 */
+  url: string
   width: number
   height: number
   fps: number
   reconnect_delay_sec: number
+  /** v1.2：MJPEG 与抓拍的 JPEG 质量 1~100（热更新即时生效） */
+  preview_quality: number
+  /** v1.2：MJPEG 推送帧率上限 1~30（热更新即时生效）。注意这是预览帧率，不是录像帧率 */
+  preview_fps: number
 }
 
 /** 归一化矩形 [x, y, w, h]，值域 0~1 */
@@ -148,6 +155,11 @@ export interface RecordConfig {
   segment_seconds: number
   retention_days: number
   max_disk_gb: number
+  /**
+   * v1.2：非 copy 模式（synthetic/file/dshow）录像的 libx264 CRF，0~51，越小越清晰越大。
+   * rtsp/url 源走 -c copy 原始码流，此值无效。
+   */
+  encode_crf: number
 }
 
 export interface NotifyDingTalk {

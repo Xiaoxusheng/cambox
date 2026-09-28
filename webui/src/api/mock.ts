@@ -158,6 +158,9 @@ function defaultConfig(): Config {
       height: 720,
       fps: 25,
       reconnect_delay_sec: 3,
+      url: '',
+      preview_quality: 80,
+      preview_fps: 15,
     },
     motion: {
       enabled: true,
@@ -173,6 +176,7 @@ function defaultConfig(): Config {
       segment_seconds: 600,
       retention_days: 7,
       max_disk_gb: 20,
+      encode_crf: 26,
     },
     notify: {
       cooldown_sec: 60,
@@ -440,6 +444,9 @@ function sanitize(incoming: Config): Config {
       height: clampInt(c.camera?.height, 64, 4320, d.camera.height),
       fps: clampInt(c.camera?.fps, 1, 120, d.camera.fps),
       reconnect_delay_sec: clampInt(c.camera?.reconnect_delay_sec, 1, 60, d.camera.reconnect_delay_sec),
+      url: String(c.camera?.url ?? ''),
+      preview_quality: clampInt(c.camera?.preview_quality, 1, 100, d.camera.preview_quality),
+      preview_fps: clampInt(c.camera?.preview_fps, 1, 30, d.camera.preview_fps),
     },
     motion: {
       enabled: !!c.motion?.enabled,
@@ -455,6 +462,7 @@ function sanitize(incoming: Config): Config {
       segment_seconds: clampInt(c.record?.segment_seconds, 10, 86400, d.record.segment_seconds),
       retention_days: clampInt(c.record?.retention_days, 1, 3650, d.record.retention_days),
       max_disk_gb: clampInt(c.record?.max_disk_gb, 1, 100000, d.record.max_disk_gb),
+      encode_crf: clampInt(c.record?.encode_crf, 0, 51, d.record.encode_crf),
     },
     notify: {
       cooldown_sec: clampInt(c.notify?.cooldown_sec, 10, 3600, d.notify.cooldown_sec),

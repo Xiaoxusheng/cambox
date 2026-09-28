@@ -80,3 +80,14 @@ export function eventTypeLabel(type: string, detail?: string): string {
   }
   return type
 }
+
+/** 自检状态 → 文案 / 颜色 / 状态点（概览与监控页共用） */
+export function selfCheckView(s: {
+  enabled: boolean
+  state: string
+}): { text: string; color: string; dot: string } {
+  if (!s.enabled) return { text: '已关闭', color: 'var(--color-text-3)', dot: 'off' }
+  if (s.state === 'frozen') return { text: '画面冻结', color: 'var(--ch-danger)', dot: 'err' }
+  if (s.state === 'occlusion') return { text: '画面异常', color: 'var(--ch-warn)', dot: 'warn' }
+  return { text: '正常', color: 'var(--ch-ok)', dot: 'ok' }
+}

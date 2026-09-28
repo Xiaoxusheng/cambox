@@ -1,5 +1,5 @@
 /**
- * /playback 回放
+ * /playback 回看
  * 日期选择（默认今天）→ 24h 时间轴（录像段蓝条 + 事件刻度）→ 点击刻度跳转到该时刻。
  * 跳转规则（契约 §4）：video.currentTime = 事件时间 − 所在录像段 start。
  */
@@ -120,7 +120,7 @@ export function PlaybackPage() {
   return (
     <>
       <PageHeader
-        title="回放"
+        title="回看"
         description="选择日期查看当日录像分段与事件刻度，点击刻度跳转到对应时刻。"
         actions={
           <>

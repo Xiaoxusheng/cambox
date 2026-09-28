@@ -10,15 +10,17 @@ export function Panel({
   children,
   bodyStyle,
   style,
+  className,
 }: {
   title?: ReactNode
   extra?: ReactNode
   children: ReactNode
   bodyStyle?: React.CSSProperties
   style?: React.CSSProperties
+  className?: string
 }) {
   return (
-    <section className="ch-panel" style={style}>
+    <section className={className ? `ch-panel ${className}` : 'ch-panel'} style={style}>
       {title || extra ? (
         <header className="ch-panel-head">
           <div className="ch-panel-title">{title}</div>

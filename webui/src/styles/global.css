@@ -61,26 +61,19 @@ body {
   min-height: 100%;
 }
 
-.ch-sider {
-  display: flex;
-  flex-direction: column;
-}
-
-.ch-logo {
-  display: flex;
+/* 顶部栏品牌标识 */
+.ch-brand {
+  display: inline-flex;
   align-items: center;
   gap: var(--ch-space-sm);
-  height: 56px;
-  padding: 0 var(--ch-space-md);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-text-1);
-  border-bottom: 1px solid var(--color-border-2);
   white-space: nowrap;
-  overflow: hidden;
+  flex: none;
 }
 
-.ch-logo-dot {
+.ch-brand-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -118,6 +111,75 @@ body {
   gap: var(--ch-space-md);
   font-size: 13px;
   color: var(--color-text-2);
+}
+
+/* 布防开关组（顶部栏） */
+.ch-arm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ch-space-sm);
+  flex: none;
+  cursor: default;
+}
+
+/* 顶部导航（监控 / 回看 / 更多▾） */
+.ch-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--ch-space-xs);
+  flex: none;
+}
+
+.ch-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--ch-radius-md);
+  background: none;
+  color: var(--color-text-2);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ch-nav-link:hover {
+  background: var(--color-fill-2);
+  color: var(--color-text-1);
+}
+
+.ch-nav-link.active {
+  background: var(--color-fill-2);
+  color: var(--primary-6);
+  font-weight: 600;
+}
+
+/* 移动端抽屉导航项 */
+.ch-drawer-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--ch-space-md);
+  border: none;
+  border-radius: var(--ch-radius-md);
+  background: none;
+  color: var(--color-text-1);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ch-drawer-link:hover {
+  background: var(--color-fill-2);
+}
+
+.ch-drawer-link.active {
+  background: var(--color-fill-2);
+  color: var(--primary-6);
+  font-weight: 600;
 }
 
 .ch-status-dot {
@@ -291,6 +353,93 @@ body {
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
   font-size: 12px;
+}
+
+/* ---- 监控视图（v1.2 契约 §4.2：画面是主体，一屏放下不出滚动条） ---- */
+.ch-monitor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--ch-space-md);
+  /* 视口高度 − 顶部栏 56 − 内容上下内边距 16+32 */
+  height: calc(100vh - 104px);
+}
+
+.ch-monitor-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ch-space-sm);
+  min-width: 0;
+  min-height: 0;
+}
+
+.ch-monitor-video {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  border-radius: var(--ch-radius-md);
+  overflow: hidden;
+}
+
+.ch-monitor-frame {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* 画面下方一行状态细条（不是卡片） */
+.ch-statusbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--ch-space-xs) var(--ch-space-md);
+  min-height: 32px;
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+
+.ch-statusbar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ch-statusbar-spacer {
+  flex: 1;
+}
+
+.ch-statusbar-meter .ch-meter {
+  width: 72px;
+}
+
+/* 右侧最近事件流：随监控视区等高，内部滚动 */
+.ch-monitor-events {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ch-monitor-events .ch-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* 事件行整体可点（监控页最近事件） */
+.ch-event-row-btn {
+  width: 100%;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 /* 24h 时间轴 */
@@ -470,12 +619,6 @@ body {
   min-width: 0;
 }
 
-.ch-logo-sub {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--color-text-3);
-}
-
 /* ---- 面板（Section 语义，比 Card 克制） ---- */
 .ch-panel {
   background: var(--color-bg-2);
@@ -596,11 +739,13 @@ body {
 }
 
 .ch-event-title {
+  display: block;
   font-size: 13px;
   color: var(--color-text-1);
 }
 
 .ch-event-sub {
+  display: block;
   font-size: 12px;
   color: var(--color-text-3);
   margin-top: 2px;
@@ -710,6 +855,23 @@ body {
   .ch-split,
   .ch-split-wide {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* 窄屏：监控视图改为上下堆叠，画面 16:9 固定占比，页面允许纵向滚动 */
+  .ch-monitor {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  .ch-monitor-video {
+    flex: none;
+    aspect-ratio: 16 / 9;
+    min-height: 200px;
+  }
+
+  .ch-monitor-events .ch-panel-body {
+    overflow: visible;
+    max-height: 420px;
   }
 }
 

@@ -21,19 +21,13 @@ import {
   formatDateTime,
   formatDuration,
   formatTime,
+  selfCheckView,
   toLocalDateStr,
 } from '../utils/format'
 
 const GB = 1024 ** 3
 
 type DashboardData = [Status, TimelineData, EventsResponse]
-
-function selfCheckView(s: Status['selfcheck']): { text: string; color: string; dot: string } {
-  if (!s.enabled) return { text: '已关闭', color: 'var(--color-text-3)', dot: 'off' }
-  if (s.state === 'frozen') return { text: '画面冻结', color: 'var(--ch-danger)', dot: 'err' }
-  if (s.state === 'occlusion') return { text: '画面异常', color: 'var(--ch-warn)', dot: 'warn' }
-  return { text: '正常', color: 'var(--ch-ok)', dot: 'ok' }
-}
 
 export function DashboardPage() {
   const today = toLocalDateStr(new Date())

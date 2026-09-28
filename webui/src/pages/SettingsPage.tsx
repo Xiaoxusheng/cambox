@@ -47,6 +47,7 @@ const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
 const CAMERA_TYPES = [
   { label: 'synthetic（模拟源）', value: 'synthetic' },
   { label: 'rtsp（网络摄像机）', value: 'rtsp' },
+  { label: 'url（任意网络流）', value: 'url' },
   { label: 'file（本地文件）', value: 'file' },
   { label: 'dshow（Windows 采集设备）', value: 'dshow' },
 ]
@@ -205,7 +206,9 @@ export function SettingsPage() {
       setDraft(clone(saved))
       setBaseline(clone(saved))
       Message.success(
-        cameraDirty ? '已保存。摄像头配置需重启服务后生效。' : '已保存，配置已热更新生效',
+        cameraDirty
+          ? '已保存。来源与解码参数需重启服务生效；预览质量 / 预览帧率已热更新'
+          : '已保存，配置已热更新生效',
       )
     } catch (e) {
       Message.error(errorText(e))
@@ -284,7 +287,7 @@ export function SettingsPage() {
     <>
       <PageHeader
         title="设置"
-        description="所有修改在点击「保存配置」后提交；除摄像头与服务器参数外均立即热更新生效。"
+        description="所有修改在点击「保存配置」后提交；来源与解码参数需重启生效，其余配置（含预览质量/帧率）热更新生效。"
         actions={
           <Button icon={<IconRefresh />} loading={loading} onClick={reload}>
             重新加载
@@ -297,7 +300,8 @@ export function SettingsPage() {
           {/* ---------------- 摄像头 ---------------- */}
           <Tabs.TabPane key="camera" title="摄像头">
             <div className="ch-note" style={{ marginBottom: 'var(--ch-space-md)' }}>
-              摄像头参数在保存后<strong>需重启服务</strong>才会生效；其余配置热更新即可生效。
+              来源类型 / 流地址 / 解码尺寸等参数保存后<strong>需重启服务</strong>才会生效；
+              预览质量与预览帧率热更新即时生效。
             </div>
             <Form layout="vertical">
               <div style={grid}>
@@ -333,6 +337,20 @@ export function SettingsPage() {
                       />
                     </Field>
                   </>
+                ) : null}
+
+                {cam.type === 'url' ? (
+                  <Field
+                    label="流地址（必填）"
+                    extra="HTTP-FLV / HLS / RTMP 网络流地址。直播平台地址通常带签名且会过期，失效后需更新；留空时服务端将报「未配置流地址」并按重连间隔重试"
+                  >
+                    <Input
+                      value={cam.url}
+                      onChange={(v) => patchSection('camera', { url: v })}
+                      placeholder="https://.../live.flv 或 rtmp://..."
+                      allowClear
+                    />
+                  </Field>
                 ) : null}
 
                 {cam.type === 'file' ? (
@@ -383,6 +401,30 @@ export function SettingsPage() {
                     onChange={(v) =>
                       patchSection('camera', { reconnect_delay_sec: num(v, cam.reconnect_delay_sec) })
                     }
+                  />
+                </Field>
+                <Field
+                  label="预览质量"
+                  extra="MJPEG 预览与抓拍的 JPEG 画质（1–100），保存后热更新即时生效；预览观感低于录像属预期"
+                >
+                  <InputNumber
+                    value={cam.preview_quality}
+                    min={1}
+                    max={100}
+                    onChange={(v) =>
+                      patchSection('camera', { preview_quality: num(v, cam.preview_quality) })
+                    }
+                  />
+                </Field>
+                <Field
+                  label="预览帧率"
+                  extra="MJPEG 推送帧率上限（1–30，不是录像帧率），热更新即时生效、无需刷新页面"
+                >
+                  <InputNumber
+                    value={cam.preview_fps}
+                    min={1}
+                    max={30}
+                    onChange={(v) => patchSection('camera', { preview_fps: num(v, cam.preview_fps) })}
                   />
                 </Field>
               </div>
@@ -457,7 +499,7 @@ export function SettingsPage() {
                   </Space>
                 )}
                 <div className="ch-muted" style={{ marginTop: 8 }}>
-                  在「实时」页的截图上拖拽画框即可编辑检测区域。
+                  在「监控」页的「检测区域」弹层里拖拽画框即可编辑检测区域。
                 </div>
               </div>
             </Form>
@@ -501,6 +543,17 @@ export function SettingsPage() {
                     value={record.max_disk_gb}
                     min={1}
                     onChange={(v) => patchSection('record', { max_disk_gb: num(v, record.max_disk_gb) })}
+                  />
+                </Field>
+                <Field
+                  label="编码 CRF"
+                  extra="仅对 synthetic / file / dshow 源生效（0–51，越小越清晰、体积越大）；rtsp/url 源为原始码流复制，此值无效。下一次录像分段启动时生效"
+                >
+                  <InputNumber
+                    value={record.encode_crf}
+                    min={0}
+                    max={51}
+                    onChange={(v) => patchSection('record', { encode_crf: num(v, record.encode_crf) })}
                   />
                 </Field>
               </div>
@@ -863,7 +916,7 @@ export function SettingsPage() {
         </Button>
         <span className="ch-muted" style={{ flex: 1 }}>
           {dirty ? '有未保存的修改' : '与服务器一致'}
-          {cameraDirty ? ' · 摄像头配置保存后需重启服务生效' : ''}
+          {cameraDirty ? ' · 来源与解码参数需重启生效' : ''}
         </span>
       </div>
 
