@@ -135,6 +135,31 @@ func (f *fakeTG) photoCount() int {
 	return f.photos
 }
 
+// callCount getUpdates 调用次数。
+//
+// 注意：handler 跑在 httptest 服务端 goroutine 里，任何字段读取都必须走带锁的
+// 访问器，否则 `go test -race` 会在测试自身报数据竞争（测试假服务的竞争会让
+// 真正的产品竞态被淹没）。
+func (f *fakeTG) callCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.callN
+}
+
+// textsSnapshot 已发送文本的副本。
+func (f *fakeTG) textsSnapshot() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.texts...)
+}
+
+// offsetsSnapshot 收到的 offset 参数副本。
+func (f *fakeTG) offsetsSnapshot() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.offsets...)
+}
+
 func msg(updateID, userID, chatID int64, text string) update {
 	return update{
 		UpdateID: updateID,
@@ -247,12 +272,12 @@ func TestWhitelistRejectsUnknownUser(t *testing.T) {
 	b, ts := newTestBot(t, config.BotConfig{Enabled: true, BotToken: "TOK", AllowedUsers: []string{"111"}}, app, tg)
 	defer ts.Close()
 
-	runPoll(t, b, b.Config(), func() bool { return tg.callN > 1 })
+	runPoll(t, b, b.Config(), func() bool { return tg.callCount() > 1 })
 	if app.isArmed() {
 		t.Error("未授权用户不得触发 /arm")
 	}
 	if tg.textCount() != 0 {
-		t.Errorf("未授权用户不应收到任何回复, got %v", tg.texts)
+		t.Errorf("未授权用户不应收到任何回复, got %v", tg.textsSnapshot())
 	}
 }
 
@@ -262,9 +287,9 @@ func TestEmptyWhitelistRejectsEveryone(t *testing.T) {
 	b, ts := newTestBot(t, config.BotConfig{Enabled: true, BotToken: "TOK", AllowedUsers: nil}, app, tg)
 	defer ts.Close()
 
-	runPoll(t, b, b.Config(), func() bool { return tg.callN > 1 })
+	runPoll(t, b, b.Config(), func() bool { return tg.callCount() > 1 })
 	if tg.textCount() != 0 {
-		t.Errorf("空白名单应拒绝所有, got %v", tg.texts)
+		t.Errorf("空白名单应拒绝所有, got %v", tg.textsSnapshot())
 	}
 }
 
@@ -280,8 +305,9 @@ func TestCommandArmDisarm(t *testing.T) {
 	if app.isArmed() {
 		t.Error("最后一条是 /disarm, 应处于撤防")
 	}
-	if !strings.Contains(tg.texts[0], "布防") || !strings.Contains(tg.texts[1], "撤防") {
-		t.Errorf("回复文本不符: %v", tg.texts)
+	texts := tg.textsSnapshot()
+	if len(texts) < 2 || !strings.Contains(texts[0], "布防") || !strings.Contains(texts[1], "撤防") {
+		t.Errorf("回复文本不符: %v", texts)
 	}
 }
 
@@ -292,12 +318,13 @@ func TestCommandStatusAndHelp(t *testing.T) {
 	defer ts.Close()
 
 	runPoll(t, b, b.Config(), func() bool { return tg.textCount() >= 2 })
-	if !strings.Contains(tg.texts[0], "连接: 在线") {
-		t.Errorf("/status 应回应用状态文本: %q", tg.texts[0])
+	texts := tg.textsSnapshot()
+	if len(texts) < 2 || !strings.Contains(texts[0], "连接: 在线") {
+		t.Errorf("/status 应回应用状态文本: %q", texts)
 	}
 	for _, cmd := range []string{"/status", "/arm", "/disarm", "/snap", "/events", "/help"} {
-		if !strings.Contains(tg.texts[1], cmd) {
-			t.Errorf("/help 应包含 %s: %q", cmd, tg.texts[1])
+		if !strings.Contains(texts[1], cmd) {
+			t.Errorf("/help 应包含 %s: %q", cmd, texts[1])
 		}
 	}
 }
@@ -377,9 +404,9 @@ func TestPlainTextIgnored(t *testing.T) {
 	b, ts := newTestBot(t, config.BotConfig{Enabled: true, BotToken: "TOK", AllowedUsers: []string{"111"}}, app, tg)
 	defer ts.Close()
 
-	runPoll(t, b, b.Config(), func() bool { return tg.callN > 1 })
+	runPoll(t, b, b.Config(), func() bool { return tg.callCount() > 1 })
 	if tg.textCount() != 0 {
-		t.Errorf("非命令文本不应回复, got %v", tg.texts)
+		t.Errorf("非命令文本不应回复, got %v", tg.textsSnapshot())
 	}
 }
 
@@ -393,11 +420,10 @@ func TestPollAdvancesOffset(t *testing.T) {
 	b, ts := newTestBot(t, config.BotConfig{Enabled: true, BotToken: "TOK", AllowedUsers: []string{"111"}}, app, tg)
 	defer ts.Close()
 
-	runPoll(t, b, b.Config(), func() bool { return tg.callN > 1 })
-	tg.mu.Lock()
-	defer tg.mu.Unlock()
-	if len(tg.offsets) < 2 || tg.offsets[0] != "0" || tg.offsets[1] != "12" {
-		t.Errorf("offset 应推进到 update_id+1, got %v", tg.offsets)
+	runPoll(t, b, b.Config(), func() bool { return tg.callCount() > 1 })
+	offsets := tg.offsetsSnapshot()
+	if len(offsets) < 2 || offsets[0] != "0" || offsets[1] != "12" {
+		t.Errorf("offset 应推进到 update_id+1, got %v", offsets)
 	}
 }
 
@@ -440,10 +466,8 @@ func TestRunIdlesWhenDisabled(t *testing.T) {
 	case <-time.After(15 * time.Second):
 		t.Fatal("Run 未随 ctx 取消退出")
 	}
-	tg.mu.Lock()
-	defer tg.mu.Unlock()
-	if tg.callN != 0 {
-		t.Errorf("未启用时不应轮询, got %d 次 getUpdates", tg.callN)
+	if tg.callCount() != 0 {
+		t.Errorf("未启用时不应轮询, got %d 次 getUpdates", tg.callCount())
 	}
 }
 
@@ -461,10 +485,7 @@ func TestRunRestartsOnTokenChange(t *testing.T) {
 
 	deadline := time.After(15 * time.Second)
 	for {
-		tg.mu.Lock()
-		n := tg.callN
-		tg.mu.Unlock()
-		if n > 0 {
+		if tg.callCount() > 0 {
 			break
 		}
 		select {
@@ -484,10 +505,8 @@ func TestRunRestartsOnTokenChange(t *testing.T) {
 		t.Fatal("Run 未随 ctx 取消退出")
 	}
 	// token 变更后应重新轮询(调用次数继续增长)
-	tg.mu.Lock()
-	defer tg.mu.Unlock()
-	if tg.callN < 2 {
-		t.Errorf("token 变化后应重建轮询, getUpdates 次数 = %d", tg.callN)
+	if tg.callCount() < 2 {
+		t.Errorf("token 变化后应重建轮询, getUpdates 次数 = %d", tg.callCount())
 	}
 }
 

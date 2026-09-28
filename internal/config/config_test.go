@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -109,7 +110,7 @@ func TestV11JSONTags(t *testing.T) {
 	}
 
 	// 反序列化带下划线字段的 JSON 后数值不丢
-	body := `{"camera":{"sub_rtsp":"rtsp://s"},"motion":{"min_area":777,"rois":[{"x":0.1,"y":0.2,"w":0.3,"h":0.4}]},
+	body := `{"camera":{"sub_rtsp":"rtsp://s"},"motion":{"min_area":777,"rois":[[0.1,0.2,0.3,0.4]]},
 	  "notify":{"cooldown_sec":120,"telegram":{"bot_token":"tk","chat_id":"42"}},
 	  "schedules":{"rules":[{"days":[1,2],"start":"08:00","end":"22:00","motion":true,"record":false}]},
 	  "selfcheck":{"interval_sec":120,"frozen_checks":5,"change_threshold":33,"change_checks":2},
@@ -292,5 +293,60 @@ func TestScheduleActiveAt(t *testing.T) {
 	m, r = multi.ActiveAt(mon.Add(15 * time.Hour)) // 15:00
 	if m || !r {
 		t.Errorf("15:00 应只放行 record, got %v/%v", m, r)
+	}
+}
+
+// ROI 线上形态必须是 [x,y,w,h] 四元数组（契约 §1 / §3.2，前端 Roi 类型同构）。
+// 回归背景：后端一度用 {x,y,w,h} 对象、前端用数组，两边各自"对齐契约"却静默分叉，
+// 前端保存 ROI 到真实后端直接 400。
+func TestROIWireFormatIsFourElementArray(t *testing.T) {
+	var v View
+	if err := json.Unmarshal([]byte(`{"motion":{"rois":[[0.1,0.2,0.3,0.4]]}}`), &v); err != nil {
+		t.Fatalf("数组形态应可解码: %v", err)
+	}
+	if len(v.Motion.ROIs) != 1 {
+		t.Fatalf("应解出 1 个 roi, 实际 %d", len(v.Motion.ROIs))
+	}
+	r := v.Motion.ROIs[0]
+	if r.X != 0.1 || r.Y != 0.2 || r.W != 0.3 || r.H != 0.4 {
+		t.Errorf("roi 分量解码错误: %+v", r)
+	}
+
+	out, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), `"rois":[[0.1,0.2,0.3,0.4]]`) {
+		t.Errorf("roi 必须编码为四元数组, 实际 %s", out)
+	}
+
+	// 旧的对象形态必须被拒绝(不能静默解成零值)
+	if err := json.Unmarshal([]byte(`{"motion":{"rois":[{"x":0.1,"y":0.2,"w":0.3,"h":0.4}]}}`), &v); err == nil {
+		t.Error("对象形态应报错, 否则会静默解成 0 值被 Sanitize 丢掉")
+	}
+	// 元素个数不对也必须报错
+	if err := json.Unmarshal([]byte(`{"motion":{"rois":[[0.1,0.2]]}}`), &v); err == nil {
+		t.Error("非四元数组应报错")
+	}
+}
+
+// YAML 形态同样必须是四元数组(配置文件可读可写)。
+func TestROIRoundTripYAML(t *testing.T) {
+	c := Default()
+	c.Motion.ROIs = []ROI{{X: 0.1, Y: 0.2, W: 0.3, H: 0.4}}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := Save(path, c); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Motion.ROIs) != 1 {
+		t.Fatalf("YAML 往返后 roi 数量错误: %+v", got.Motion.ROIs)
+	}
+	r := got.Motion.ROIs[0]
+	if r.X != 0.1 || r.Y != 0.2 || r.W != 0.3 || r.H != 0.4 {
+		t.Errorf("YAML 往返后 roi 分量错误: %+v", r)
 	}
 }

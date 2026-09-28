@@ -306,7 +306,9 @@ func (p *Pipeline) StatusText() string {
 	if rec.Running {
 		recState = "录像中"
 	}
-	todayStart := time.Now().Truncate(24 * time.Hour)
+	// 本地零点, 不能用 Truncate(24h)(那按 UTC 边界切, 东八区会从 08:00 起算)。
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	total, _, _ := p.store.DayStats(todayStart, time.Now().Add(time.Second))
 
 	var sb strings.Builder

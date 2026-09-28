@@ -28,6 +28,8 @@ motion:
   cooldown_sec: 8
   downscale_width: 320
   rois: []                   # 【新增】检测区域, 归一化矩形 [[x,y,w,h],...] 值域0~1; 空=全屏
+                             # 线上形态固定为四元数组(JSON 与 YAML 都是 [[x,y,w,h],...]),
+                             # 不接受 {x,y,w,h} 对象; 最多 8 个
 record:                      # 与 v1.0 完全一致
   enabled: true
   dir: recordings
@@ -94,7 +96,7 @@ bot:                         # 【新增】C6 Telegram 双向 Bot
 
 **GET /api/config** → data（**全量**）：
 ```json
-{ "camera": {...含 sub_rtsp...}, "motion": {...含 rois...}, "record": {...},
+{ "camera": {...含 sub_rtsp...}, "motion": {...含 rois，rois 为 [[x,y,w,h],...] 四元数组...}, "record": {...},
   "notify": { "cooldown_sec":60, "dingtalk":{"enabled":false,"webhook":"","secret":""},
               "wecom":{"enabled":false,"webhook":""},
               "telegram":{"enabled":false,"bot_token":"","chat_id":""},

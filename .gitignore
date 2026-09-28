@@ -1,8 +1,12 @@
 camhub.exe
+camhub.exe~
 camhub.exe.tmp
+camhub-*.exe
 recordings/
 snapshots/
 data/
 configs/config.yaml
 .agent/
 .wt/
+.workbuddy-ai/
+webui/node_modules/

@@ -461,7 +461,7 @@ func TestLogsStreamReplaysBuffer(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest("GET", "/api/logs/stream", nil).WithContext(ctx)
-	rec := httptest.NewRecorder()
+	rec := newSyncRecorder() // 并发安全: 处理器在后台 goroutine 持续写, 测试同时在读
 
 	done := make(chan struct{})
 	go func() {
@@ -471,12 +471,12 @@ func TestLogsStreamReplaysBuffer(t *testing.T) {
 
 	// 等缓冲区回放完成
 	deadline := time.After(15 * time.Second)
-	for !strings.Contains(rec.Body.String(), "磁盘紧张") {
+	for !strings.Contains(rec.String(), "磁盘紧张") {
 		select {
 		case <-deadline:
 			cancel()
 			<-done
-			t.Fatalf("未收到缓冲区回放: %q", rec.Body.String())
+			t.Fatalf("未收到缓冲区回放: %q", rec.String())
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
@@ -484,12 +484,12 @@ func TestLogsStreamReplaysBuffer(t *testing.T) {
 	// 实时日志也应推送
 	h.logbuf.Add(logbuf.Entry{Time: time.Now(), Level: "ERROR", Msg: "实时日志"})
 	deadline = time.After(15 * time.Second)
-	for !strings.Contains(rec.Body.String(), "实时日志") {
+	for !strings.Contains(rec.String(), "实时日志") {
 		select {
 		case <-deadline:
 			cancel()
 			<-done
-			t.Fatalf("未收到实时日志: %q", rec.Body.String())
+			t.Fatalf("未收到实时日志: %q", rec.String())
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
@@ -501,12 +501,15 @@ func TestLogsStreamReplaysBuffer(t *testing.T) {
 		t.Fatal("SSE 未随请求取消退出")
 	}
 
-	body := rec.Body.String()
+	body := rec.String()
 	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Errorf("Content-Type = %q", ct)
 	}
 	if rec.Header().Get("Cache-Control") != "no-cache" {
 		t.Errorf("Cache-Control = %q", rec.Header().Get("Cache-Control"))
+	}
+	if rec.FlushCount() == 0 {
+		t.Error("SSE 必须边写边 Flush, 否则前端收不到实时日志")
 	}
 	for _, line := range strings.Split(strings.TrimSpace(body), "\n\n") {
 		if !strings.HasPrefix(line, "data: ") {
@@ -698,7 +701,7 @@ func TestConfigFullRoundTrip(t *testing.T) {
 	  "camera": {"name": "前门", "type": "rtsp", "rtsp": "rtsp://m", "sub_rtsp": "rtsp://s",
 	             "file": "", "dshow_device": "", "width": 1280, "height": 720, "fps": 25, "reconnect_delay_sec": 3},
 	  "motion": {"enabled": false, "threshold": 30, "min_area": 600, "cooldown_sec": 12,
-	             "downscale_width": 320, "rois": [{"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4}]},
+	             "downscale_width": 320, "rois": [[0.1, 0.2, 0.3, 0.4]]},
 	  "record": {"enabled": true, "dir": "` + strings.ReplaceAll(h.cfg.Record.Dir, `\`, `\\`) + `",
 	             "segment_seconds": 300, "retention_days": 14, "max_disk_gb": 50},
 	  "notify": {"cooldown_sec": 120,

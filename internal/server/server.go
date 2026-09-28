@@ -5,6 +5,8 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
+	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,7 +15,10 @@ import (
 	"camhub/internal/store"
 )
 
-//go:embed web/index.html
+// webdist 是 webui(Vite+React+Arco) 的构建产物; 构建流程见 docs/contracts/api-v1.1.md §5。
+// 前端用 HashRouter, 所有页面都经 "/" 加载 index.html, 无需服务端 history fallback。
+//
+//go:embed webdist
 var webFiles embed.FS
 
 // Server 组装路由; 媒体目录等设置在每次请求时从 pipeline 读取, 支持热更新。
@@ -35,9 +40,24 @@ func New(pl *pipeline.Pipeline, st *store.Store, logs *logbuf.Buffer) *Server {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+	// Web 面板(webdist 构建产物)。v1.0 是单文件 index.html, 换 Vite 产物后
+	// 多了 /assets/* 资源, 因此用 "GET /" 兜底: 命中文件就服务文件, 否则回 index.html。
+	// Go 1.22 ServeMux 按"最具体模式"取胜, /api/* 与 /media/* 不受影响。
+	webRoot := mustSub(webFiles, "webdist")
+	webFS := http.FileServerFS(webRoot)
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+		if p != "" && p != "." {
+			if f, err := webRoot.Open(p); err == nil {
+				f.Close()
+				webFS.ServeHTTP(w, r) // 带 Last-Modified, 哈希资源可缓存
+				return
+			}
+		}
 		w.Header().Set("Cache-Control", "no-cache") // 升级后浏览器不得使用旧面板
-		http.FileServerFS(mustSub(webFiles, "web")).ServeHTTP(w, r)
+		r = r.Clone(r.Context())
+		r.URL.Path = "/"
+		webFS.ServeHTTP(w, r)
 	})
 	mux.HandleFunc("GET /api/status", s.handleStatus)
 	mux.HandleFunc("GET /api/stream.mjpeg", s.handleMJPEG)

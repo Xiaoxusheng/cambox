@@ -5,6 +5,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -66,11 +67,52 @@ type RecordConfig struct {
 }
 
 // ROI 归一化检测区域矩形, 值域 [0,1]; w/h > 0。
+//
+// 在 YAML 与 JSON 中统一序列化为 [x,y,w,h] 四元数组(契约 §1 的 `[[x,y,w,h],...]`、
+// §3.2 的 config.motion.rois), 前端 Roi 类型同为四元组。自定义编解码放在这里,
+// 避免前后端对 ROI 形态各写一套而静默分叉(集成时曾出现: 后端发对象/前端发数组,
+// 保存 ROI 直接 400)。
 type ROI struct {
-	X float64 `yaml:"x" json:"x"`
-	Y float64 `yaml:"y" json:"y"`
-	W float64 `yaml:"w" json:"w"`
-	H float64 `yaml:"h" json:"h"`
+	X float64
+	Y float64
+	W float64
+	H float64
+}
+
+// roiToSlice 供 YAML/JSON 编码复用。
+func (r ROI) roiToSlice() []float64 { return []float64{r.X, r.Y, r.W, r.H} }
+
+// roiFromSlice 校验并写入四元数组。
+func (r *ROI) roiFromSlice(v []float64) error {
+	if len(v) != 4 {
+		return fmt.Errorf("roi 需为 [x,y,w,h] 四元数组, 实际 %d 个元素", len(v))
+	}
+	r.X, r.Y, r.W, r.H = v[0], v[1], v[2], v[3]
+	return nil
+}
+
+// MarshalJSON 输出 [x,y,w,h]。
+func (r ROI) MarshalJSON() ([]byte, error) { return json.Marshal(r.roiToSlice()) }
+
+// UnmarshalJSON 只接受 [x,y,w,h]。
+func (r *ROI) UnmarshalJSON(b []byte) error {
+	var v []float64
+	if err := json.Unmarshal(b, &v); err != nil {
+		return fmt.Errorf("roi 需为 [x,y,w,h] 数组: %w", err)
+	}
+	return r.roiFromSlice(v)
+}
+
+// MarshalYAML 输出 [x,y,w,h]。
+func (r ROI) MarshalYAML() (any, error) { return r.roiToSlice(), nil }
+
+// UnmarshalYAML 只接受 [x,y,w,h]。
+func (r *ROI) UnmarshalYAML(value *yaml.Node) error {
+	var v []float64
+	if err := value.Decode(&v); err != nil {
+		return fmt.Errorf("roi 需为 [x,y,w,h] 数组: %w", err)
+	}
+	return r.roiFromSlice(v)
 }
 
 type MotionConfig struct {

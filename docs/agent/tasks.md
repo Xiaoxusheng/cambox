@@ -9,10 +9,11 @@ Contract：docs/contracts/api-v1.1.md（唯一依据）
 
 ## DOING
 
-- [ ] [Orchestrator] 分支合并 + dist 内嵌 + 端到端验收 + 文档更新
+（无）
 
 ## DONE
 
+- [x] [Orchestrator] 分支合并 + dist 内嵌 + 端到端验收 + 文档更新
 - [x] Contract v1.1（docs/contracts/api-v1.1.md）
 - [x] 基线导入与 worktree 建立（main@1bf7679）
 - [x] [Backend] 配置 schema v1.1：新结构体/双tag/Sanitize/热更新扩展（§1）→ f5e0998

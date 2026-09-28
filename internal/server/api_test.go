@@ -14,7 +14,7 @@ func TestConfigViewJSONRoundTrip(t *testing.T) {
 	body := `{
 	  "camera": {"name": "前门", "type": "rtsp", "rtsp": "rtsp://m", "sub_rtsp": "rtsp://s"},
 	  "motion": {"enabled": true, "threshold": 30, "min_area": 600, "cooldown_sec": 12,
-	             "downscale_width": 320, "rois": [{"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4}]},
+	             "downscale_width": 320, "rois": [[0.1, 0.2, 0.3, 0.4]]},
 	  "record": {"enabled": true, "segment_seconds": 300, "retention_days": 14, "max_disk_gb": 50},
 	  "notify": {"cooldown_sec": 120, "telegram": {"enabled": true, "bot_token": "tk", "chat_id": "42"}},
 	  "schedules": {"rules": [{"days": [1, 2], "start": "08:00", "end": "22:00", "motion": true, "record": false}]},
