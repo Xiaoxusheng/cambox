@@ -34,6 +34,9 @@ type Pipeline struct {
 	mu       sync.RWMutex
 	settings config.Config
 
+	// armed 布防运行时状态(契约 §2.2): 不持久化, 重启默认 true。
+	armed atomic.Bool
+
 	startedAt   time.Time
 	snapCounter atomic.Int64
 
@@ -49,8 +52,9 @@ func New(cfg *config.Config, cfgPath string, st *store.Store) *Pipeline {
 		src:      src,
 		settings: *cfg,
 	}
+	p.armed.Store(true) // 重启默认布防
 	p.det = detector.New(cfg.Motion)
-	p.rec = recorder.New(src, p.Settings)
+	p.rec = recorder.New(src, p.Settings, p.RecordEffective)
 	return p
 }
 
@@ -59,6 +63,34 @@ func (p *Pipeline) Settings() config.Config {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.settings
+}
+
+// Armed 返回当前布防状态。
+func (p *Pipeline) Armed() bool { return p.armed.Load() }
+
+// SetArmed 切换布防状态(运行时, 不落盘)。
+func (p *Pipeline) SetArmed(v bool) {
+	if p.armed.Swap(v) == v {
+		return
+	}
+	slog.Info("布防状态已切换", "armed", v)
+}
+
+// ScheduleActive 返回当前时刻日程是否放行移动侦测/录像(契约 §2.2)。
+func (p *Pipeline) ScheduleActive() (motion, record bool) {
+	return p.Settings().Schedules.ActiveAt(time.Now())
+}
+
+// MotionEffective 契约 §2.2: motion.enabled && armed && scheduleActive.motion。
+func (p *Pipeline) MotionEffective() bool {
+	motion, _ := p.ScheduleActive()
+	return p.Settings().Motion.Enabled && p.Armed() && motion
+}
+
+// RecordEffective 契约 §2.2: record.enabled && scheduleActive.record。
+func (p *Pipeline) RecordEffective() bool {
+	_, record := p.ScheduleActive()
+	return p.Settings().Record.Enabled && record
 }
 
 // Source 供 HTTP 层取帧(MJPEG/抓拍)。
@@ -126,12 +158,13 @@ func (p *Pipeline) detectLoop(ctx context.Context) {
 			if !p.src.Snapshot(&frame) {
 				continue
 			}
-			// 始终检测以保持基线新鲜, 事件是否入库由 motion.enabled 决定
+			// 始终检测以保持基线新鲜; 事件是否入库由 motion.effective 决定(契约 §2.2):
+			// motion.enabled && armed && scheduleActive.motion
 			d, fired := p.det.Detect(&frame)
 			if !fired {
 				continue
 			}
-			if !p.Settings().Motion.Enabled {
+			if !p.MotionEffective() {
 				continue
 			}
 			p.recordEvent(&frame, d, eventsDir)

@@ -5,10 +5,6 @@ Contract：docs/contracts/api-v1.1.md（唯一依据）
 
 ## TODO
 
-- [ ] [Backend] 配置 schema v1.1：新结构体/双tag/Sanitize/热更新扩展（§1）
-- [ ] [Backend] 多码流：sub_rtsp 解码源 + -vf scale 强制尺寸（§2.1）
-- [ ] [Backend] ROI 掩码检测（§2.3）
-- [ ] [Backend] 布防日程评估器 + armed 运行时状态（§2.2）
 - [ ] [Backend] 通知中心 notify：钉钉/企微/Telegram/Bark/Webhook + 限流（§1 notify）
 - [ ] [Backend] C3 画面自检模块 + 状态暴露（§2.4）
 - [ ] [Backend] C9 每日日报（store 按日统计 + 定时推送）（§2.5）
@@ -34,3 +30,8 @@ Contract：docs/contracts/api-v1.1.md（唯一依据）
 
 - [x] Contract v1.1（docs/contracts/api-v1.1.md）
 - [x] 基线导入与 worktree 建立（main@1bf7679）
+- [x] [Backend] 配置 schema v1.1：新结构体/双tag/Sanitize/热更新扩展（§1）→ f5e0998
+- [x] [Backend] 多码流：sub_rtsp 解码源 + -vf scale 强制尺寸（§2.1）→ 08f8551
+- [x] [Backend] ROI 掩码检测（§2.3）→ 7922f91
+- [x] [Backend] 布防日程评估器 + armed 运行时状态（§2.2）→ 见 backend-status.md
+- [x] [Backend] 日志环形缓冲 500 条（§2.8）→ 见 backend-status.md
