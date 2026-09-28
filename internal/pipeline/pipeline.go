@@ -17,6 +17,7 @@ import (
 
 	"camhub/internal/config"
 	"camhub/internal/detector"
+	"camhub/internal/digest"
 	"camhub/internal/imgconv"
 	"camhub/internal/notify"
 	"camhub/internal/recorder"
@@ -34,6 +35,7 @@ type Pipeline struct {
 	rec     *recorder.Recorder
 	nt      *notify.Notifier
 	sc      *selfcheck.Checker
+	dg      *digest.Reporter
 
 	mu       sync.RWMutex
 	settings config.Config
@@ -61,6 +63,7 @@ func New(cfg *config.Config, cfgPath string, st *store.Store) *Pipeline {
 	p.det = detector.New(cfg.Motion)
 	p.rec = recorder.New(src, p.Settings, p.RecordEffective)
 	p.sc = selfcheck.New(cfg.SelfCheck, src, p.onSelfCheckAlert)
+	p.dg = digest.New(cfg.Digest, st, p.nt, func() string { return p.Settings().Camera.Name })
 	return p
 }
 
@@ -118,13 +121,14 @@ func (p *Pipeline) StartedAt() time.Time { return p.startedAt }
 func (p *Pipeline) Start(ctx context.Context) {
 	p.startedAt = time.Now()
 	ctx, p.cancel = context.WithCancel(ctx)
-	p.wg.Add(6)
+	p.wg.Add(7)
 	go func() { defer p.wg.Done(); p.src.Run(ctx) }()
 	go func() { defer p.wg.Done(); p.detectLoop(ctx) }()
 	go func() { defer p.wg.Done(); p.rec.Run(ctx) }()
 	go func() { defer p.wg.Done(); p.cleanLoop(ctx) }()
 	go func() { defer p.wg.Done(); p.nt.Run(ctx) }()
 	go func() { defer p.wg.Done(); p.sc.Run(ctx) }()
+	go func() { defer p.wg.Done(); p.dg.Run(ctx) }()
 	slog.Info("流水线已启动", "source", p.Settings().Camera.Type)
 }
 
