@@ -1,5 +1,57 @@
 # AGENT 共享状态
 
+## ✅ v1.2 已交付（2026-09-28，Orchestrator 集成验收完成）
+
+**范围**：任意 URL 流来源（HTTP-FLV/HLS/RTMP）+ 画质三项可配（预览质量/预览帧率/编码 CRF）+ 监控优先外壳改版。
+**契约**：`docs/contracts/api-v1.2.md`（唯一依据，增量于 v1.1）。
+**任务板**：`docs/agent/tasks-v12.md`（全部勾选，含证据）。
+
+### 合并结果（main）
+
+| 提交 | 内容 |
+|---|---|
+| `79555be` | 后端 v1.2：type=url 解码源 / copy 模式 / 画质三项参数化与热更新（backend-v12 四提交精炼合并） |
+| `d549be9` | docs(contract): v1.2 契约与任务板 |
+| `208c422` | feat(web): 监控优先外壳——顶部细栏 + 监控默认路由（LivePage→MonitorPage，ROI 收进弹层） |
+| 本轮修复 | Sanitize 钳制语义与契约对齐（0/负数钳到下限不回默认值）+ 契约 §1 补充说明 |
+
+### 验收证据（全部实测）
+
+- `gofmt -l` 无输出；`go vet ./...` 通过；**`go test -count=1 ./...` 13 包全绿**
+- **后端冒烟三阶段**（`D:/tmp/camhub-v12-smoke/smoke_v12.py`，隔离实例 8788）：
+  - 阶段 A 合成源 **28/28**：新字段默认值/回环/纯钳制（0→1、-1→0、101→100）、抓拍质量真实生效
+    （q95=41774B vs q5=7565B）、MJPEG fps=30 实测 33ms 帧间隔（热更新 fps=5 → 201ms）、yaml 落盘、encode 模式 + crf 真实录像
+  - 阶段 B url 空地址 **6/6**：不起 ffmpeg、last_error=「未配置流地址(camera.url 为空)」、按重连间隔重试
+  - 阶段 C url 真实流 **5/5**：ffmpeg `-listen 1` 无限 FLV 源 → connected=true、24.3fps、640×480 解码、抓拍 JPEG、reconnect 参数全部被接受
+- **前端 mock 断言 `probe-v12.mjs`：165/165 全绿**（真实 Chrome 153 + CDP，桌面 1440×900 与移动端 390×844；
+  监控视区高度精确=100vh−104px、画面高占 84%、整页无滚动条；0 console 错误）
+- **真实模式 UI 端到端 `e2e-real-ui.mjs`：18/18 全绿**（内嵌新版产物 + 真后端：真实 MJPEG 解码 640×480、
+  布防开关真实生效并 API 回读、设置页改预览质量 90 → `GET /api/config` 真值 90、真实日志 SSE、无 MOCK 徽标、0 console 错误）
+
+### 集成时发现并修复的真实缺陷
+
+1. **Sanitize 钳制违反契约 §1**：`preview_quality=0` 被回退成默认 80（应钳到 1）、`encode_crf=-1` 回退 26（应钳到 0）。
+   根因是把「0 当未填」的升级兜底写进了 Sanitize；而文件升级路径本就由 `Load` 的 `Default()` 叠加兜底。
+   修复：Sanitize 纯钳制 + 单测修正（`TestV12Clamps`）+ 契约补充「纯钳制」说明。冒烟脚本与实现的不一致（上一会话遗留）由此收敛。
+2. **前端**：监控页事件行标题与时间挤同一行（`ch-event-title/sub` 用在 span 上丢了块级）→ CSS 补 `display:block`。
+3. 测试基建修正：`smoke_v12.py` 的 last_error 全等断言改为契约短语包含匹配；阶段 C 夹具改为无限 FLV 流
+   （静态 mp4 在不加 `-re` 的 url 语义下会被瞬间读完 EOF，属夹具设计错误，非产品缺陷）。
+
+### 遗留（诚实声明）
+
+- v1.1 五层验证中的通知长跑/优雅关闭/生命周期三层本轮未重跑（v1.2 未触碰其代码路径，13 包单测全绿覆盖行为）
+- 抖音地址自动抓取与刷新：本期明确不做（契约 §0）
+- 相机实机接入未验证（硬件未到货）
+- `internal/bot` 单测曾在多任务并行负载下超时抖动一次，单独/空闲复跑均通过
+
+### 环境备注
+
+- 两个 worktree（`.wt/backend`、`.wt/frontend`）本轮未使用（后端已在 main 精炼合并、前端直接在 main 开发），可保留或清理
+- 验证产物：截图 `D:/tmp/webui-verify/shots-v12/`（mock）与 `shots-v12-real/`（真实）；
+  报告 `D:/tmp/webui-verify/report-v12.txt`、`report-v12-real.txt`、`D:/tmp/camhub-v12-e2e/`
+
+---
+
 ## ✅ v1.1 已交付（2026-09-28，Orchestrator 集成验收完成）
 
 **范围**：P0 七件套 + C3 画面自检 + C6 Telegram Bot + C9 日报 + Arco 前端重构。
