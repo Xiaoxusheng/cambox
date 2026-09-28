@@ -23,6 +23,16 @@ const (
 	TypeRTSP      = "rtsp"
 	TypeFile      = "file"
 	TypeDShow     = "dshow"
+	// TypeURL v1.2: 任意网络流(HTTP-FLV / HLS / RTMP), 如直播拉流地址。
+	// 地址本身由外部提供; 抖音等平台下发的地址带签名且会过期, 需自行更新。
+	TypeURL = "url"
+)
+
+// v1.2 默认值: 与 v1.1 的硬编码值一致, 保证升级后行为不变。
+const (
+	DefaultPreviewQuality = 80 // JPEG 质量(1~100)
+	DefaultPreviewFPS     = 15 // MJPEG 推送帧率上限(1~30)
+	DefaultEncodeCRF      = 26 // 非 copy 模式录像的 libx264 CRF(0~51)
 )
 
 // 默认值(v1.1 新增部分)。
@@ -47,15 +57,21 @@ type Config struct {
 
 type CameraConfig struct {
 	Name           string `yaml:"name" json:"name"`
-	Type           string `yaml:"type" json:"type"` // synthetic | rtsp | file | dshow
+	Type           string `yaml:"type" json:"type"` // synthetic | rtsp | file | dshow | url
 	RTSP           string `yaml:"rtsp" json:"rtsp"`
 	SubRTSP        string `yaml:"sub_rtsp" json:"sub_rtsp"` // 子码流(预览+检测解码用); 空=用主码流
 	File           string `yaml:"file" json:"file"`
 	DShowDevice    string `yaml:"dshow_device" json:"dshow_device"`
+	URL            string `yaml:"url" json:"url"` // v1.2: type=url 时的网络流地址
 	Width          int    `yaml:"width" json:"width"`
 	Height         int    `yaml:"height" json:"height"`
 	FPS            int    `yaml:"fps" json:"fps"`
 	ReconnectDelay int    `yaml:"reconnect_delay_sec" json:"reconnect_delay_sec"`
+	// PreviewQuality v1.2: MJPEG 与抓拍的 JPEG 质量(1~100); 热更新即时生效。
+	PreviewQuality int `yaml:"preview_quality" json:"preview_quality"`
+	// PreviewFPS v1.2: MJPEG 推送帧率上限(1~30); 热更新即时生效。
+	// 注意: 这是"预览流畅度", 不是录像帧率 —— 录像帧率由源本身决定。
+	PreviewFPS int `yaml:"preview_fps" json:"preview_fps"`
 }
 
 type RecordConfig struct {
@@ -64,6 +80,9 @@ type RecordConfig struct {
 	SegmentSeconds int     `yaml:"segment_seconds" json:"segment_seconds"`
 	RetentionDays  int     `yaml:"retention_days" json:"retention_days"`
 	MaxDiskGB      float64 `yaml:"max_disk_gb" json:"max_disk_gb"`
+	// EncodeCRF v1.2: 非 copy 模式(synthetic/file/dshow)录像的 libx264 CRF(0~51, 越小越清晰越大)。
+	// rtsp/url 源走 -c copy 原始码流, 此值无效(面板需如实说明)。
+	EncodeCRF int `yaml:"encode_crf" json:"encode_crf"`
 }
 
 // ROI 归一化检测区域矩形, 值域 [0,1]; w/h > 0。
@@ -251,6 +270,8 @@ func Default() *Config {
 			Height:         720,
 			FPS:            25,
 			ReconnectDelay: 3,
+			PreviewQuality: DefaultPreviewQuality,
+			PreviewFPS:     DefaultPreviewFPS,
 		},
 		Record: RecordConfig{
 			Enabled:        true,
@@ -258,6 +279,7 @@ func Default() *Config {
 			SegmentSeconds: 600,
 			RetentionDays:  7,
 			MaxDiskGB:      20,
+			EncodeCRF:      DefaultEncodeCRF,
 		},
 		Motion: MotionConfig{
 			Enabled:        true,
@@ -332,7 +354,7 @@ func Save(path string, c *Config) error {
 // Sanitize 将非法值钳制到契约 §1 规定的范围; nil 切片回填为空切片(JSON 输出 [] 而非 null)。
 func (c *Config) Sanitize() {
 	switch c.Camera.Type {
-	case TypeSynthetic, TypeRTSP, TypeFile, TypeDShow:
+	case TypeSynthetic, TypeRTSP, TypeFile, TypeDShow, TypeURL:
 	default:
 		c.Camera.Type = TypeSynthetic
 	}
@@ -343,6 +365,17 @@ func (c *Config) Sanitize() {
 	c.Camera.Height = clampInt(c.Camera.Height, 240, 2160)
 	c.Camera.FPS = clampInt(c.Camera.FPS, 1, 60)
 	c.Camera.ReconnectDelay = clampInt(c.Camera.ReconnectDelay, 1, 300)
+	c.Camera.URL = strings.TrimSpace(c.Camera.URL)
+	// 0 视为"没填", 回到默认值: 老配置文件/老客户端的 JSON 里没有这些字段时就是 0。
+	// (Load 会先用 Default() 兜底, 所以从文件读到的一定有值; 这里是防 API 侧漏字段。)
+	if c.Camera.PreviewQuality <= 0 {
+		c.Camera.PreviewQuality = DefaultPreviewQuality
+	}
+	c.Camera.PreviewQuality = clampInt(c.Camera.PreviewQuality, 1, 100)
+	if c.Camera.PreviewFPS <= 0 {
+		c.Camera.PreviewFPS = DefaultPreviewFPS
+	}
+	c.Camera.PreviewFPS = clampInt(c.Camera.PreviewFPS, 1, 30)
 
 	if c.Record.Dir == "" {
 		c.Record.Dir = "recordings"
@@ -350,6 +383,12 @@ func (c *Config) Sanitize() {
 	c.Record.SegmentSeconds = clampInt(c.Record.SegmentSeconds, 10, 86400)
 	c.Record.RetentionDays = clampInt(c.Record.RetentionDays, 1, 365)
 	c.Record.MaxDiskGB = clampFloat(c.Record.MaxDiskGB, 0.1, 10000)
+	// CRF 与上面两项不同: 0 是合法值(无损), 不能用 0 判"未填"。
+	// 因此用负数判未填; 从文件加载时 Load 已用 Default() 兜底。
+	if c.Record.EncodeCRF < 0 {
+		c.Record.EncodeCRF = DefaultEncodeCRF
+	}
+	c.Record.EncodeCRF = clampInt(c.Record.EncodeCRF, 0, 51)
 
 	c.Motion.Threshold = clampInt(c.Motion.Threshold, 1, 255)
 	c.Motion.MinArea = clampInt(c.Motion.MinArea, 1, 1000000)

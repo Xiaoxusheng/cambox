@@ -129,6 +129,19 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 // ---- 实时画面 ----
 
+// previewInterval 由 camera.preview_fps 换算 MJPEG 推送间隔。
+// 这是**预览**帧率上限, 不是录像帧率(录像帧率由源本身决定); 面板文案要如实说明。
+func previewInterval(cfg config.Config) time.Duration {
+	fps := cfg.Camera.PreviewFPS
+	if fps <= 0 {
+		fps = config.DefaultPreviewFPS
+	}
+	if fps > 30 {
+		fps = 30
+	}
+	return time.Second / time.Duration(fps)
+}
+
 func (s *Server) handleMJPEG(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -138,7 +151,10 @@ func (s *Server) handleMJPEG(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "multipart/x-mixed-replace; boundary=frame")
 	w.Header().Set("Cache-Control", "no-store")
 
-	ticker := time.NewTicker(66 * time.Millisecond) // ~15fps 上限
+	// v1.2: 帧率上限由 camera.preview_fps 决定, 且热更新即时生效 ——
+	// 每拍都读一次配置并在变化时 Reset ticker, 这样在设置页改帧率不必重开页面。
+	interval := previewInterval(s.pl.Settings())
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	frame := source.Frame{}
 	var jpg []byte
@@ -147,10 +163,15 @@ func (s *Server) handleMJPEG(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case <-ticker.C:
+			cfg := s.pl.Settings()
+			if iv := previewInterval(cfg); iv != interval {
+				interval = iv
+				ticker.Reset(iv)
+			}
 			if !s.pl.Source().Snapshot(&frame) {
 				continue // 源未就绪, 等下一拍
 			}
-			jpg = imgconv.EncodeJPEG(jpg[:0], &frame)
+			jpg = imgconv.EncodeJPEGQuality(jpg[:0], &frame, cfg.Camera.PreviewQuality)
 			if len(jpg) == 0 {
 				continue
 			}
@@ -174,7 +195,8 @@ func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusServiceUnavailable, "暂无画面")
 		return
 	}
-	jpg := imgconv.EncodeJPEG(nil, &frame)
+	// v1.2: 抓拍质量同样走 camera.preview_quality
+	jpg := imgconv.EncodeJPEGQuality(nil, &frame, s.pl.Settings().Camera.PreviewQuality)
 	w.Header().Set("Content-Type", "image/jpeg")
 	_, _ = w.Write(jpg)
 }
@@ -192,7 +214,7 @@ func (s *Server) handleManualSnapshot(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "创建抓拍目录失败")
 		return
 	}
-	jpg := imgconv.EncodeJPEG(nil, &frame)
+	jpg := imgconv.EncodeJPEGQuality(nil, &frame, cfg.Camera.PreviewQuality)
 	if err := os.WriteFile(filepath.Join(dir, name), jpg, 0o644); err != nil {
 		writeErr(w, http.StatusInternalServerError, "保存抓拍失败")
 		return

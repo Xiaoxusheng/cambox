@@ -329,7 +329,8 @@ func (p *Pipeline) SnapshotJPEG() ([]byte, error) {
 	if !p.src.Snapshot(&f) {
 		return nil, errors.New("暂无画面")
 	}
-	jpg := imgconv.EncodeJPEG(nil, &f)
+	// v1.2: Bot /snap 的抓拍质量同样走 camera.preview_quality
+	jpg := imgconv.EncodeJPEGQuality(nil, &f, p.Settings().Camera.PreviewQuality)
 	if len(jpg) == 0 {
 		return nil, errors.New("画面编码失败")
 	}
@@ -367,6 +368,11 @@ func (p *Pipeline) cleanLoop(ctx context.Context) {
 	}
 }
 
+// writeJPEG 写**存档**用的事件/自检缩略图。
+//
+// 这里刻意不用 camera.preview_quality: 预览(MJPEG/抓拍)是可随时重来的实时画面,
+// 而事件缩略图是要留档调阅的证据, 用固定 85 保证画质稳定 —— 用户把预览质量调低
+// 省带宽时, 不该连带把历史证据也压糊。
 func writeJPEG(path string, img image.Image) error {
 	f, err := os.Create(path)
 	if err != nil {

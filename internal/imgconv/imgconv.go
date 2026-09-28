@@ -8,6 +8,7 @@ import (
 	"image/color"
 	"image/jpeg"
 
+	"camhub/internal/config"
 	"camhub/internal/source"
 )
 
@@ -28,10 +29,25 @@ func ToRGBA(f *source.Frame) *image.RGBA {
 	return img
 }
 
-// EncodeJPEG 将裸帧编码为 JPEG(质量 80), 追加到 dst 并返回。
+// EncodeJPEG 将裸帧编码为 JPEG(默认质量), 追加到 dst 并返回。
 func EncodeJPEG(dst []byte, f *source.Frame) []byte {
+	return EncodeJPEGQuality(dst, f, config.DefaultPreviewQuality)
+}
+
+// EncodeJPEGQuality v1.2: 质量可调(camera.preview_quality), 追加到 dst 并返回。
+//
+// 质量在包内钳到 1~100: jpeg.Encode 对越界质量会直接返回错误, 与其让调用方
+// (MJPEG 循环每拍都调) 依赖"配置一定合法", 不如在这里兜底 —— 配置被热更新成脏值时
+// 最多是画质变化, 不会整条预览链路静默中断。
+func EncodeJPEGQuality(dst []byte, f *source.Frame, quality int) []byte {
+	if quality < 1 {
+		quality = 1
+	}
+	if quality > 100 {
+		quality = 100
+	}
 	var b bytes.Buffer
-	if err := jpeg.Encode(&b, ToRGBA(f), &jpeg.Options{Quality: 80}); err != nil {
+	if err := jpeg.Encode(&b, ToRGBA(f), &jpeg.Options{Quality: quality}); err != nil {
 		return dst // 编码失败返回原缓冲, 调用方按空帧处理
 	}
 	return append(dst, b.Bytes()...)

@@ -83,10 +83,7 @@ func (r *Recorder) Run(ctx context.Context) {
 			}
 			continue
 		}
-		mode := ModeCopy
-		if cfg.Camera.Type != config.TypeRTSP {
-			mode = ModeEncode
-		}
+		mode := recordMode(cfg)
 		err := r.runOnce(ctx, cfg, mode)
 		if ctx.Err() != nil {
 			return
@@ -348,13 +345,36 @@ func listFiles(dir string) ([]fileInfo, int64, error) {
 	return files, total, nil
 }
 
+// recordMode 决定录像走流复制还是重新编码。
+//
+// v1.2: url 源(网络流, 如直播拉流)与 rtsp 一样走 `-c copy`, 保留原始码流画质且零转码 CPU。
+// 只有合成/文件/采集卡这类"只能拿到共享帧"的源才需要重新编码成 H.264。
+// 抽成函数是为了让这层判定可被单测覆盖 —— 它决定了用户最终看到的是原画质还是二次压缩。
+func recordMode(cfg config.Config) string {
+	switch cfg.Camera.Type {
+	case config.TypeRTSP, config.TypeURL:
+		return ModeCopy
+	default:
+		return ModeEncode
+	}
+}
+
 // recordArgs 构造录像 ffmpeg 命令(按时长分段)。
 func recordArgs(cfg config.Config, mode string) []string {
 	pattern := filepath.Join(cfg.Record.Dir, segmentPattern)
 	base := []string{"-hide_banner", "-loglevel", "warning"}
 	var in, codec []string
 	if mode == ModeCopy {
-		in = []string{"-rtsp_transport", "tcp", "-i", cfg.Camera.RTSP, "-map", "0"}
+		if cfg.Camera.Type == config.TypeURL {
+			// 网络流: 不能用 -rtsp_transport(那是 RTSP 专用的), http(s) 用 reconnect 提高抗断流能力。
+			in = []string{"-rw_timeout", "8000000"}
+			if strings.HasPrefix(cfg.Camera.URL, "http://") || strings.HasPrefix(cfg.Camera.URL, "https://") {
+				in = append(in, "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "10")
+			}
+			in = append(in, "-i", cfg.Camera.URL, "-map", "0")
+		} else {
+			in = []string{"-rtsp_transport", "tcp", "-i", cfg.Camera.RTSP, "-map", "0"}
+		}
 		codec = []string{"-c", "copy"}
 	} else {
 		in = []string{
@@ -362,7 +382,9 @@ func recordArgs(cfg config.Config, mode string) []string {
 			"-video_size", fmt.Sprintf("%dx%d", cfg.Camera.Width, cfg.Camera.Height),
 			"-framerate", fmt.Sprint(cfg.Camera.FPS), "-i", "pipe:0",
 		}
-		codec = []string{"-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-pix_fmt", "yuv420p"}
+		// v1.2: CRF 可配(record.encode_crf), 越小越清晰越大。
+		codec = []string{"-c:v", "libx264", "-preset", "veryfast",
+			"-crf", fmt.Sprint(cfg.Record.EncodeCRF), "-pix_fmt", "yuv420p"}
 	}
 	tail := []string{
 		"-f", "segment",

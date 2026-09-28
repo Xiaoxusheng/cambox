@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -106,6 +107,11 @@ func (s *Source) frameSize() int {
 }
 
 func (s *Source) runOnce(ctx context.Context, frameSize int) error {
+	// v1.2: type=url 但没填地址时, 直接给出明确错误并按重连间隔重试,
+	// 而不是把空串喂给 ffmpeg(那样得到的是难以定位的 "Invalid argument")。
+	if s.cfg.Type == config.TypeURL && strings.TrimSpace(s.cfg.URL) == "" {
+		return errors.New("未配置流地址(camera.url 为空)")
+	}
 	cmd := exec.CommandContext(ctx, "ffmpeg", decodeArgs(s.cfg)...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -209,6 +215,12 @@ func (s *Source) Stats() Stats {
 	return st
 }
 
+// isHTTPURL 判断地址是否为 HTTP(S), 决定要不要带 ffmpeg 的 reconnect 系列参数
+// (这些是 http 协议的 AVOption, 传给 rtmp 等协议会被 ffmpeg 告警)。
+func isHTTPURL(u string) bool {
+	return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")
+}
+
 // decodeArgs 按来源类型构造 ffmpeg 解码命令(输出 BGR24 到 stdout)。
 // 解码源: type=rtsp 时优先用子码流 sub_rtsp(空则回退主码流);
 // 统一加 -vf scale=W:H 强制输出 cfg.Width×cfg.Height, 保证子码流分辨率与帧槽一致。
@@ -226,6 +238,15 @@ func decodeArgs(cfg config.CameraConfig) []string {
 		in = []string{"-re", "-i", cfg.File}
 	case config.TypeDShow:
 		in = []string{"-f", "dshow", "-i", "video=" + cfg.DShowDevice}
+	case config.TypeURL:
+		// v1.2: 任意网络流(HTTP-FLV / HLS / RTMP), 例如直播拉流地址。
+		// 直播流**不加 -re**(它是给本地文件按原生帧率喂流用的, 加到直播上只会徒增延迟)。
+		in = []string{"-fflags", "nobuffer", "-flags", "low_delay", "-rw_timeout", "8000000"}
+		// reconnect 系列只有 http/https 协议认; rtmp 等协议传了会告警, 所以按需添加。
+		if isHTTPURL(cfg.URL) {
+			in = append(in, "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "10")
+		}
+		in = append(in, "-i", cfg.URL)
 	default: // synthetic
 		in = []string{"-re", "-f", "lavfi", "-i", fmt.Sprintf("testsrc2=size=%dx%d:rate=%d", cfg.Width, cfg.Height, cfg.FPS)}
 	}
