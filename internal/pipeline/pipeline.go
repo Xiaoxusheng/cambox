@@ -145,12 +145,12 @@ func (p *Pipeline) Stop() {
 	slog.Info("流水线已停止")
 }
 
-// UpdateSettings 热更新 motion/record: 钳制校验 → 原子落盘 → 替换运行时值。
-func (p *Pipeline) UpdateSettings(motion config.MotionConfig, record config.RecordConfig) error {
+// UpdateConfig 应用面板提交的 v1.1 全量配置(契约 §2.7): 钳制 → 原子落盘 → 热更新各子系统。
+// camera/server 仅落盘, 运行中的取流与监听需重启生效(面板提示)。
+func (p *Pipeline) UpdateConfig(v config.View) error {
 	p.mu.Lock()
 	next := p.settings
-	next.Motion = motion
-	next.Record = record
+	next.ApplyView(v)
 	next.Sanitize()
 	if err := config.Save(p.cfgPath, &next); err != nil {
 		p.mu.Unlock()
@@ -160,7 +160,14 @@ func (p *Pipeline) UpdateSettings(motion config.MotionConfig, record config.Reco
 	p.mu.Unlock()
 
 	p.det.SetConfig(next.Motion)
-	slog.Info("设置已更新", "motion.enabled", next.Motion.Enabled, "record.enabled", next.Record.Enabled)
+	p.nt.Update(next.Notify)
+	p.sc.Update(next.SelfCheck)
+	p.dg.Update(next.Digest)
+	p.bt.Update(next.Bot)
+	slog.Info("配置已更新",
+		"motion.enabled", next.Motion.Enabled, "record.enabled", next.Record.Enabled,
+		"schedules.rules", len(next.Schedules.Rules), "rois", len(next.Motion.ROIs),
+		"notify.channels", len(p.nt.EnabledChannels(next.Notify)))
 	return nil
 }
 

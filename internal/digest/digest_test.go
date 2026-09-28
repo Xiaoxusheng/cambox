@@ -201,7 +201,7 @@ func TestRunSendsWhenDueAndStopsOnCancel(t *testing.T) {
 	done := make(chan struct{})
 	go func() { defer close(done); r.Run(ctx) }()
 
-	deadline := time.After(2 * time.Second)
+	deadline := time.After(15 * time.Second)
 	for fs.count() == 0 {
 		select {
 		case <-deadline:

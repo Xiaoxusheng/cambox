@@ -14,6 +14,7 @@ import (
 
 	"camhub/internal/config"
 	"camhub/internal/imgconv"
+	"camhub/internal/selfcheck"
 	"camhub/internal/source"
 	"camhub/internal/store"
 )
@@ -71,15 +72,24 @@ type diskStatus struct {
 	MaxGB           float64 `json:"max_gb"`
 }
 
+// scheduleActiveStatus 当前时刻日程放行情况(契约 §3.2)。
+type scheduleActiveStatus struct {
+	Motion bool `json:"motion"`
+	Record bool `json:"record"`
+}
+
 type statusResponse struct {
-	Time        time.Time      `json:"time"`
-	UptimeSec   float64        `json:"uptime_sec"`
-	Camera      cameraStatus   `json:"camera"`
-	Recorder    recorderStatus `json:"recorder"`
-	Motion      motionStatus   `json:"motion"`
-	Disk        diskStatus     `json:"disk"`
-	EventsCount int            `json:"events_count"`
-	FFmpegLog   []string       `json:"ffmpeg_log"`
+	Time           time.Time            `json:"time"`
+	UptimeSec      float64              `json:"uptime_sec"`
+	Camera         cameraStatus         `json:"camera"`
+	Recorder       recorderStatus       `json:"recorder"`
+	Motion         motionStatus         `json:"motion"`
+	Disk           diskStatus           `json:"disk"`
+	EventsCount    int                  `json:"events_count"`
+	FFmpegLog      []string             `json:"ffmpeg_log"`
+	Armed          bool                 `json:"armed"`
+	ScheduleActive scheduleActiveStatus `json:"schedule_active"`
+	SelfCheck      selfcheck.State      `json:"selfcheck"`
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -87,6 +97,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	stats := s.pl.Source().Stats()
 	rec := s.pl.Recorder().Status()
 	recBytes, snapBytes := s.disk.get(cfg.Record.Dir, cfg.Server.SnapshotDir, 30*time.Second)
+	schedMotion, schedRecord := s.pl.ScheduleActive()
 
 	writeOK(w, statusResponse{
 		Time:      time.Now(),
@@ -108,8 +119,11 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 			SnapshotsBytes:  snapBytes,
 			MaxGB:           cfg.Record.MaxDiskGB,
 		},
-		EventsCount: s.st.Count(),
-		FFmpegLog:   stats.Log,
+		EventsCount:    s.st.Count(),
+		FFmpegLog:      stats.Log,
+		Armed:          s.pl.Armed(),
+		ScheduleActive: scheduleActiveStatus{Motion: schedMotion, Record: schedRecord},
+		SelfCheck:      s.pl.SelfCheck().State(),
 	})
 }
 
@@ -200,14 +214,42 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	offset, _ := strconv.Atoi(q.Get("offset"))
-	items, total := s.st.List(limit, offset)
+
+	f := store.Filter{Type: q.Get("type")}
+	switch f.Type {
+	case "", "motion", "selfcheck":
+	default:
+		writeErr(w, http.StatusBadRequest, "type 只能是 motion 或 selfcheck")
+		return
+	}
+	var err error
+	if f.From, err = parseTimeParam(q.Get("from")); err != nil {
+		writeErr(w, http.StatusBadRequest, "from 需为 RFC3339 时间")
+		return
+	}
+	if f.To, err = parseTimeParam(q.Get("to")); err != nil {
+		writeErr(w, http.StatusBadRequest, "to 需为 RFC3339 时间")
+		return
+	}
+
+	items, total := s.st.Query(f, limit, offset)
 	writeOK(w, eventsResponse{Items: items, Total: total})
 }
 
+// parseTimeParam 解析可选的时间参数; 空串表示不限。
+func parseTimeParam(v string) (time.Time, error) {
+	if v == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339, v)
+}
+
 type recFileItem struct {
-	Name      string    `json:"name"`
-	SizeBytes int64     `json:"size_bytes"`
-	Modified  time.Time `json:"modified"`
+	Name      string     `json:"name"`
+	SizeBytes int64      `json:"size_bytes"`
+	Modified  time.Time  `json:"modified"`
+	Start     *time.Time `json:"start"`
+	End       *time.Time `json:"end"`
 }
 
 type recordingsResponse struct {
@@ -216,8 +258,8 @@ type recordingsResponse struct {
 }
 
 func (s *Server) handleRecordings(w http.ResponseWriter, r *http.Request) {
-	dir := s.pl.Settings().Record.Dir
-	entries, err := os.ReadDir(dir)
+	cfg := s.pl.Settings()
+	entries, err := os.ReadDir(cfg.Record.Dir)
 	if err != nil && !os.IsNotExist(err) {
 		writeErr(w, http.StatusInternalServerError, "读取录像目录失败")
 		return
@@ -231,11 +273,17 @@ func (s *Server) handleRecordings(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			continue
 		}
-		resp.Items = append(resp.Items, recFileItem{
+		item := recFileItem{
 			Name:      e.Name(),
 			SizeBytes: info.Size(),
 			Modified:  info.ModTime(),
-		})
+		}
+		// start/end 由文件名解析(契约 §3.2); 解析失败两者均为 null
+		if start, ok := parseSegmentName(e.Name()); ok {
+			end := segmentEnd(start, info.ModTime(), cfg.Record.SegmentSeconds)
+			item.Start, item.End = &start, &end
+		}
+		resp.Items = append(resp.Items, item)
 		resp.TotalSizeBytes += info.Size()
 	}
 	sort.Slice(resp.Items, func(i, j int) bool {
@@ -246,28 +294,23 @@ func (s *Server) handleRecordings(w http.ResponseWriter, r *http.Request) {
 
 // ---- 配置 ----
 
-type configView struct {
-	Motion config.MotionConfig `json:"motion"`
-	Record config.RecordConfig `json:"record"`
-}
-
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	cfg := s.pl.Settings()
-	writeOK(w, configView{Motion: cfg.Motion, Record: cfg.Record})
+	writeOK(w, cfg.View())
 }
 
 func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
-	var req configView
+	var req config.View
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求体不是合法 JSON")
 		return
 	}
-	if err := s.pl.UpdateSettings(req.Motion, req.Record); err != nil {
+	if err := s.pl.UpdateConfig(req); err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	cfg := s.pl.Settings()
-	writeOK(w, configView{Motion: cfg.Motion, Record: cfg.Record})
+	writeOK(w, cfg.View())
 }
 
 // ---- 工具 ----

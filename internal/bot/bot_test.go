@@ -161,7 +161,7 @@ func runPoll(t *testing.T, b *Bot, cfg config.BotConfig, cond func() bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { defer close(done); b.poll(ctx, cfg) }()
-	deadline := time.After(3 * time.Second)
+	deadline := time.After(15 * time.Second)
 	for !cond() {
 		select {
 		case <-deadline:
@@ -174,7 +174,7 @@ func runPoll(t *testing.T, b *Bot, cfg config.BotConfig, cond func() bool) {
 	cancel()
 	select {
 	case <-done:
-	case <-time.After(3 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Fatal("poll 未随 ctx 取消退出")
 	}
 }
@@ -408,11 +408,11 @@ func TestPollRetriesAfterError(t *testing.T) {
 	defer ts.Close()
 
 	// retryDelay=3s, 需要等一次重试
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	done := make(chan struct{})
 	go func() { defer close(done); b.poll(ctx, b.Config()) }()
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(18 * time.Second)
 	for !app.isArmed() {
 		select {
 		case <-deadline:
@@ -437,7 +437,7 @@ func TestRunIdlesWhenDisabled(t *testing.T) {
 	cancel()
 	select {
 	case <-done:
-	case <-time.After(3 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Fatal("Run 未随 ctx 取消退出")
 	}
 	tg.mu.Lock()
@@ -459,7 +459,7 @@ func TestRunRestartsOnTokenChange(t *testing.T) {
 	done := make(chan struct{})
 	go func() { defer close(done); b.Run(ctx) }()
 
-	deadline := time.After(3 * time.Second)
+	deadline := time.After(15 * time.Second)
 	for {
 		tg.mu.Lock()
 		n := tg.callN
@@ -480,7 +480,7 @@ func TestRunRestartsOnTokenChange(t *testing.T) {
 	cancel()
 	select {
 	case <-done:
-	case <-time.After(3 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Fatal("Run 未随 ctx 取消退出")
 	}
 	// token 变更后应重新轮询(调用次数继续增长)

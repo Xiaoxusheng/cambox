@@ -48,6 +48,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/config", s.handleGetConfig)
 	mux.HandleFunc("POST /api/config", s.handlePostConfig)
 
+	// v1.1 新增(契约 §3.3)
+	mux.HandleFunc("POST /api/arm", s.handleArm)
+	mux.HandleFunc("GET /api/timeline", s.handleTimeline)
+	mux.HandleFunc("POST /api/events/batch-delete", s.handleBatchDeleteEvents)
+	mux.HandleFunc("DELETE /api/recordings/{name}", s.handleDeleteRecording)
+	mux.HandleFunc("POST /api/notify/test", s.handleNotifyTest)
+	mux.HandleFunc("GET /api/logs/stream", s.handleLogsStream)
+
 	mux.Handle("GET /media/recordings/",
 		http.StripPrefix("/media/recordings/", dirHandler(func() string { return s.pl.Settings().Record.Dir })))
 	mux.Handle("GET /media/snapshots/",

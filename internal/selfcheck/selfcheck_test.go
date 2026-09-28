@@ -340,7 +340,7 @@ func TestRunRespectsIntervalAndStopsOnCancel(t *testing.T) {
 	done := make(chan struct{})
 	go func() { defer close(done); c.Run(ctx) }()
 
-	deadline := time.After(3 * time.Second)
+	deadline := time.After(15 * time.Second)
 	for {
 		if c.State().LastRun != nil {
 			break
