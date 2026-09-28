@@ -55,12 +55,12 @@ export function HourlyChart({
             x2={W}
             y1={TOP_PAD + usable * f}
             y2={TOP_PAD + usable * f}
-            stroke="rgba(255,255,255,0.06)"
+            stroke="var(--chart-grid)"
             strokeWidth={1}
           />
         ))}
         {/* 基线 */}
-        <line x1={0} y1={H - 26} x2={W} y2={H - 26} stroke="rgba(255,255,255,0.14)" strokeWidth={1} />
+        <line x1={0} y1={H - 26} x2={W} y2={H - 26} stroke="var(--chart-axis)" strokeWidth={1} />
 
         {values.map((v, i) => {
           const self = sc[i] ?? 0
@@ -76,7 +76,7 @@ export function HourlyChart({
           return (
             <g key={i} opacity={dim ? 0.4 : 1} style={{ transition: 'opacity 120ms ease-out' }}>
               {isNow ? (
-                <rect x={x - BAR_GAP / 2} y={0} width={slot + BAR_GAP} height={H} fill="rgba(255,255,255,0.04)" />
+                <rect x={x - BAR_GAP / 2} y={0} width={slot + BAR_GAP} height={H} fill="var(--chart-band)" />
               ) : null}
               {motion > 0 ? (
                 <rect

@@ -7,13 +7,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Drawer, Message, Modal, Switch, Tag, Tooltip } from '@arco-design/web-react'
-import { IconFileVideo, IconMenu } from '@arco-design/web-react/icon'
+import { IconFileVideo, IconMenu, IconMoon, IconSun } from '@arco-design/web-react/icon'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { IS_MOCK } from '../api/client'
 import { fetchConfig, fetchStatus, saveConfig, setArmed } from '../api/endpoints'
 import { errorText } from '../api/errors'
 import { useAsync } from '../hooks/useAsync'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { getTheme, setTheme, type Theme } from '../theme'
 import { formatClock } from '../utils/format'
 
 /** 设计稿为 7 个导航 pill 平铺（不再收「更多▾」） */
@@ -68,6 +69,7 @@ export function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [armPending, setArmPending] = useState(false)
   const [recPending, setRecPending] = useState(false)
+  const [theme, setThemeState] = useState<Theme>(() => getTheme())
   const navigate = useVtNavigate()
   const { pathname } = useLocation()
 
@@ -94,6 +96,12 @@ export function AppLayout() {
     } finally {
       setArmPending(false)
     }
+  }
+
+  const toggleTheme = () => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark'
+    setThemeState(next)
+    setTheme(next)
   }
 
   /** 顶栏 REC 开关：切换 record.enabled（热更新生效）。点击时现取配置再全量保存，避免覆盖较新的改动 */
@@ -226,6 +234,17 @@ export function AppLayout() {
         ) : null}
 
         <Clock />
+
+        <Tooltip content={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}>
+          <button
+            type="button"
+            className="ch-btn icon"
+            aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
+            onClick={toggleTheme}
+          >
+            {theme === 'dark' ? <IconSun /> : <IconMoon />}
+          </button>
+        </Tooltip>
 
         <span className="ch-topbar-divider ch-hide-mobile" />
 

@@ -6,9 +6,10 @@ import { HashRouter } from 'react-router-dom'
 import '@arco-design/web-react/dist/css/arco.css'
 import './styles/global.css'
 import App from './App'
+import { applyTheme, getTheme } from './theme'
 
-// Arco 官方运行时暗色方案：body[arco-theme='dark'] 切换全局 CSS 变量
-document.body.setAttribute('arco-theme', 'dark')
+// 启动时恢复上次选择的主题（默认 Profound 黑）
+applyTheme(getTheme())
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
