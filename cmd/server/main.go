@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"camhub/internal/config"
+	"camhub/internal/logbuf"
 	"camhub/internal/pipeline"
 	"camhub/internal/server"
 	"camhub/internal/store"
@@ -22,6 +23,11 @@ import (
 func main() {
 	cfgPath := flag.String("config", "configs/config.yaml", "配置文件路径")
 	flag.Parse()
+
+	// 日志同时写入内存环形缓冲(500 条), 供 GET /api/logs/stream(SSE) 消费(契约 §2.8)。
+	logs := logbuf.New(logbuf.DefaultMax)
+	slog.SetDefault(slog.New(logbuf.NewHandler(
+		slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}), logs)))
 
 	cfg, err := config.Load(*cfgPath)
 	if err != nil {
@@ -39,7 +45,7 @@ func main() {
 	defer stop()
 	p.Start(ctx)
 
-	srv := server.New(p, st)
+	srv := server.New(p, st, logs)
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
 		Handler:           srv.Handler(),

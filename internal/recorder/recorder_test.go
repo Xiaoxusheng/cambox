@@ -1,12 +1,16 @@
 package recorder
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"camhub/internal/config"
+	"camhub/internal/source"
 )
 
 func mkFile(t *testing.T, path string, size int, mod time.Time) {
@@ -126,4 +130,61 @@ func contains(args []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// 契约 §2.2: 门控(record.effective)关闭时不得启动 ffmpeg 录像进程。
+func TestGateClosedKeepsRecorderIdle(t *testing.T) {
+	cfg := *config.Default()
+	cfg.Record.Dir = filepath.Join(t.TempDir(), "recordings")
+
+	src := source.New(cfg.Camera)
+	gate := false
+	r := New(src, func() config.Config { return cfg }, func() bool { return gate })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); r.Run(ctx) }()
+
+	time.Sleep(700 * time.Millisecond)
+	if st := r.Status(); st.Running {
+		t.Error("门控关闭时不应处于录像中")
+	}
+	if _, err := os.Stat(cfg.Record.Dir); err == nil {
+		entries, _ := os.ReadDir(cfg.Record.Dir)
+		if len(entries) > 0 {
+			t.Error("门控关闭时不应产生录像文件")
+		}
+	}
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("Run 未随 ctx 取消退出")
+	}
+}
+
+// gate 为 nil 时退化为只看 record.enabled, 保持向后兼容。
+func TestNilGateMeansAllowed(t *testing.T) {
+	cfg := *config.Default()
+	src := source.New(cfg.Camera)
+	r := New(src, func() config.Config { return cfg }, nil)
+	if !r.allowed() {
+		t.Error("gate 为 nil 时应视为放行")
+	}
+
+	r2 := New(src, func() config.Config { return cfg }, func() bool { return false })
+	if r2.allowed() {
+		t.Error("gate 返回 false 时应视为关闭")
+	}
+}
+
+// 门控关闭必须以 errGateClosed 结束 runOnce, 而不是被当成进程故障反复退避。
+func TestGateClosedSentinelIsRecognized(t *testing.T) {
+	if !errors.Is(fmt.Errorf("包装: %w", errGateClosed), errGateClosed) {
+		t.Error("errGateClosed 应可用 errors.Is 识别")
+	}
+	if errors.Is(errSettingsChanged, errGateClosed) {
+		t.Error("两种退出原因必须区分")
+	}
 }

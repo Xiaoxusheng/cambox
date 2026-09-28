@@ -210,12 +210,18 @@ func (s *Source) Stats() Stats {
 }
 
 // decodeArgs 按来源类型构造 ffmpeg 解码命令(输出 BGR24 到 stdout)。
+// 解码源: type=rtsp 时优先用子码流 sub_rtsp(空则回退主码流);
+// 统一加 -vf scale=W:H 强制输出 cfg.Width×cfg.Height, 保证子码流分辨率与帧槽一致。
 func decodeArgs(cfg config.CameraConfig) []string {
 	base := []string{"-hide_banner", "-loglevel", "warning"}
 	var in []string
 	switch cfg.Type {
 	case config.TypeRTSP:
-		in = []string{"-rtsp_transport", "tcp", "-rw_timeout", "8000000", "-i", cfg.RTSP}
+		url := cfg.RTSP
+		if cfg.SubRTSP != "" {
+			url = cfg.SubRTSP
+		}
+		in = []string{"-rtsp_transport", "tcp", "-rw_timeout", "8000000", "-i", url}
 	case config.TypeFile:
 		in = []string{"-re", "-i", cfg.File}
 	case config.TypeDShow:
@@ -223,6 +229,9 @@ func decodeArgs(cfg config.CameraConfig) []string {
 	default: // synthetic
 		in = []string{"-re", "-f", "lavfi", "-i", fmt.Sprintf("testsrc2=size=%dx%d:rate=%d", cfg.Width, cfg.Height, cfg.FPS)}
 	}
-	out := []string{"-pix_fmt", "bgr24", "-f", "rawvideo", "pipe:1"}
+	out := []string{
+		"-vf", fmt.Sprintf("scale=%d:%d", cfg.Width, cfg.Height),
+		"-pix_fmt", "bgr24", "-f", "rawvideo", "pipe:1",
+	}
 	return append(append(base, in...), out...)
 }

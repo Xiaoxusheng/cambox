@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"camhub/internal/logbuf"
 	"camhub/internal/pipeline"
 	"camhub/internal/store"
 )
@@ -19,11 +20,15 @@ var webFiles embed.FS
 type Server struct {
 	pl   *pipeline.Pipeline
 	st   *store.Store
+	logs *logbuf.Buffer
 	disk *diskCache
 }
 
-func New(pl *pipeline.Pipeline, st *store.Store) *Server {
-	return &Server{pl: pl, st: st, disk: &diskCache{}}
+func New(pl *pipeline.Pipeline, st *store.Store, logs *logbuf.Buffer) *Server {
+	if logs == nil {
+		logs = logbuf.New(logbuf.DefaultMax)
+	}
+	return &Server{pl: pl, st: st, logs: logs, disk: &diskCache{}}
 }
 
 // Handler 构建全部路由。
@@ -42,6 +47,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/recordings", s.handleRecordings)
 	mux.HandleFunc("GET /api/config", s.handleGetConfig)
 	mux.HandleFunc("POST /api/config", s.handlePostConfig)
+
+	// v1.1 新增(契约 §3.3)
+	mux.HandleFunc("POST /api/arm", s.handleArm)
+	mux.HandleFunc("GET /api/timeline", s.handleTimeline)
+	mux.HandleFunc("POST /api/events/batch-delete", s.handleBatchDeleteEvents)
+	mux.HandleFunc("DELETE /api/recordings/{name}", s.handleDeleteRecording)
+	mux.HandleFunc("POST /api/notify/test", s.handleNotifyTest)
+	mux.HandleFunc("GET /api/logs/stream", s.handleLogsStream)
 
 	mux.Handle("GET /media/recordings/",
 		http.StripPrefix("/media/recordings/", dirHandler(func() string { return s.pl.Settings().Record.Dir })))

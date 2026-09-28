@@ -28,6 +28,9 @@ const (
 
 var errSettingsChanged = errors.New("录像设置变更")
 
+// errGateClosed 录像门控关闭(撤防/日程时段结束), 需停掉当前录像进程等待重新放行。
+var errGateClosed = errors.New("录像门控关闭")
+
 // segmentPattern ffmpeg strftime 文件名模式。
 const segmentPattern = "%Y-%m-%d_%H-%M-%S.mp4"
 
@@ -44,6 +47,9 @@ type Status struct {
 type Recorder struct {
 	src      *source.Source
 	settings func() config.Config
+	// gate 返回 record.effective(契约 §2.2: record.enabled && scheduleActive.record);
+	// nil 表示只看 record.enabled。日程时段会随时间切换, 所以每次循环都要重新求值。
+	gate func() bool
 
 	mu      sync.Mutex
 	running bool
@@ -52,11 +58,16 @@ type Recorder struct {
 	lastErr string
 }
 
-func New(src *source.Source, settings func() config.Config) *Recorder {
-	return &Recorder{src: src, settings: settings}
+func New(src *source.Source, settings func() config.Config, gate func() bool) *Recorder {
+	return &Recorder{src: src, settings: settings, gate: gate}
 }
 
-// Run 阻塞运行: enabled=false 时待机, 进程异常退出后指数退避重启。
+// allowed 当前是否允许录像。
+func (r *Recorder) allowed() bool {
+	return r.gate == nil || r.gate()
+}
+
+// Run 阻塞运行: enabled=false 或门控关闭时待机, 进程异常退出后指数退避重启。
 func (r *Recorder) Run(ctx context.Context) {
 	backoff := time.Second
 	for {
@@ -64,7 +75,7 @@ func (r *Recorder) Run(ctx context.Context) {
 			return
 		}
 		cfg := r.settings()
-		if !cfg.Record.Enabled {
+		if !cfg.Record.Enabled || !r.allowed() {
 			r.setState(false, "", cfg.Record.Dir, "")
 			backoff = time.Second
 			if !sleepCtx(ctx, 500*time.Millisecond) {
@@ -83,6 +94,11 @@ func (r *Recorder) Run(ctx context.Context) {
 		if errors.Is(err, errSettingsChanged) {
 			backoff = time.Second
 			slog.Info("录像设置变更, 重启录像进程")
+			continue
+		}
+		if errors.Is(err, errGateClosed) {
+			backoff = time.Second
+			slog.Info("录像门控关闭(撤防或不在录像时段), 暂停录像")
 			continue
 		}
 		if err != nil {
@@ -143,6 +159,8 @@ loop:
 		case <-watch.C:
 			if !sameRecordSettings(r.settings(), cfg) {
 				stop = reason{err: errSettingsChanged}
+			} else if !r.allowed() {
+				stop = reason{err: errGateClosed}
 			}
 		}
 		if stop.err != nil {
@@ -158,7 +176,7 @@ loop:
 	_ = writeDone // 写出协程随进程退出自然结束(缓冲通道, 不会泄漏)
 
 	switch {
-	case errors.Is(stop.err, errSettingsChanged):
+	case errors.Is(stop.err, errSettingsChanged), errors.Is(stop.err, errGateClosed):
 		return stop.err
 	case stop.fromProcess && procErr != nil && ctx.Err() == nil:
 		return fmt.Errorf("ffmpeg 录像: %w", procErr)
