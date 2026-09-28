@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>camhub · 摄像头监控</title>
+<style>
+:root{
+  --bg:#0f1417; --surface:#171e24; --surface2:#1d262e; --border:#232c34;
+  --text:#e6edf3; --muted:#8b98a5; --accent:#5b9dd9; --ok:#46b26b; --warn:#e2b93b; --err:#e25c5c;
+  --radius:10px; --gap:16px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;gap:12px;padding:8px 0 16px;flex-wrap:wrap}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--err);flex:none}
+.dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(70,178,107,.15)}
+h1{font-size:16px;margin:0;font-weight:600}
+.meta{color:var(--muted);font-size:12px}
+.clock{margin-left:auto;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:var(--gap)}
+@media(max-width:720px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card h2{font-size:13px;margin:0;padding:12px 16px;border-bottom:1px solid var(--border);color:var(--muted);font-weight:600;display:flex;align-items:center;gap:8px}
+.card h2 .right{margin-left:auto;font-weight:400}
+section{margin-top:var(--gap)}
+.video-box{position:relative;aspect-ratio:16/9;background:#000}
+.video-box img{width:100%;height:100%;object-fit:contain;display:block}
+.video-overlay{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;background:rgba(10,13,16,.82);color:var(--muted);font-size:13px}
+.video-overlay.err{color:var(--err)}
+.spin{width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.video-actions{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border)}
+button{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer}
+button:hover{border-color:var(--accent);color:#fff}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{opacity:.9}
+.stats{display:grid;grid-template-columns:1fr 1fr}
+@media(max-width:720px){.stats{grid-template-columns:1fr 1fr}}
+.stat{padding:12px 16px;border-bottom:1px solid var(--border)}
+.stat:nth-child(odd){border-right:1px solid var(--border)}
+.stat .k{color:var(--muted);font-size:12px}
+.stat .v{font-size:15px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stat .v.ok{color:var(--ok)} .stat .v.err{color:var(--err)} .stat .v.warn{color:var(--warn)}
+.bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .4s}
+.bar i.full{background:var(--err)}
+.ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--gap);padding:16px}
+.ev{margin:0;cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.ev img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000}
+.ev figcaption{padding:6px 10px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ev .score{color:var(--text)}
+.empty{padding:32px 16px;text-align:center;color:var(--muted);font-size:13px}
+.more{display:block;margin:0 16px 16px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px 16px;text-align:left;border-bottom:1px solid var(--border)}
+th{color:var(--muted);font-weight:500;font-size:12px}
+td.num{font-variant-numeric:tabular-nums}
+td a{color:var(--accent);text-decoration:none}
+td a:hover{text-decoration:underline}
+form{padding:16px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.field input[type=number]{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px}
+.field input:focus{outline:none;border-color:var(--accent)}
+.switch{display:flex;align-items:center;gap:8px;padding:7px 0}
+.switch input{width:16px;height:16px;accent-color:var(--accent)}
+.form-actions{margin-top:14px}
+#toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:9}
+.toast{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.4);animation:in .2s}
+.toast.err{border-left-color:var(--err)} .toast.ok{border-left-color:var(--ok)}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.log{padding:10px 16px;max-height:140px;overflow:auto;font:12px/1.5 Consolas,monospace;color:var(--muted);white-space:pre-wrap;word-break:break-all}
+.skel{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:sk 1.2s infinite;border-radius:8px;height:100px}
+@keyframes sk{to{background-position:-200% 0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="dot" id="dot"></span>
+    <h1 id="camName">加载中…</h1>
+    <span class="meta" id="camMeta"></span>
+    <span class="clock" id="clock"></span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>实时画面 <span class="right meta" id="videoHint"></span></h2>
+      <div class="video-box">
+        <img id="video" alt="实时画面" src="/api/stream.mjpeg">
+        <div class="video-overlay" id="videoOverlay"><div class="spin"></div><span>正在连接…</span></div>
+      </div>
+      <div class="video-actions">
+        <button class="primary" id="btnSnap">手动抓拍</button>
+        <button id="btnReloadVideo">刷新画面</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>运行状态</h2>
+      <div class="stats">
+        <div class="stat"><div class="k">连接</div><div class="v" id="stConn">—</div></div>
+        <div class="stat"><div class="k">录像</div><div class="v" id="stRec">—</div></div>
+        <div class="stat"><div class="k">磁盘占用</div><div class="v" id="stDisk">—</div><div class="bar"><i id="stDiskBar" style="width:0"></i></div></div>
+        <div class="stat"><div class="k">事件 / 运行时长</div><div class="v" id="stCount">—</div></div>
+      </div>
+      <div class="log" id="fflog" hidden></div>
+    </div>
+  </div>
+
+  <section class="card">
+    <h2>事件记录 <span class="right meta">移动侦测自动记录</span></h2>
+    <div id="evWrap"><div class="empty">加载中…</div></div>
+    <button class="more" id="btnMore" hidden>加载更多</button>
+  </section>
+
+  <section class="card">
+    <h2>录像文件</h2>
+    <div id="recWrap"><div class="empty">加载中…</div></div>
+  </section>
+
+  <section class="card">
+    <h2>设置 <span class="right meta">修改后保存, 立即生效并写入配置文件</span></h2>
+    <form id="cfgForm">
+      <div class="fields">
+        <div class="field switch"><input type="checkbox" id="mEnabled"><label for="mEnabled">移动侦测</label></div>
+        <div class="field"><label>触发阈值 (1-255, 越小越灵敏)</label><input type="number" id="mThreshold" min="1" max="255"></div>
+        <div class="field"><label>最小触发面积 (像素)</label><input type="number" id="mMinArea" min="1"></div>
+        <div class="field"><label>事件冷却 (秒)</label><input type="number" id="mCooldown" min="1"></div>
+        <div class="field switch"><input type="checkbox" id="rEnabled"><label for="rEnabled">自动录像</label></div>
+        <div class="field"><label>分段时长 (秒)</label><input type="number" id="rSegment" min="10"></div>
+        <div class="field"><label>保留天数</label><input type="number" id="rRetention" min="1"></div>
+        <div class="field"><label>磁盘上限 (GB)</label><input type="number" id="rMaxGB" min="0.1" step="0.1"></div>
+      </div>
+      <div class="form-actions"><button type="submit" class="primary" id="btnSave">保存设置</button></div>
+    </form>
+  </section>
+
+  <div id="toasts"></div>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const EV_LIMIT = 12;
+let evOffset = 0, evTotal = 0, videoRetry = null;
+
+/* ---------- 基础工具 ---------- */
+async function api(url, opts) {
+  const res = await fetch(url, opts);
+  const j = await res.json().catch(() => ({ code: -1, message: '响应解析失败' }));
+  if (!res.ok || j.code !== 0) throw new Error(j.message || ('HTTP ' + res.status));
+  return j.data;
+}
+function toast(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  $('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+function fmtBytes(n) {
+  if (n >= 1 << 30) return (n / (1 << 30)).toFixed(2) + ' GB';
+  if (n >= 1 << 20) return (n / (1 << 20)).toFixed(1) + ' MB';
+  return (n / 1024).toFixed(0) + ' KB';
+}
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? '-' : d.toLocaleString('zh-CN', { hour12: false });
+}
+function fmtDur(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
+  return h > 0 ? h + ' 小时 ' + m + ' 分' : m + ' 分钟';
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------- 状态 ---------- */
+async function loadStatus() {
+  const d = await api('/api/status');
+  if (d.camera.connected) {
+    const o = $('videoOverlay');
+    if (!o.className.includes('err')) o.hidden = true; // 服务端确认在线, 隐藏"正在连接"
+  }
+  $('dot').classList.toggle('on', d.camera.connected);
+  $('camName').textContent = d.camera.name;
+  $('camMeta').textContent = `${d.camera.type} · ${d.camera.width}×${d.camera.height}`;
+  $('videoHint').textContent = d.camera.connected ? d.camera.fps.toFixed(1) + ' fps' : '';
+
+  const conn = $('stConn');
+  conn.textContent = d.camera.connected ? '在线 · ' + d.camera.fps.toFixed(1) + ' fps' : '离线';
+  conn.className = 'v ' + (d.camera.connected ? 'ok' : 'err');
+  if (d.camera.restarts > 0) conn.textContent += ' · 重连 ' + d.camera.restarts + ' 次';
+
+  const rec = $('stRec');
+  if (!d.recorder.enabled) { rec.textContent = '已停用'; rec.className = 'v'; }
+  else if (d.recorder.running) { rec.textContent = '进行中 · ' + (d.recorder.mode === 'copy' ? '流复制' : '编码'); rec.className = 'v ok'; }
+  else { rec.textContent = '异常: ' + (d.recorder.last_error || '未运行'); rec.className = 'v err'; }
+
+  const pct = Math.min(100, d.disk.max_gb > 0 ? (d.disk.recordings_bytes + d.disk.snapshots_bytes) / (d.disk.max_gb * (1 << 30)) * 100 : 0);
+  $('stDisk').textContent = fmtBytes(d.disk.recordings_bytes + d.disk.snapshots_bytes) + ' / ' + d.disk.max_gb + ' GB';
+  const bar = $('stDiskBar');
+  bar.style.width = pct.toFixed(1) + '%';
+  bar.className = pct > 90 ? 'full' : '';
+
+  $('stCount').textContent = d.events_count + ' 条 · ' + fmtDur(d.uptime_sec);
+
+  const log = $('fflog');
+  const errLines = d.ffmpeg_log.filter(l => /error|failed|timed out/i.test(l));
+  if (d.camera.last_error || errLines.length) {
+    log.hidden = false;
+    log.textContent = (d.camera.last_error ? '[source] ' + d.camera.last_error + '\n' : '') + errLines.slice(-10).join('\n');
+  } else if (!d.camera.connected) {
+    log.hidden = false; log.textContent = '等待画面…';
+  } else {
+    log.hidden = true;
+  }
+}
+
+/* ---------- 实时画面 ---------- */
+function setupVideo() {
+  const img = $('video'), overlay = $('videoOverlay');
+  // Chrome 对 multipart MJPEG 不触发 img.onload, 轮询首帧来隐藏遮罩
+  setInterval(() => { if (img.naturalWidth > 0) overlay.hidden = true; }, 300);
+  img.onerror = () => {
+    overlay.hidden = false;
+    overlay.className = 'video-overlay err';
+    overlay.innerHTML = '<span>信号丢失, 重连中…</span>';
+    clearTimeout(videoRetry);
+    videoRetry = setTimeout(() => { img.src = '/api/stream.mjpeg?t=' + Date.now(); }, 2000);
+  };
+  $('btnReloadVideo').onclick = () => { img.src = '/api/stream.mjpeg?t=' + Date.now(); };
+  $('btnSnap').onclick = async () => {
+    try {
+      $('btnSnap').disabled = true;
+      const d = await api('/api/snapshots', { method: 'POST' });
+      toast('已抓拍: ' + d.file, 'ok');
+      loadEvents(true);
+    } catch (e) { toast('抓拍失败: ' + e.message, 'err'); }
+    finally { $('btnSnap').disabled = false; }
+  };
+}
+
+/* ---------- 事件 ---------- */
+async function loadEvents(reset) {
+  const wrap = $('evWrap');
+  try {
+    if (reset) { evOffset = 0; wrap.innerHTML = '<div class="skel"></div>'; }
+    const d = await api('/api/events?limit=' + EV_LIMIT + '&offset=' + evOffset);
+    evTotal = d.total;
+    if (d.items.length === 0 && evOffset === 0) {
+      wrap.innerHTML = '<div class="empty">暂无事件, 画面中出现移动物体时将自动记录</div>';
+      $('btnMore').hidden = true;
+      return;
+    }
+    const frag = document.createElement('div');
+    frag.className = 'ev-grid';
+    for (const ev of d.items) {
+      const fig = document.createElement('figure');
+      fig.className = 'ev';
+      fig.innerHTML = `<img loading="lazy" src="${esc(ev.image)}" alt="事件 ${ev.id}">
+        <figcaption>${esc(fmtTime(ev.time))} · <span class="score">${ev.score}</span></figcaption>`;
+      fig.onclick = () => window.open(ev.image, '_blank');
+      frag.appendChild(fig);
+    }
+    if (reset) wrap.innerHTML = '';
+    wrap.appendChild(frag);
+    evOffset += d.items.length;
+    $('btnMore').hidden = evOffset >= evTotal;
+  } catch (e) {
+    if (reset) wrap.innerHTML = '<div class="empty">加载失败: ' + esc(e.message) + '</div>';
+  }
+}
+$('btnMore').onclick = () => loadEvents(false);
+
+/* ---------- 录像 ---------- */
+async function loadRecordings() {
+  const wrap = $('recWrap');
+  try {
+    const d = await api('/api/recordings');
+    if (d.items.length === 0) {
+      wrap.innerHTML = '<div class="empty">暂无录像文件, 自动录像开启后按时长分段生成</div>';
+      return;
+    }
+    let html = '<table><tr><th>文件名</th><th>大小</th><th>时间</th><th>下载</th></tr>';
+    for (const f of d.items) {
+      html += `<tr><td>${esc(f.name)}</td><td class="num">${fmtBytes(f.size_bytes)}</td>
+        <td class="num">${esc(fmtTime(f.modified))}</td>
+        <td><a href="/media/recordings/${encodeURIComponent(f.name)}" download>下载</a></td></tr>`;
+    }
+    html += `<tr><td>合计 ${d.items.length} 个</td><td class="num">${fmtBytes(d.total_size_bytes)}</td><td colspan="2"></td></tr>`;
+    wrap.innerHTML = html + '</table>';
+  } catch (e) {
+    wrap.innerHTML = '<div class="empty">加载失败: ' + esc(e.message) + '</div>';
+  }
+}
+
+/* ---------- 设置 ---------- */
+async function loadConfig() {
+  const d = await api('/api/config');
+  $('mEnabled').checked = d.motion.enabled;
+  $('mThreshold').value = d.motion.threshold;
+  $('mMinArea').value = d.motion.min_area;
+  $('mCooldown').value = d.motion.cooldown_sec;
+  $('rEnabled').checked = d.record.enabled;
+  $('rSegment').value = d.record.segment_seconds;
+  $('rRetention').value = d.record.retention_days;
+  $('rMaxGB').value = d.record.max_disk_gb;
+}
+$('cfgForm').onsubmit = async e => {
+  e.preventDefault();
+  const num = id => Number($(id).value);
+  const body = {
+    motion: { enabled: $('mEnabled').checked, threshold: num('mThreshold'), min_area: num('mMinArea'),
+              cooldown_sec: num('mCooldown'), downscale_width: 320 },
+    record: { enabled: $('rEnabled').checked, segment_seconds: num('rSegment'),
+              retention_days: num('rRetention'), max_disk_gb: num('rMaxGB') },
+  };
+  try {
+    $('btnSave').disabled = true;
+    await api('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    toast('设置已保存并生效', 'ok');
+    loadStatus();
+  } catch (e2) { toast('保存失败: ' + e2.message, 'err'); }
+  finally { $('btnSave').disabled = false; }
+};
+
+/* ---------- 启动 ---------- */
+function tickClock() { $('clock').textContent = new Date().toLocaleString('zh-CN', { hour12: false }); }
+tickClock();
+setInterval(tickClock, 1000);
+setupVideo();
+loadStatus().catch(e => toast('状态加载失败: ' + e.message, 'err'));
+loadEvents(true);
+loadRecordings();
+loadConfig().catch(() => {});
+setInterval(() => loadStatus().catch(() => {}), 3000);
+setInterval(() => { if (evOffset <= EV_LIMIT) loadEvents(true); }, 5000);
+setInterval(loadRecordings, 30000);
+</script>
+</body>
+</html>

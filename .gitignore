@@ -1,0 +1,8 @@
+camhub.exe
+camhub.exe.tmp
+recordings/
+snapshots/
+data/
+configs/config.yaml
+.agent/
+.wt/

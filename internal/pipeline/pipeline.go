@@ -1,0 +1,199 @@
+// Package pipeline 装配 source/detector/recorder/清理器, 提供运行时设置与热更新。
+// 设计见 docs/开发文档.md §4.6。
+package pipeline
+
+import (
+	"context"
+	"fmt"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"camhub/internal/config"
+	"camhub/internal/detector"
+	"camhub/internal/imgconv"
+	"camhub/internal/recorder"
+	"camhub/internal/source"
+	"camhub/internal/store"
+)
+
+// Pipeline 持有全部核心组件; Start 后台 goroutine 均随 ctx 取消退出。
+type Pipeline struct {
+	cfgPath string
+	store   *store.Store
+	src     *source.Source
+	det     *detector.Motion
+	rec     *recorder.Recorder
+
+	mu       sync.RWMutex
+	settings config.Config
+
+	startedAt   time.Time
+	snapCounter atomic.Int64
+
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+}
+
+func New(cfg *config.Config, cfgPath string, st *store.Store) *Pipeline {
+	src := source.New(cfg.Camera)
+	p := &Pipeline{
+		cfgPath:  cfgPath,
+		store:    st,
+		src:      src,
+		settings: *cfg,
+	}
+	p.det = detector.New(cfg.Motion)
+	p.rec = recorder.New(src, p.Settings)
+	return p
+}
+
+// Settings 返回运行时配置副本。
+func (p *Pipeline) Settings() config.Config {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings
+}
+
+// Source 供 HTTP 层取帧(MJPEG/抓拍)。
+func (p *Pipeline) Source() *source.Source { return p.src }
+
+// Recorder 供 HTTP 层读取录像状态。
+func (p *Pipeline) Recorder() *recorder.Recorder { return p.rec }
+
+// StartedAt 服务启动时间。
+func (p *Pipeline) StartedAt() time.Time { return p.startedAt }
+
+// Start 启动全部后台 goroutine。
+func (p *Pipeline) Start(ctx context.Context) {
+	p.startedAt = time.Now()
+	ctx, p.cancel = context.WithCancel(ctx)
+	p.wg.Add(4)
+	go func() { defer p.wg.Done(); p.src.Run(ctx) }()
+	go func() { defer p.wg.Done(); p.detectLoop(ctx) }()
+	go func() { defer p.wg.Done(); p.rec.Run(ctx) }()
+	go func() { defer p.wg.Done(); p.cleanLoop(ctx) }()
+	slog.Info("流水线已启动", "source", p.Settings().Camera.Type)
+}
+
+// Stop 取消并等待全部 goroutine 退出。
+func (p *Pipeline) Stop() {
+	p.cancel()
+	p.wg.Wait()
+	slog.Info("流水线已停止")
+}
+
+// UpdateSettings 热更新 motion/record: 钳制校验 → 原子落盘 → 替换运行时值。
+func (p *Pipeline) UpdateSettings(motion config.MotionConfig, record config.RecordConfig) error {
+	p.mu.Lock()
+	next := p.settings
+	next.Motion = motion
+	next.Record = record
+	next.Sanitize()
+	if err := config.Save(p.cfgPath, &next); err != nil {
+		p.mu.Unlock()
+		return fmt.Errorf("保存配置: %w", err)
+	}
+	p.settings = next
+	p.mu.Unlock()
+
+	p.det.SetConfig(next.Motion)
+	slog.Info("设置已更新", "motion.enabled", next.Motion.Enabled, "record.enabled", next.Record.Enabled)
+	return nil
+}
+
+func (p *Pipeline) detectLoop(ctx context.Context) {
+	cfg := p.Settings()
+	eventsDir := filepath.Join(cfg.Server.SnapshotDir, "events")
+	if err := os.MkdirAll(eventsDir, 0o755); err != nil {
+		slog.Error("创建事件快照目录失败", "err", err)
+	}
+
+	ticker := time.NewTicker(150 * time.Millisecond)
+	defer ticker.Stop()
+	frame := source.Frame{}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if !p.src.Snapshot(&frame) {
+				continue
+			}
+			// 始终检测以保持基线新鲜, 事件是否入库由 motion.enabled 决定
+			d, fired := p.det.Detect(&frame)
+			if !fired {
+				continue
+			}
+			if !p.Settings().Motion.Enabled {
+				continue
+			}
+			p.recordEvent(&frame, d, eventsDir)
+		}
+	}
+}
+
+var eventBoxColor = color.RGBA{R: 0x22, G: 0xc5, B: 0x5e, A: 0xff}
+
+func (p *Pipeline) recordEvent(f *source.Frame, d detector.Detection, eventsDir string) {
+	name := fmt.Sprintf("ev-%s-%03d.jpg", time.Now().Format("20060102-150405"), p.snapCounter.Add(1)%1000)
+	path := filepath.Join(eventsDir, name)
+
+	img := imgconv.ToRGBA(f)
+	imgconv.DrawRect(img, d.Rect, eventBoxColor)
+	if err := writeJPEG(path, img); err != nil {
+		slog.Error("保存事件快照失败", "err", err)
+		return
+	}
+
+	ev, err := p.store.Append("motion", d.Score, "/media/snapshots/events/"+name)
+	if err != nil {
+		slog.Error("事件入库失败", "err", err)
+		return
+	}
+	slog.Info("侦测到移动", "id", ev.ID, "score", d.Score,
+		"rect", fmt.Sprintf("(%d,%d)-(%d,%d)", d.Rect.Min.X, d.Rect.Min.Y, d.Rect.Max.X, d.Rect.Max.Y))
+}
+
+func (p *Pipeline) cleanLoop(ctx context.Context) {
+	run := func() {
+		cfg := p.Settings()
+		n, err := recorder.CleanOnce(cfg, cfg.Server.SnapshotDir)
+		if err != nil {
+			slog.Warn("清理未完全完成", "removed", n, "err", err)
+			return
+		}
+		if n > 0 {
+			slog.Info("清理完成", "removed", n)
+		}
+	}
+	run()
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			run()
+		}
+	}
+}
+
+func writeJPEG(path string, img image.Image) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	if err := jpeg.Encode(f, img, &jpeg.Options{Quality: 85}); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
