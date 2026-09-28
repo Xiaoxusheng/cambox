@@ -32,9 +32,9 @@
   --ch-text-3: #6a7278;
   --ch-text-4: #474c52;
 
-  /* ---- 液态玻璃面：白透明材质，靠 backdrop 折射出玻璃感 ---- */
-  --ch-glass: rgba(255, 255, 255, 0.045);
-  --ch-glass-deep: rgba(10, 10, 10, 0.72);
+  /* ---- 面板材质：Profound 风实色深灰，发丝边框（无玻璃折射） ---- */
+  --ch-glass: #0d0d0d;
+  --ch-glass-deep: rgba(8, 8, 8, 0.97);
   --ch-line: rgba(255, 255, 255, 0.12);
   --ch-line-soft: rgba(255, 255, 255, 0.07);
   --ch-fill: rgba(255, 255, 255, 0.06);
@@ -278,11 +278,9 @@ body {
   margin: 12px 20px 0;
   padding: 0 18px;
   border-radius: 18px;
-  background: var(--ch-glass-deep);
-  backdrop-filter: var(--ch-blur-deep);
-  -webkit-backdrop-filter: var(--ch-blur-deep);
+  background: #0a0a0a;
   border: 1px solid var(--ch-line);
-  box-shadow: var(--ch-glass-highlight), var(--ch-shadow);
+  box-shadow: var(--ch-shadow);
   animation: ch-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -578,48 +576,16 @@ button.ch-rec:disabled {
    通用元件：玻璃面板 / 按钮 / 表格 / 分页 / 输入
    ===================================================================== */
 
-/* 玻璃面板：白透明材质 + backdrop 折射 + hover 扫光（液态玻璃） */
+/* 面板：实色深灰（Profound 风），发丝边框 + hover 边框增亮 */
 .ch-panel {
-  position: relative;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 140px),
-    var(--ch-glass);
-  backdrop-filter: var(--ch-blur);
-  -webkit-backdrop-filter: var(--ch-blur);
+  background: var(--ch-glass);
   border: 1px solid var(--ch-line);
   border-radius: var(--ch-radius);
-  box-shadow: var(--ch-glass-highlight);
   overflow: hidden;
-  transition:
-    border-color 0.45s var(--ch-ease),
-    box-shadow 0.45s var(--ch-ease),
-    transform 0.45s var(--ch-ease);
+  transition: border-color 0.45s var(--ch-ease);
 }
 .ch-panel:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow:
-    var(--ch-glass-highlight),
-    0 24px 60px rgba(0, 0, 0, 0.4);
-}
-/* hover 掠过的高光扫光 */
-.ch-panel::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    115deg,
-    transparent 32%,
-    rgba(255, 255, 255, 0.05) 45%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.05) 55%,
-    transparent 68%
-  );
-  transform: translateX(-130%) skewX(-8deg);
-  transition: transform 1.1s var(--ch-ease);
-}
-.ch-panel:hover::after {
-  transform: translateX(130%) skewX(-8deg);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 .ch-panel-head {
   display: flex;
@@ -1094,9 +1060,7 @@ button.ch-rec:disabled {
   gap: 8px;
   padding: 5px 12px;
   border-radius: 10px;
-  background: rgba(4, 8, 13, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 12.5px;
   color: var(--ch-text-2);
@@ -1161,11 +1125,9 @@ button.ch-rec:disabled {
   height: 52px;
   padding: 0 16px;
   border-radius: 14px;
-  background: rgba(4, 8, 13, 0.55);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(5, 5, 5, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: var(--ch-glass-highlight);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   font-size: 12.5px;
   color: var(--ch-text-2);
   flex-wrap: nowrap;
@@ -1217,11 +1179,7 @@ button.ch-rec:disabled {
 }
 .ch-statcard {
   position: relative;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 120px),
-    var(--ch-glass);
-  backdrop-filter: var(--ch-blur);
-  -webkit-backdrop-filter: var(--ch-blur);
+  background: var(--ch-glass);
   border: 1px solid var(--ch-line);
   border-radius: 16px;
   padding: 16px 18px;
@@ -1742,12 +1700,10 @@ button.ch-rec:disabled {
   height: 62px;
   padding: 0 20px;
   margin-top: 18px;
-  background: var(--ch-glass-deep);
-  backdrop-filter: var(--ch-blur);
-  -webkit-backdrop-filter: var(--ch-blur);
+  background: #0d0d0d;
   border: 1px solid var(--ch-line);
   border-radius: 16px;
-  box-shadow: var(--ch-glass-highlight), var(--ch-shadow);
+  box-shadow: var(--ch-shadow);
 }
 .ch-savebar-text {
   flex: 1;
@@ -2151,10 +2107,8 @@ button.ch-rec:disabled {
     bottom: 20px;
     width: 340px;
     z-index: 10;
-    background: var(--ch-glass-deep);
-    backdrop-filter: var(--ch-blur-deep);
-    -webkit-backdrop-filter: var(--ch-blur-deep);
-    box-shadow: var(--ch-glass-highlight), var(--ch-shadow);
+    background: rgba(8, 8, 8, 0.97);
+    box-shadow: var(--ch-shadow);
   }
   .ch-livebar {
     left: 20px;
@@ -2175,7 +2129,7 @@ button.ch-rec:disabled {
     @apply inline-flex items-center justify-center gap-[7px] h-[34px] px-[15px]
       rounded-[10px] border border-white/10 bg-white/5 text-[13px]
       text-[#dfe6f0] whitespace-nowrap select-none
-      backdrop-blur-md transition-all duration-300 ease-apple;
+      transition-all duration-300 ease-apple;
     box-shadow: var(--ch-glass-highlight);
   }
   .ch-btn:hover:not(:disabled) {
@@ -2246,7 +2200,7 @@ button.ch-rec:disabled {
   .ch-speedbtn {
     @apply h-[30px] min-w-[44px] px-[10px] rounded-[9px] border border-white/10 bg-white/5
       text-[12.5px] text-[color:var(--ch-text-2)] cursor-pointer
-      backdrop-blur-md transition-all duration-300 ease-apple;
+      transition-all duration-300 ease-apple;
     font-family: var(--ch-mono);
   }
   .ch-speedbtn:hover {
