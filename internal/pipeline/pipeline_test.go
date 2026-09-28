@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"camhub/internal/bot"
 	"camhub/internal/config"
 	"camhub/internal/store"
 )
@@ -153,3 +154,43 @@ func TestNotifyEventNoopWithoutChannels(t *testing.T) {
 		t.Fatal("notifyEvent 阻塞")
 	}
 }
+
+// ---- bot.App 实现(契约 §2.6) ----
+
+func TestBotAppStatusText(t *testing.T) {
+	p := newTestPipeline(t, func(c *config.Config) { c.Camera.Name = "前门" })
+	text := p.StatusText()
+	for _, want := range []string{"前门", "布防: 是", "连接:", "录像:", "画面自检: ok", "今日事件:"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("/status 文本缺少 %q:\n%s", want, text)
+		}
+	}
+
+	p.SetArmed(false)
+	if !strings.Contains(p.StatusText(), "布防: 否") {
+		t.Error("撤防后 /status 应显示 布防: 否")
+	}
+}
+
+func TestBotAppSnapshotWithoutFrame(t *testing.T) {
+	p := newTestPipeline(t, nil)
+	if _, err := p.SnapshotJPEG(); err == nil {
+		t.Error("无画面时应返回错误, 供 Bot 回复抓拍失败")
+	}
+}
+
+func TestBotAppRecentEvents(t *testing.T) {
+	p := newTestPipeline(t, nil)
+	for i := 0; i < 3; i++ {
+		if _, err := p.store.Append("motion", 100+i, "/media/x.jpg", ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := p.RecentEvents(2)
+	if len(got) != 2 || got[0].ID != 3 || got[1].ID != 2 {
+		t.Errorf("应返回最近 2 条(新→旧), got %+v", got)
+	}
+}
+
+// Pipeline 必须满足 bot.App 接口(编译期断言)。
+var _ bot.App = (*Pipeline)(nil)

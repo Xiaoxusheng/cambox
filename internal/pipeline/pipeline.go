@@ -4,6 +4,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -11,10 +12,12 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"camhub/internal/bot"
 	"camhub/internal/config"
 	"camhub/internal/detector"
 	"camhub/internal/digest"
@@ -36,6 +39,7 @@ type Pipeline struct {
 	nt      *notify.Notifier
 	sc      *selfcheck.Checker
 	dg      *digest.Reporter
+	bt      *bot.Bot
 
 	mu       sync.RWMutex
 	settings config.Config
@@ -64,6 +68,7 @@ func New(cfg *config.Config, cfgPath string, st *store.Store) *Pipeline {
 	p.rec = recorder.New(src, p.Settings, p.RecordEffective)
 	p.sc = selfcheck.New(cfg.SelfCheck, src, p.onSelfCheckAlert)
 	p.dg = digest.New(cfg.Digest, st, p.nt, func() string { return p.Settings().Camera.Name })
+	p.bt = bot.New(cfg.Bot, p)
 	return p
 }
 
@@ -121,7 +126,7 @@ func (p *Pipeline) StartedAt() time.Time { return p.startedAt }
 func (p *Pipeline) Start(ctx context.Context) {
 	p.startedAt = time.Now()
 	ctx, p.cancel = context.WithCancel(ctx)
-	p.wg.Add(7)
+	p.wg.Add(8)
 	go func() { defer p.wg.Done(); p.src.Run(ctx) }()
 	go func() { defer p.wg.Done(); p.detectLoop(ctx) }()
 	go func() { defer p.wg.Done(); p.rec.Run(ctx) }()
@@ -129,6 +134,7 @@ func (p *Pipeline) Start(ctx context.Context) {
 	go func() { defer p.wg.Done(); p.nt.Run(ctx) }()
 	go func() { defer p.wg.Done(); p.sc.Run(ctx) }()
 	go func() { defer p.wg.Done(); p.dg.Run(ctx) }()
+	go func() { defer p.wg.Done(); p.bt.Run(ctx) }()
 	slog.Info("流水线已启动", "source", p.Settings().Camera.Type)
 }
 
@@ -267,6 +273,64 @@ func (p *Pipeline) onSelfCheckAlert(alert string, f *source.Frame) {
 	}
 	slog.Warn("画面自检告警", "id", ev.ID, "detail", alert, "snapshot", name)
 	p.notifyEvent(ev, path, kind)
+}
+
+// ---- bot.App 实现(契约 §2.6 Telegram 双向控制) ----
+
+// StatusText /status 的回复文本(纯文本, 便于手机阅读)。
+func (p *Pipeline) StatusText() string {
+	cfg := p.Settings()
+	stats := p.src.Stats()
+	rec := p.rec.Status()
+	schedM, schedR := p.ScheduleActive()
+	sc := p.sc.State()
+
+	yesNo := func(b bool) string {
+		if b {
+			return "是"
+		}
+		return "否"
+	}
+	link := "离线"
+	if stats.Connected {
+		link = fmt.Sprintf("在线 (%.1f fps %dx%d)", stats.FPS, stats.Width, stats.Height)
+	}
+	recState := "待机"
+	if rec.Running {
+		recState = "录像中"
+	}
+	todayStart := time.Now().Truncate(24 * time.Hour)
+	total, _, _ := p.store.DayStats(todayStart, time.Now().Add(time.Second))
+
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "摄像头: %s\n", cfg.Camera.Name)
+	fmt.Fprintf(&sb, "布防: %s\n", yesNo(p.Armed()))
+	fmt.Fprintf(&sb, "连接: %s\n", link)
+	fmt.Fprintf(&sb, "录像: %s (日程放行: %s)\n", recState, yesNo(schedR))
+	fmt.Fprintf(&sb, "移动侦测: %s (日程放行: %s)\n", yesNo(cfg.Motion.Enabled), yesNo(schedM))
+	fmt.Fprintf(&sb, "画面自检: %s\n", sc.State)
+	fmt.Fprintf(&sb, "今日事件: %d 条\n", total)
+	fmt.Fprintf(&sb, "运行时长: %s", time.Since(p.startedAt).Round(time.Minute))
+	return sb.String()
+}
+
+// SnapshotJPEG 当前帧的 JPEG(供 Bot /snap)。
+func (p *Pipeline) SnapshotJPEG() ([]byte, error) {
+	var f source.Frame
+	if !p.src.Snapshot(&f) {
+		return nil, errors.New("暂无画面")
+	}
+	jpg := imgconv.EncodeJPEG(nil, &f)
+	if len(jpg) == 0 {
+		return nil, errors.New("画面编码失败")
+	}
+	return jpg, nil
+}
+
+// RecentEvents 最近 n 条事件(新→旧), 供 Bot /events。
+func (p *Pipeline) RecentEvents(n int) []store.Event {
+	items, _ := p.store.Query(store.Filter{}, n, 0)
+	return items
 }
 
 func (p *Pipeline) cleanLoop(ctx context.Context) {
