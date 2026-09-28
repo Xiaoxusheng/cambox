@@ -6,11 +6,11 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { Drawer, Message, Switch, Tag, Tooltip } from '@arco-design/web-react'
-import { IconMenu } from '@arco-design/web-react/icon'
+import { Drawer, Message, Modal, Switch, Tag, Tooltip } from '@arco-design/web-react'
+import { IconFileVideo, IconMenu } from '@arco-design/web-react/icon'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { IS_MOCK } from '../api/client'
-import { fetchStatus, setArmed } from '../api/endpoints'
+import { fetchConfig, fetchStatus, saveConfig, setArmed } from '../api/endpoints'
 import { errorText } from '../api/errors'
 import { useAsync } from '../hooks/useAsync'
 import { useMediaQuery } from '../hooks/useMediaQuery'
@@ -67,6 +67,7 @@ export function AppLayout() {
   const isMobile = useMediaQuery('(max-width: 900px)')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [armPending, setArmPending] = useState(false)
+  const [recPending, setRecPending] = useState(false)
   const navigate = useVtNavigate()
   const { pathname } = useLocation()
 
@@ -93,6 +94,33 @@ export function AppLayout() {
     } finally {
       setArmPending(false)
     }
+  }
+
+  /** 顶栏 REC 开关：切换 record.enabled（热更新生效）。点击时现取配置再全量保存，避免覆盖较新的改动 */
+  const toggleRecord = () => {
+    const next = !recording
+    Modal.confirm({
+      title: next ? '开始录像？' : '结束录像？',
+      content: next
+        ? '将启用自动录像并写入 configs/config.yaml（热更新生效）；是否启动仍受布防日程约束。'
+        : '将停止自动录像并写入 configs/config.yaml（热更新生效）；布防与侦测不受影响，可随时再次开启。',
+      okText: next ? '开始录像' : '结束录像',
+      cancelText: '取消',
+      okButtonProps: next ? undefined : { status: 'danger' },
+      onOk: async () => {
+        setRecPending(true)
+        try {
+          const cfg = await fetchConfig()
+          await saveConfig({ ...cfg, record: { ...cfg.record, enabled: next } })
+          Message.success(next ? '已开始录像' : '已结束录像，当前分段会正常收尾')
+          reload()
+        } catch (e) {
+          Message.error(errorText(e))
+        } finally {
+          setRecPending(false)
+        }
+      },
+    })
   }
 
   const cam = status?.camera
@@ -150,13 +178,25 @@ export function AppLayout() {
 
         <Tooltip
           content={
-            recording ? '录像进行中（按分段写入）' : status ? '录像未在运行' : '获取状态中…'
+            recording
+              ? '录像进行中，点击结束录像（写入配置，热更新生效）'
+              : status
+                ? '点击开始录像（写入配置，热更新生效）'
+                : '获取状态中…'
           }
         >
-          <span className={`ch-rec ${recording ? '' : 'off'}`} aria-label={recording ? '录像中' : '未录像'}>
-            <span className="ch-rec-dot" />
-            REC
-          </span>
+          <button
+            type="button"
+            className={`ch-rec ${recording ? '' : 'off'}`}
+            disabled={!status || recPending}
+            onClick={toggleRecord}
+            aria-label={recording ? '结束录像' : '开始录像'}
+            aria-pressed={recording}
+          >
+            <IconFileVideo />
+            {recording ? <span className="ch-rec-dot" /> : null}
+            {recPending ? (recording ? '结束中…' : '开启中…') : 'REC'}
+          </button>
         </Tooltip>
 
         <Tooltip

@@ -336,7 +336,7 @@ body {
   flex: 1;
 }
 
-/* REC 徽章 */
+/* REC 徽章（顶栏可点击的录像开关） */
 .ch-rec {
   display: inline-flex;
   align-items: center;
@@ -350,7 +350,22 @@ body {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
+  font-family: inherit;
   flex: none;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    color 0.18s;
+}
+button.ch-rec:hover:not(:disabled) {
+  border-color: var(--ch-danger);
+  background: rgba(248, 113, 113, 0.2);
+  color: var(--ch-danger);
+}
+button.ch-rec:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 .ch-rec .ch-rec-dot {
   width: 7px;
@@ -363,6 +378,11 @@ body {
   border-color: var(--ch-line);
   background: var(--ch-fill);
   color: var(--ch-text-3);
+}
+.ch-rec.off:hover:not(:disabled) {
+  border-color: var(--ch-ok-line);
+  background: var(--ch-ok-soft);
+  color: var(--ch-ok);
 }
 .ch-rec.off .ch-rec-dot {
   background: var(--ch-text-4);
