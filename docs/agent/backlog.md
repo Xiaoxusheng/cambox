@@ -8,7 +8,7 @@
 
 ## A. 现在就能做（无需硬件）
 
-### A1. 补跑 v1.1 三层回归验证 — P1
+### A1. ✅ 已完成（2026-09-28）：三层回归全绿
 v1.1 五层验证中这三层在 v1.2 轮未重跑（代码路径未触碰，单测已绿，但端到端没跑）：
 - 通知链路长跑：`python D:/tmp/camhub-soak.py`
 - 优雅关闭：`python D:/tmp/camhub-shutdown.py`
@@ -18,11 +18,11 @@ v1.1 五层验证中这三层在 v1.2 轮未重跑（代码路径未触碰，单
 关闭退出码 0 + 端口释放 + ffmpeg 子进程收尾；清理器按天数/容量真实删旧文件。
 **注意**：soak 会向你的钉钉/企微/Bark/Webhook 真实推送一批消息，跑之前有心理预期。
 
-### A2. README 对齐 v1.2 — P2
+### A2. ✅ 已完成（2026-09-28）：README 对齐 v1.2，双配置回读验证通过
 「接入真实摄像头」章节补 `type: url`（直播流）接法与预览质量/预览帧率/编码 CRF 三个新配置。
 **验证**：照 README 从零填一份 rtsp 与一份 url 的 camera 段均可被服务接受（`-config` 启动 + GET /api/config 回读）。
 
-### A3. 事件按 detail 精确筛选 — P2（v1.1 遗留）
+### A3. ✅ 已完成（2026-09-28）：后端+契约+API 层已交付（main 7b9cbf0）；前端 UI 由 webui-redesign-4k 会话在重做事件页时保留该筛选
 `GET /api/events` 目前只能按 type=motion|selfcheck 筛，无法区分「画面冻结/画面异常」。
 做什么：契约补 `detail` 查询参数 → 后端实现 → 前端事件中心加筛选项。
 **验证**：mock 与真实模式下筛选 `detail=frozen` 只返回冻结事件、分页 total 正确；server 包单测覆盖该参数。
@@ -30,7 +30,7 @@ v1.1 五层验证中这三层在 v1.2 轮未重跑（代码路径未触碰，单
 ### A4. GitHub 仓库描述/Topics 完善 — P3
 **验证**：仓库页简介与 README 首段一致。
 
-### A5. 前端依赖漏洞收敛 — P2
+### A5. ⏸ 暂缓（前端正被 redesign-4k 会话重做，工具链升级等其落地后再做，避免双会话互相踩踏）
 GitHub Dependabot 报 1 high + 5 moderate；`npm audit` 实际为 4 项：
 - esbuild/vite ≤6.4.2 dev-server 请求伪造（moderate）——**仅影响 `npm run dev`**，内嵌产物不受影响；修复需升 vite 8（breaking）
 - react-router open redirect via backslash（moderate）——面板内全部是固定内部路径，实际风险低；SSR 反序列化（high）——项目未用 SSR，**不适用**；修复需升 react-router-dom 7.18.4（breaking）
