@@ -15,15 +15,6 @@ Contract：docs/contracts/api-v1.1.md（唯一依据）
 - [ ] [Backend] C6 Telegram Bot 双向控制（§2.6）
 - [ ] [Backend] API：arm/timeline/batch-delete/recordings删除/notify test/logs SSE/status扩展/config v1.1（§3）
 - [ ] [Backend] 单元测试 + gofmt/vet/build 全绿 + curl 冒烟
-- [ ] [Frontend] webui 脚手架(Vite+React+TS+Arco暗色+Router) + api client(真实/mock) + 布局
-- [ ] [Frontend] Dashboard 页
-- [ ] [Frontend] Live 页（含布防开关 + ROI 绘制）
-- [ ] [Frontend] Playback 页（时间轴 + 播放器）
-- [ ] [Frontend] Events 页（筛选/批量删除）
-- [ ] [Frontend] Recordings 页
-- [ ] [Frontend] Settings 页（7 个 Tab）
-- [ ] [Frontend] Logs 页（SSE）
-- [ ] [Frontend] npm run build 通过 + 三态齐全自查
 - [ ] [Orchestrator] 分支合并 + dist 内嵌 + 端到端验收 + 文档更新
 
 ## DOING
@@ -34,3 +25,14 @@ Contract：docs/contracts/api-v1.1.md（唯一依据）
 
 - [x] Contract v1.1（docs/contracts/api-v1.1.md）
 - [x] 基线导入与 worktree 建立（main@1bf7679）
+- [x] [Frontend] webui 脚手架(Vite+React+TS+Arco暗色+Router) + api client(真实/mock) + 布局
+- [x] [Frontend] Dashboard 页
+- [x] [Frontend] Live 页（含布防开关 + ROI 绘制）
+- [x] [Frontend] Playback 页（时间轴 + 播放器）
+- [x] [Frontend] Events 页（筛选/批量删除）
+- [x] [Frontend] Recordings 页
+- [x] [Frontend] Settings 页（7 个 Tab）
+- [x] [Frontend] Logs 页（SSE）
+- [x] [Frontend] npm run build 通过 + 三态齐全自查
+
+> Frontend 详情与证据见 `docs/agent/frontend-status.md`（含契约问题清单 §4、遗留 §5、合并建议 §6）。
