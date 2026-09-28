@@ -1,5 +1,27 @@
 # AGENT 共享状态
 
+## ⏸ 进度快照（2026-09-28 08:15，用户指示 9 点停止，存档待续）
+
+**已完成：**
+- v1.0 系统全部完成并验证（gofmt/vet/test/build 全绿 + 浏览器实测），主目录 `D:\mv_se` 正在运行 camhub.exe（http://127.0.0.1:8787，模拟源）
+- git 仓库建立：main = 1bf7679（v1.0 基线）+ 本提交（v1.1 文档）
+- **v1.1 契约已完成并提交：docs/contracts/api-v1.1.md**（配置 schema / 运行时语义 / API 形状 / 页面契约 / 集成步骤，唯一开发依据）
+- Task Board：docs/agent/tasks.md（19 项 [Backend]/[Frontend] 任务待做）
+- 两个 git worktree 已建好并同步到最新 main：`.wt/backend`(feature/backend-v11)、`.wt/frontend`(feature/frontend-arco)
+
+**未开始：**
+- 全部 [Backend] / [Frontend] 实现任务（并行派发的两个 Agent 在启动前被用户取消，**没有任何半成品代码**）
+
+**恢复步骤（下次继续时按此执行）：**
+1. 重新并行派发两个 Agent（用 Agent 工具同一条消息发出）：
+   - Backend Agent → worktree `D:\mv_se\.wt\backend`，分支 `feature/backend-v11`，按 tasks.md [Backend] 项依契约实现；注意冒烟测试用 8788 端口（主目录 8787 占用中）
+   - Frontend Agent → worktree `D:\mv_se\.wt\frontend`，分支 `feature/frontend-arco`，`webui/` 从零搭建 Vite+React+TS+Arco 暗色，mock 模式独立开发
+   - 派发前要求先读 multi-agent-parallel-dev 与 go-dev-standard / frontend-dev-standard 的 SKILL.md
+2. 两 Agent 完成后 Orchestrator：审查分支 diff 越界情况 → 合并 → `cd webui && npm run build` → dist 复制到 `internal/server/webdist/` → server.go embed 路径 web→webdist → 端到端验收（契约逐项 + 开发文档 §8）
+3. 范围提醒：P0 七件套 + C3 画面自检 + C6 Telegram Bot + C9 每日日报（AI 检测等 P1 不在本期）
+
+---
+
 ## 项目
 camhub v1.0 基线已可运行（Go 单二进制 + 内嵌面板 + FFmpeg 解码）。
 当前开发 v1.1：P0 七件套 + C3 画面自检 + C6 Bot + C9 日报。范围以 docs/agent/tasks.md 为准。
