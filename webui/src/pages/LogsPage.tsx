@@ -189,7 +189,7 @@ export function LogsPage() {
         <div
           ref={viewRef}
           onScroll={onScroll}
-          className="cam-num h-[calc(100dvh-320px)] min-h-[320px] overflow-auto rounded-md border border-cam-border bg-cam-bg px-4 py-3 font-mono text-[12.5px] leading-5"
+          className="cam-num h-[calc(100dvh-320px)] min-h-[320px] overflow-auto rounded-md border border-cam-border bg-cam-sunken px-4 py-3 font-mono text-[12.5px] leading-5"
         >
           {shown.length === 0 ? (
             conn === 'connecting' && entries.length === 0 ? (

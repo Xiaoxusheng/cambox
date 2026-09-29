@@ -141,7 +141,7 @@ export function RecordingsPage() {
                       ? 'rgb(var(--cam-danger-rgb))'
                       : diskPct >= 75
                         ? 'rgb(var(--cam-warning-rgb))'
-                        : 'rgba(255,255,255,0.4)',
+                        : 'var(--cam-meter)',
                 }}
               />
             </span>
@@ -194,7 +194,7 @@ export function RecordingsPage() {
                 return (
                   <li
                     key={r.name}
-                    className="group flex items-center gap-3 border-b border-cam-border px-4 py-2.5 transition-colors duration-150 ease-cam last:border-b-0 hover:bg-cam-active/60"
+                    className="group flex items-center gap-3 border-b border-cam-border px-4 py-2.5 transition-colors duration-150 ease-cam last:border-b-0 hover:bg-cam-hover"
                   >
                     {/* 占位缩略块（契约无录像缩略图，诚实用图标占位） */}
                     <span className="flex h-10 w-[64px] shrink-0 items-center justify-center rounded border border-cam-border bg-cam-active text-cam-text-disabled">

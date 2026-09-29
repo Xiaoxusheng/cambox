@@ -347,7 +347,7 @@ export function PlaybackPage() {
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-section-title text-cam-text-primary">时间轴</h2>
           <div className="flex flex-wrap items-center gap-4">
-            <LegendSwatch className="h-2.5 w-4 rounded-sm bg-cam-text-4" label="录像段" />
+            <LegendSwatch className="h-2.5 w-4 rounded-sm bg-cam-tl-seg" label="录像段" />
             <LegendSwatch className="h-2.5 w-0.5 bg-cam-text-secondary" label="移动侦测" />
             <LegendSwatch className="h-2.5 w-0.5 bg-cam-warning" label="画面冻结" />
             <LegendSwatch className="h-2.5 w-0.5 bg-cam-danger" label="画面异常" />

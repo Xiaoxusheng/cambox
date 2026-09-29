@@ -1,26 +1,24 @@
 /**
  * AppSidebar —— Workspace 左导航（v1.4 Linear-style）。
  * 结构：品牌行 → CAMERAS（相机 + 在线点 + 分辨率）→ WORKSPACE（监控/回看/事件/录像）→
- *       SYSTEM（系统概览/设置/日志）→ 底部版本 + 主题切换。
- * 交互状态（任务书 §12）：默认 text-secondary 透明底；hover bg-white/4；active bg-white/8 + 主文字。
- * 不做蓝色大块 / 渐变 / 发光 / 左侧彩条。相机数据由 AppLayout 轮询后传入。
+ *       SYSTEM（系统概览/设置/日志）→ 底部版本。
+ * 交互状态：默认 text-secondary 透明底；hover cam-hover；active cam-selected + 主文字
+ * （token 主题感知：dark 白透明度 / light 黑透明度，任务书 Light §5）。
+ * 主题切换统一收敛到 TopBar 的 ThemeToggle（Light §33 单一入口）。相机数据由 AppLayout 轮询后传入。
  */
-import { useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import {
   IconCamera,
   IconCode,
   IconDashboard,
-  IconMoon,
   IconNotification,
   IconPlayCircle,
   IconSettings,
   IconStorage,
-  IconSun,
   IconVideoCamera,
 } from '@arco-design/web-react/icon'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { CameraStatus } from '../../api/types'
-import { getTheme, setTheme, type Theme } from '../../theme'
 import { cx } from '../../utils/cx'
 import pkg from '../../../package.json'
 
@@ -169,16 +167,8 @@ export function SidebarContent({
 
 /** 桌面端固定 Sidebar（移动端隐藏，由 BottomNav + Drawer 接管） */
 export function AppSidebar({ camera }: { camera?: CameraStatus }) {
-  const [theme, setThemeState] = useState<Theme>(() => getTheme())
-
-  const toggleTheme = () => {
-    const next: Theme = theme === 'dark' ? 'light' : 'dark'
-    setThemeState(next)
-    setTheme(next)
-  }
-
   return (
-    <aside className="hidden w-56 shrink-0 flex-col border-r border-cam-border bg-cam-bg md:flex">
+    <aside className="hidden w-56 shrink-0 flex-col border-r border-cam-border bg-cam-sidebar md:flex">
       {/* 品牌行 */}
       <div className="flex h-[52px] shrink-0 items-center gap-2 px-4">
         <span className="flex h-6 w-6 items-center justify-center rounded-md bg-cam-selected text-cam-text-primary">
@@ -189,17 +179,9 @@ export function AppSidebar({ camera }: { camera?: CameraStatus }) {
 
       <SidebarContent camera={camera} />
 
-      {/* 底部：版本 + 主题切换 */}
-      <div className="flex shrink-0 items-center justify-between px-4 pb-3 pt-2">
+      {/* 底部：版本（主题切换统一在 TopBar，任务书 Light §33 单一入口） */}
+      <div className="flex shrink-0 items-center px-4 pb-3 pt-2">
         <span className="cam-num text-caption text-cam-text-disabled">v{pkg.version}</span>
-        <button
-          type="button"
-          aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
-          onClick={toggleTheme}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-cam-text-tertiary transition-colors duration-100 ease-cam hover:bg-cam-hover hover:text-cam-text-primary"
-        >
-          {theme === 'dark' ? <IconSun style={{ fontSize: 14 }} /> : <IconMoon style={{ fontSize: 14 }} />}
-        </button>
       </div>
     </aside>
   )

@@ -75,7 +75,7 @@ function Metric({
                   ? 'rgb(var(--cam-danger-rgb))'
                   : bar >= 75
                     ? 'rgb(var(--cam-warning-rgb))'
-                    : 'rgba(255,255,255,0.4)',
+                    : 'var(--cam-meter)',
             }}
           />
         </div>

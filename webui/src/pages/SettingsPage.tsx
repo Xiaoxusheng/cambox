@@ -94,15 +94,18 @@ function Card({
   title,
   sub,
   extra,
+  className,
   children,
 }: {
   title: React.ReactNode
   sub?: React.ReactNode
   extra?: React.ReactNode
+  /** 危险区等特殊分区传轻微色调（Light §26：克制，不大面积纯红） */
+  className?: string
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-panel border border-cam-border bg-cam-surface">
+    <div className={cx('rounded-panel border border-cam-border bg-cam-surface', className)}>
       <div className="flex items-start justify-between gap-3 border-b border-cam-border px-4 py-3">
         <div className="min-w-0">
           <h3 className="text-section-title text-cam-text-primary">{title}</h3>
@@ -1064,7 +1067,11 @@ export function SettingsPage() {
           {/* ---------------- 危险操作（任务书 §47：克制、集中、二次确认） ---------------- */}
           {tab === 'danger' ? (
             <div className="max-w-[720px]">
-              <Card title="Danger Zone" sub="以下操作不可恢复，请谨慎执行">
+              <Card
+                title="Danger Zone"
+                sub="以下操作不可恢复，请谨慎执行"
+                className="border-cam-danger/15 bg-cam-danger/[0.03]"
+              >
                 <div className="flex items-center justify-between gap-4 border-b border-cam-border py-2.5 last:border-b-0">
                   <div className="min-w-0">
                     <div className="text-body-secondary text-cam-text-primary">清空事件记录</div>

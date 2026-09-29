@@ -14,18 +14,11 @@
  */
 import { useEffect, useState } from 'react'
 import { Drawer } from '@arco-design/web-react'
-import {
-  IconApps,
-  IconMoon,
-  IconNotification,
-  IconPlayCircle,
-  IconSun,
-  IconVideoCamera,
-} from '@arco-design/web-react/icon'
+import { IconApps, IconNotification, IconPlayCircle, IconVideoCamera } from '@arco-design/web-react/icon'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { fetchStatus } from '../api/endpoints'
 import { useAsync } from '../hooks/useAsync'
-import { getTheme, setTheme, type Theme } from '../theme'
+import { watchSystemTheme } from '../theme'
 import { cx } from '../utils/cx'
 import { AppSidebar, SidebarContent, isActivePath } from './app/AppSidebar'
 import { CommandMenu } from './app/CommandMenu'
@@ -41,7 +34,7 @@ function BottomNav({ pathname, onMore }: { pathname: string; onMore: () => void 
   ]
   return (
     <nav
-      className="flex h-14 shrink-0 items-stretch border-t border-cam-border bg-cam-bg md:hidden"
+      className="flex h-14 shrink-0 items-stretch border-t border-cam-border bg-cam-bg/90 backdrop-blur-sm md:hidden"
       aria-label="底部导航"
     >
       {items.map((it) => {
@@ -79,10 +72,12 @@ export function AppLayout() {
   const { pathname } = useLocation()
   const [cmdOpen, setCmdOpen] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [theme, setThemeState] = useState<Theme>(() => getTheme())
 
   // 顶栏/侧栏共用的相机状态：5s 静默轮询（不打断滚动/hover/选中）
   const { data: status, reload } = useAsync((signal) => fetchStatus(signal), [], { pollMs: 5000 })
+
+  // system 主题：跟随 prefers-color-scheme 动态切换（不刷新页面）
+  useEffect(() => watchSystemTheme(), [])
 
   // ⌘K / Ctrl+K 全局快捷键
   useEffect(() => {
@@ -95,12 +90,6 @@ export function AppLayout() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
-
-  const toggleTheme = () => {
-    const next: Theme = theme === 'dark' ? 'light' : 'dark'
-    setThemeState(next)
-    setTheme(next)
-  }
 
   return (
     <div className="flex h-dvh overflow-hidden bg-cam-bg">
@@ -131,7 +120,7 @@ export function AppLayout() {
         <BottomNav pathname={pathname} onMore={() => setMobileNavOpen(true)} />
       </div>
 
-      {/* 移动端导航 Drawer：完整 Sidebar 内容（CAMERAS / WORKSPACE / SYSTEM）+ 主题切换 */}
+      {/* 移动端导航 Drawer：完整 Sidebar 内容（CAMERAS / WORKSPACE / SYSTEM）；主题在 TopBar */}
       <Drawer
         visible={mobileNavOpen}
         placement="left"
@@ -145,17 +134,6 @@ export function AppLayout() {
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <SidebarContent camera={status?.camera} onNavigate={() => setMobileNavOpen(false)} />
-        </div>
-        <div className="mt-3 flex shrink-0 items-center justify-between border-t border-cam-border px-3 pt-3">
-          <span className="text-caption text-cam-text-tertiary">主题</span>
-          <button
-            type="button"
-            aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
-            onClick={toggleTheme}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-cam-text-secondary transition-colors duration-100 ease-cam hover:bg-cam-hover hover:text-cam-text-primary"
-          >
-            {theme === 'dark' ? <IconSun style={{ fontSize: 15 }} /> : <IconMoon style={{ fontSize: 15 }} />}
-          </button>
         </div>
       </Drawer>
 

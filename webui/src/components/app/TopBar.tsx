@@ -1,8 +1,9 @@
 /**
  * TopBar —— 48px 工作台顶栏（v1.4 Linear-style）。
  * 左：当前页面名（14px/medium，任务书 §14 禁止巨大标题）。
- * 右：MOCK 徽标 · REC 开关 · 布防开关 · 时钟(mono) · ⌘K · 移动端菜单。
+ * 右：MOCK 徽标 · REC 开关 · 布防开关 · 时钟(mono) · 主题 · ⌘K · 移动端菜单。
  * REC / 布防为原 AppLayout 逻辑平移（确认弹窗、防抖、错误提示全部保留）。
+ * 主题入口唯一（Light §33）：ThemeToggle（浅色/深色/跟随系统）。
  */
 import { useEffect, useState } from 'react'
 import { Message, Modal, Switch, Tooltip } from '@arco-design/web-react'
@@ -13,6 +14,7 @@ import { errorText } from '../../api/errors'
 import { IS_MOCK } from '../../api/client'
 import { formatClock } from '../../utils/format'
 import { cx } from '../../utils/cx'
+import { ThemeToggle } from './ThemeToggle'
 
 /** 页面标题映射（与 Sidebar 导航一致） */
 export const PAGE_TITLES: Record<string, string> = {
@@ -153,6 +155,8 @@ export function TopBar({
         </Tooltip>
 
         <Clock />
+
+        <ThemeToggle />
 
         {/* Command Menu 入口（⌘K / Ctrl+K） */}
         <button

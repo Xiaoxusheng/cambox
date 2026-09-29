@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { NAV_SYSTEM, NAV_WORKSPACE } from './AppSidebar'
-import { getTheme, setTheme } from '../../theme'
+import { getThemeMode, resolvedTheme, setThemeMode } from '../../theme'
 import { cx } from '../../utils/cx'
 
 interface Command {
@@ -43,13 +43,20 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
       icon: n.icon,
       run: () => navigate(n.key),
     }))
-    const theme = getTheme()
+    const mode = getThemeMode()
+    const resolved = resolvedTheme(mode)
+    const next = resolved === 'dark' ? 'light' : 'dark'
     const actions: Command[] = [
       {
         key: 'toggle-theme',
-        label: theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式',
+        label:
+          mode === 'system'
+            ? '切换到' + (resolved === 'dark' ? '浅色' : '深色') + '模式（当前跟随系统）'
+            : resolved === 'dark'
+              ? '切换到浅色模式'
+              : '切换到深色模式',
         hint: '主题',
-        run: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
+        run: () => setThemeMode(next),
       },
     ]
     const q = query.trim().toLowerCase()

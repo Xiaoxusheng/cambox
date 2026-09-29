@@ -321,7 +321,7 @@ export function EventsPage() {
                         className={cx(
                           'flex items-center gap-3 border-b border-cam-border px-4 py-2 last:border-b-0',
                           'transition-colors duration-150 ease-cam',
-                          checked ? 'bg-cam-selected' : 'hover:bg-cam-active/60',
+                          checked ? 'bg-cam-selected' : 'hover:bg-cam-hover',
                         )}
                       >
                         <Checkbox

@@ -98,6 +98,18 @@ button {
   cursor: pointer;
 }
 
+/* 主题切换过渡（theme.ts 短暂挂载）：只过渡颜色类属性，不影响视频内容 */
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 150ms ease-out,
+    border-color 150ms ease-out,
+    color 150ms ease-out,
+    fill 150ms ease-out,
+    stroke 150ms ease-out !important;
+}
+
 /* ============================== 监控台皮肤 ============================== */
 
 /* 画面 contain 不裁切 */
@@ -144,7 +156,7 @@ button {
   top: 34px;
   height: 30px;
   border-radius: 5px;
-  background: var(--cam-active);
+  background: var(--cam-tl-track);
 }
 .cam-tl-hour {
   position: absolute;
@@ -165,20 +177,20 @@ button {
   font-family: var(--cam-mono);
   pointer-events: none;
 }
-/* 录像段：中性灰实心带（任务书 §36：subtle gray / neutral segment） */
+/* 录像段：中性实心带（dark 白 16% / light #A1A1AA，任务书 §19） */
 .cam-tl-seg {
   position: absolute;
   top: 37px;
   height: 24px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--cam-tl-seg);
   cursor: pointer;
   min-width: 3px;
   transition: background-color 150ms;
   z-index: 2;
 }
 .cam-tl-seg:hover {
-  background: rgba(255, 255, 255, 0.24);
+  background: var(--cam-tl-seg-hover);
 }
 .cam-tl-seg.current {
   outline: 1.5px solid var(--cam-text-1);

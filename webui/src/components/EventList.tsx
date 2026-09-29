@@ -50,7 +50,7 @@ export function EventList({
               className={cx(
                 'flex w-full items-center gap-2.5 rounded-md p-1.5 text-left',
                 'transition-colors duration-150 ease-cam',
-                clickable && 'cursor-pointer hover:bg-cam-active',
+                clickable && 'cursor-pointer hover:bg-cam-hover',
               )}
             >
               <img

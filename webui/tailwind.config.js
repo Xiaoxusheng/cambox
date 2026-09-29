@@ -20,6 +20,10 @@ export default {
           active: 'var(--cam-active)',
           hover: 'var(--cam-hover)',
           selected: 'var(--cam-selected)',
+          sidebar: 'var(--cam-sidebar)',
+          sunken: 'var(--cam-sunken)',
+          meter: 'var(--cam-meter)',
+          'tl-seg': 'var(--cam-tl-seg)',
           border: 'var(--cam-border)',
           'border-strong': 'var(--cam-border-strong)',
           success: 'rgb(var(--cam-success-rgb) / <alpha-value>)',
@@ -52,9 +56,9 @@ export default {
         panel: '10px',
       },
       boxShadow: {
-        // 深色 UI 克制阴影：仅浮层使用，内容区一律 border + surface 对比
-        overlay: '0 16px 48px rgba(0, 0, 0, 0.5)',
-        popover: '0 8px 24px rgba(0, 0, 0, 0.35)',
+        // 浮层阴影走 token：dark 重 / light 轻；内容区一律 border + surface 对比
+        overlay: 'var(--cam-shadow-overlay)',
+        popover: 'var(--cam-shadow-popover)',
       },
       transitionTimingFunction: {
         // 统一动效曲线（任务书 §60：100~250ms，ease-out，克制）
