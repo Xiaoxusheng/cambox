@@ -1,44 +1,217 @@
 /**
- * camhub 全局样式 —— Arco Design 原生皮肤。
- * 组件视觉全部交给 Arco 默认样式（含自带动画）；这里只保留：
- *   1. 少量布局骨架（页头/设置行/日志视图）
- *   2. 无对应组件的自绘件（24h 时间轴、播放器、ROI 覆盖、监控浮层定位）
- * 颜色一律引用 Arco token（--color-* / --primary-N 等），明暗主题自动跟随。
+ * camhub webui 全局样式 —— Design Token + 基础层 + Arco 变量对齐
+ *
+ * 分层（本文件自上而下）：
+ *   1. Design Token：cam.* 双主题 CSS 变量（dark 默认基准 / body[data-theme='light'] 覆盖）
+ *   2. 基础层：body 背景/字体/滚动条/选区/焦点环 + 等宽数字工具类
+ *   3. Arco 变量对齐：少量 --color-* / --primary-6 / 圆角覆盖，让 Arco 交互组件融入 camhub 视觉
+ *   4. 遗留页面皮肤：ch-* 布局与专用皮肤（时间轴 / ROI / 日志 / HUD 定位）——
+ *      Phase 2~7 页面重写时逐段删除，最终只保留 1~3 层 + cam-* 命名的专用皮肤
+ *
+ * 规则：颜色禁止页面硬编码，一律 var(--cam-*)；Tailwind = 主样式层（见 tailwind.config.js）。
  */
 
+/* ============================== 1. Design Token ============================== */
+
+/* dark（默认基准） */
 :root {
-  --ch-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
-  --ch-primary: rgb(var(--primary-6));
-  --ch-warn: rgb(var(--orange-6));
-  --ch-danger: rgb(var(--red-6));
-  --chart-grid: var(--color-neutral-3);
-  --chart-axis: var(--color-neutral-4);
-  --chart-band: rgba(var(--primary-6), 0.08);
+  /* 表面层级：页面底 → 面板 → 浮层 → 悬停/选中 */
+  --cam-bg: #07090c;
+  --cam-surface: #0d1015;
+  --cam-elevated: #12161c;
+  --cam-active: #1a1f27;
+
+  /* 边框：内容区细描边代替阴影 */
+  --cam-border: rgba(255, 255, 255, 0.07);
+  --cam-border-strong: rgba(255, 255, 255, 0.12);
+
+  /* 文本四级 */
+  --cam-text-1: #eef2f6;
+  --cam-text-2: #9aa3ad;
+  --cam-text-3: #646b76;
+  --cam-text-4: #4a505a;
+
+  /* accent（青）+ 状态色：RGB 三元组，供 Tailwind <alpha-value> 与 rgba() 使用 */
+  --cam-accent-rgb: 47 198 207;
+  --cam-accent-dim: rgba(47, 198, 207, 0.14);
+  --cam-success-rgb: 61 220 151;
+  --cam-warning-rgb: 245 185 66;
+  --cam-danger-rgb: 255 93 104;
+  --cam-info-rgb: 85 168 255;
+  --cam-rec-rgb: 255 77 94;
+
+  /* 等宽字体：数字/时间/IP/文件名/日志 */
+  --cam-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+
+  /* 旧 ch-* 别名 —— 遗留皮肤与未重写页面仍在引用，Phase 2~7 逐页删除 */
+  --ch-primary: rgb(var(--cam-accent-rgb));
+  --ch-teal: rgb(var(--cam-accent-rgb));
+  --ch-ok: rgb(var(--cam-success-rgb));
+  --ch-warn: rgb(var(--cam-warning-rgb));
+  --ch-danger: rgb(var(--cam-danger-rgb));
+  --ch-text-1: var(--cam-text-1);
+  --ch-text-3: var(--cam-text-3);
+  --ch-mono: var(--cam-mono);
+  --chart-grid: rgba(255, 255, 255, 0.08);
+  --chart-axis: rgba(255, 255, 255, 0.14);
+  --chart-band: rgba(var(--cam-accent-rgb), 0.08);
+}
+
+/* light（同名变量覆盖，机制与 theme.ts 一致） */
+body[data-theme='light'] {
+  --cam-bg: #f2f4f7;
+  --cam-surface: #ffffff;
+  --cam-elevated: #ffffff;
+  --cam-active: #eef1f5;
+
+  --cam-border: rgba(15, 23, 32, 0.08);
+  --cam-border-strong: rgba(15, 23, 32, 0.14);
+
+  --cam-text-1: #1a2129;
+  --cam-text-2: #5c6670;
+  --cam-text-3: #8a939e;
+  --cam-text-4: #b0b8c0;
+
+  --cam-accent-rgb: 15 154 165;
+  --cam-accent-dim: rgba(15, 154, 165, 0.12);
+  --cam-success-rgb: 17 168 109;
+  --cam-warning-rgb: 191 135 0;
+  --cam-danger-rgb: 226 61 76;
+  --cam-info-rgb: 47 125 235;
+  --cam-rec-rgb: 226 53 70;
+
+  --chart-grid: rgba(15, 23, 32, 0.1);
+  --chart-axis: rgba(15, 23, 32, 0.18);
+  --chart-band: rgba(15, 154, 165, 0.1);
+}
+
+/* ============================== 2. 基础层 ============================== */
+
+html {
+  /* theme.ts 已按主题设置 color-scheme；此处兜底，防内置脚本未执行 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--cam-text-4) transparent;
 }
 
 body {
   margin: 0;
+  background: var(--cam-bg);
+  color: var(--cam-text-1);
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* ---------- 等宽数字 / 次要文本 ---------- */
+/* 滚动条：细、贴主题，不抢视觉 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+body[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 32, 0.18);
+}
+body[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 32, 0.28);
+}
+
+/* 选区与焦点环：accent，克制 */
+::selection {
+  background: rgba(var(--cam-accent-rgb), 0.28);
+}
+:focus-visible {
+  outline: 2px solid rgba(var(--cam-accent-rgb), 0.65);
+  outline-offset: 2px;
+}
+
+/* 等宽数字：时间/数值/文件名（.cam-num 新名，.num/.ch-num 为遗留别名） */
 .num,
-.ch-num {
-  font-family: var(--ch-mono);
+.ch-num,
+.cam-num {
+  font-family: var(--cam-mono);
   font-variant-numeric: tabular-nums;
 }
 .ch-muted {
-  color: var(--color-text-3);
+  color: var(--cam-text-3);
   font-size: 12px;
 }
 .ch-hint {
-  color: var(--color-text-3);
+  color: var(--cam-text-3);
   font-size: 12px;
   line-height: 20px;
   margin-top: 8px;
 }
+
+/* ============================== 3. Arco 变量对齐 ============================== */
+/* 目标：Arco 交互组件（Modal/Drawer/Select/DatePicker/Message…）默认外观融入 camhub 视觉。
+   只覆盖变量，不覆盖组件结构；Arco 仍负责全部交互能力与自带动画。 */
+
+body[arco-theme='dark'] {
+  --color-bg-1: var(--cam-bg);
+  --color-bg-2: var(--cam-surface);
+  --color-bg-3: var(--cam-elevated);
+  --color-bg-4: var(--cam-active);
+  --color-bg-5: var(--cam-active);
+  --color-fill-1: rgba(255, 255, 255, 0.04);
+  --color-fill-2: rgba(255, 255, 255, 0.07);
+  --color-fill-3: rgba(255, 255, 255, 0.1);
+  --color-fill-4: rgba(255, 255, 255, 0.14);
+  --color-text-1: var(--cam-text-1);
+  --color-text-2: var(--cam-text-2);
+  --color-text-3: var(--cam-text-3);
+  --color-text-4: var(--cam-text-4);
+  --color-border-1: var(--cam-border);
+  --color-border-2: var(--cam-border-strong);
+  --color-border-3: var(--cam-border-strong);
+  /* accent 对齐：primary-6 为主色，5/7 为亮/暗两档 */
+  --primary-5: 70, 211, 220;
+  --primary-6: 47, 198, 207;
+  --primary-7: 34, 158, 167;
+  /* 圆角规范：Button/Input 8 / small chip 6 / large 12 */
+  --border-radius-small: 6px;
+  --border-radius-medium: 8px;
+  --border-radius-large: 12px;
+}
+
+body[data-theme='light'] {
+  --color-bg-1: var(--cam-bg);
+  --color-bg-2: var(--cam-surface);
+  --color-bg-3: var(--cam-surface);
+  --color-bg-4: var(--cam-active);
+  --color-bg-5: var(--cam-active);
+  --color-fill-1: rgba(15, 23, 32, 0.04);
+  --color-fill-2: rgba(15, 23, 32, 0.07);
+  --color-fill-3: rgba(15, 23, 32, 0.1);
+  --color-fill-4: rgba(15, 23, 32, 0.14);
+  --color-text-1: var(--cam-text-1);
+  --color-text-2: var(--cam-text-2);
+  --color-text-3: var(--cam-text-3);
+  --color-text-4: var(--cam-text-4);
+  --color-border-1: var(--cam-border);
+  --color-border-2: var(--cam-border-strong);
+  --color-border-3: var(--cam-border-strong);
+  --primary-5: 31, 170, 180;
+  --primary-6: 15, 154, 165;
+  --primary-7: 11, 124, 132;
+  --border-radius-small: 6px;
+  --border-radius-medium: 8px;
+  --border-radius-large: 12px;
+}
+
+/* ============================== 4. 遗留页面皮肤 ============================== */
+/* 以下为上一版 ch-* 页面布局与专用皮肤。Phase 2~7 按页面重写逐段删除；
+   删除前保证对应页面已迁移（每 Phase 独立可验证）。 */
 
 /* ---------- 页面骨架 ---------- */
 .ch-shell {

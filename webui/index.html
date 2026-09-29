@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <title>camhub 监控面板</title>
+    <script>
+      // 防白屏早期底色：JS bundle 加载前先把根底色铺上（dark 默认；light 读缓存）。
+      // theme.ts 挂载后接管 data-theme / arco-theme，此处只负责「首帧不闪白」。
+      ;(function () {
+        try {
+          var t = localStorage.getItem('camhub-theme') === 'light' ? 'light' : 'dark'
+          document.documentElement.style.background = t === 'light' ? '#f2f4f7' : '#07090c'
+        } catch (e) {
+          document.documentElement.style.background = '#07090c'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
