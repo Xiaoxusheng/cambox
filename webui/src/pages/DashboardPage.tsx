@@ -57,7 +57,7 @@ function Metric({
       <div className="text-caption uppercase tracking-[0.06em] text-cam-text-tertiary">{label}</div>
       <div
         className={cx(
-          'mt-1.5 truncate text-page-title leading-7',
+          'mt-1.5 truncate text-metric',
           valueMono && 'cam-num',
           'text-cam-text-primary',
         )}

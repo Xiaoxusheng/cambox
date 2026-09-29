@@ -4,7 +4,7 @@
  * 不做整块灰底；错误态必须回答「发生了什么 / 为什么 / 怎么办」（任务书 §38）。
  */
 import { Button } from '@arco-design/web-react'
-import { IconExclamationCircle, IconInfoCircle, IconRefresh } from '@arco-design/web-react/icon'
+import { IconExclamationCircle, IconRefresh } from '@arco-design/web-react/icon'
 import type { ReactNode } from 'react'
 import { cx } from '../utils/cx'
 
@@ -43,7 +43,7 @@ export function InlineLoading({ text = '加载中…', className }: { text?: str
   )
 }
 
-/** 空态：图标 + 标题 + 说明 + 可选操作；禁止只写「暂无数据」留白页 */
+/** 空态：标题 + 说明 + 可选操作；不做大图标大插画（任务书 §64：空态可以没有 Icon） */
 export function EmptyState({
   title = '暂无数据',
   description,
@@ -56,11 +56,8 @@ export function EmptyState({
   className?: string
 }) {
   return (
-    <div className={cx('flex flex-col items-center px-6 py-14 text-center', className)}>
-      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-cam-border bg-cam-elevated text-cam-text-tertiary">
-        <IconInfoCircle />
-      </div>
-      <div className="mt-3 text-body font-medium text-cam-text-primary">{title}</div>
+    <div className={cx('flex flex-col items-center px-6 py-12 text-center', className)}>
+      <div className="text-body font-medium text-cam-text-primary">{title}</div>
       {description ? (
         <div className="mt-1 max-w-[360px] text-caption leading-5 text-cam-text-tertiary">{description}</div>
       ) : null}
@@ -69,7 +66,7 @@ export function EmptyState({
   )
 }
 
-/** 错误态：发生了什么（title）+ 为什么（error）+ 怎么办（提示 + 重试） */
+/** 错误态：发生了什么（title）+ 为什么（error）+ 怎么办（提示 + 重试）；小图标不夸张 */
 export function ErrorState({
   title = '加载失败',
   error,
@@ -83,11 +80,11 @@ export function ErrorState({
 }) {
   return (
     <div className={cx('flex flex-col items-center px-6 py-12 text-center', className)}>
-      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-cam-danger/30 bg-cam-danger/10 text-cam-danger">
-        <IconExclamationCircle />
+      <div className="flex items-center gap-1.5 text-body font-medium text-cam-text-primary">
+        <IconExclamationCircle style={{ fontSize: 15 }} className="text-cam-danger" />
+        {title}
       </div>
-      <div className="mt-3 text-body font-medium text-cam-text-primary">{title}</div>
-      <div className="mt-1 max-w-[420px] break-all text-caption leading-5 text-cam-text-tertiary">{error}</div>
+      <div className="mt-1.5 max-w-[420px] break-all text-caption leading-5 text-cam-text-tertiary">{error}</div>
       <div className="mt-0.5 text-caption text-cam-text-tertiary">请检查网络与服务状态，然后重试。</div>
       {onRetry ? (
         <Button type="outline" size="small" icon={<IconRefresh />} onClick={onRetry} className="mt-4">

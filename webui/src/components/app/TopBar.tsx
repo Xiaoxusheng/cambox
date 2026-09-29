@@ -174,20 +174,20 @@ export function TopBar({
 
         <ThemeToggle />
 
-        {/* Command Menu 入口（⌘K / Ctrl+K） */}
+        {/* Command Menu 入口（⌘K / Ctrl+K）：轻量 command affordance，无描边（任务书 §48） */}
         <button
           type="button"
           aria-label="打开命令面板"
           onClick={onOpenCommandMenu}
           className={cx(
-            'hidden h-7 items-center gap-1.5 rounded-md border border-cam-border px-2 text-caption',
+            'hidden h-7 items-center gap-1.5 rounded-md px-2 text-caption',
             'text-cam-text-tertiary transition-colors duration-150 ease-cam md:inline-flex',
-            'hover:border-cam-border-strong hover:text-cam-text-secondary',
+            'hover:bg-cam-hover hover:text-cam-text-secondary',
           )}
         >
           <IconSearch style={{ fontSize: 12 }} />
           <span>搜索</span>
-          <kbd className="cam-num ml-1 rounded border border-cam-border bg-cam-elevated px-1 text-[10px] leading-[14px] text-cam-text-tertiary">
+          <kbd className="cam-num rounded border border-cam-border px-1 text-[10px] leading-[14px] text-cam-text-tertiary">
             ⌘K
           </kbd>
         </button>

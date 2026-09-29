@@ -312,7 +312,7 @@ export function MonitorPage() {
             </div>
           ) : (
             <>
-              {/* HUD 左上：LIVE + 时钟（呼吸点，克制） */}
+              {/* HUD：仅 LIVE + 时钟（分辨率/FPS/录像状态在底部状态行，不重复，任务书 §55） */}
               <div className="cam-hud absolute left-3.5 top-3.5 z-10 flex flex-col items-start gap-1.5">
                 <HudChip className="font-semibold tracking-[0.14em] text-white/85">
                   <span className="h-1.5 w-1.5 animate-rec-pulse rounded-full bg-cam-rec" />
@@ -322,13 +322,7 @@ export function MonitorPage() {
                   <LiveClock />
                 </HudChip>
               </div>
-              {/* HUD 右上：分辨率 · FPS */}
-              <div className="cam-hud absolute right-3.5 top-3.5 z-10">
-                <HudChip className="!text-white/70">
-                  {cam.width}×{cam.height} · {cam.fps.toFixed(1)} FPS
-                </HudChip>
-              </div>
-              {/* HUD 左下：REC（录像中才出现，克制红点不发光，任务书 §25） */}
+              {/* HUD 左下：REC（录像中才出现，克制红点不发光） */}
               {recording ? (
                 <div className="cam-hud absolute bottom-3.5 left-3.5 z-10">
                   <HudChip className="text-cam-rec">

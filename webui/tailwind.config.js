@@ -48,6 +48,7 @@ export default {
       fontSize: {
         // Typography 规范（任务书 §17）：小而精确，禁止页面散落任意字号
         'page-title': ['18px', { lineHeight: '24px', fontWeight: '600' }],
+        metric: ['16px', { lineHeight: '24px', fontWeight: '600' }],
         'topbar-title': ['14px', { lineHeight: '20px', fontWeight: '500' }],
         'section-title': ['13px', { lineHeight: '20px', fontWeight: '600' }],
         body: ['13px', { lineHeight: '20px' }],

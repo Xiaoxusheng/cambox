@@ -84,6 +84,9 @@ export function PlaybackPage() {
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerBoxRef = useRef<HTMLDivElement>(null)
+  // 时间轴 hover 预览（任务书 §37）：跟随光标显示该位置的时刻；契约无逐时刻缩略图，仅时间
+  const timelineRef = useRef<HTMLDivElement>(null)
+  const [hoverSec, setHoverSec] = useState<number | null>(null)
   const { data, loading, error, reload } = useAsync<PlaybackData>(
     (signal) => Promise.all([fetchTimeline(date, signal), fetchStatus(signal)]),
     [date],
@@ -222,6 +225,15 @@ export function PlaybackPage() {
     void v.play().catch(() => undefined)
   }
 
+  /** 时间轴 hover：换算光标位置为当日秒偏移（任务书 §37） */
+  const onTimelineHover = (e: React.MouseEvent) => {
+    const el = timelineRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+    setHoverSec(pct * 86400)
+  }
+
   const togglePlay = () => {
     const v = videoRef.current
     if (!v) return
@@ -260,10 +272,26 @@ export function PlaybackPage() {
     : null
   const segDuration = current ? durationSec(current.start, current.end) : 0
   const timelineEmpty = segments.length === 0 && events.length === 0
+  const camName = data[1].camera.name
 
   return (
     <div className="flex flex-col gap-3">
-      {/* ---------- 日期导航 ---------- */}
+      {/* ---------- 页头：标题 + 相机/日期 context；录制统计为 metadata（任务书 §32） ---------- */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-page-title text-cam-text-primary">回看</h2>
+          <p className="mt-1.5 text-body-secondary text-cam-text-tertiary">
+            {camName} · <span className="cam-num">{date}</span>
+            {date === today ? '（今天）' : ''}
+          </p>
+        </div>
+        <span className="cam-num text-caption text-cam-text-tertiary">
+          已录制 {recordedHours.toFixed(1)}h · {segments.length} 段
+          {modeLabel ? ` · ${modeLabel}` : ''}
+        </span>
+      </div>
+
+      {/* ---------- 日期导航（更轻：返回键 + 日期 + 今天 chip） ---------- */}
       <div className="flex flex-wrap items-center gap-2">
         <IconButton icon={<IconLeft />} label="前一天" onClick={() => setDate((d) => shiftDate(d, -1))} />
         <div className="flex h-8 items-center rounded-md border border-cam-border bg-cam-surface px-1.5">
@@ -274,11 +302,6 @@ export function PlaybackPage() {
             onChange={(v) => setDate(String(v))}
             className="cam-date-pill"
           />
-          {date === today ? (
-            <span className="mr-1 rounded bg-cam-selected px-1.5 py-0.5 text-caption text-cam-text-secondary">
-              今天
-            </span>
-          ) : null}
         </div>
         <IconButton
           icon={<IconRight />}
@@ -286,22 +309,20 @@ export function PlaybackPage() {
           disabled={date >= today}
           onClick={() => setDate((d) => shiftDate(d, 1))}
         />
-        {date !== today ? (
+        {date === today ? (
+          <span className="rounded bg-cam-selected px-1.5 py-0.5 text-caption text-cam-text-secondary">今天</span>
+        ) : (
           <button
             type="button"
             onClick={() => setDate(today)}
-            className="h-8 rounded-md border border-cam-border px-3 text-body-secondary text-cam-text-secondary transition-colors duration-150 ease-cam hover:border-cam-border-strong hover:text-cam-text-primary"
+            className="h-8 rounded-md px-2.5 text-body-secondary text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-hover hover:text-cam-text-primary"
           >
             回到今天
           </button>
-        ) : null}
-        <span className="cam-num ml-auto text-caption text-cam-text-tertiary">
-          已录制 {recordedHours.toFixed(1)}h · {segments.length} 段
-          {modeLabel ? ` · ${modeLabel}` : ''}
-        </span>
+        )}
       </div>
 
-      {/* ---------- 播放器：主角 Surface（任务书 §35） ---------- */}
+      {/* ---------- 播放器：主角 Surface（border + 8px，任务书 §34） ---------- */}
       <div ref={playerBoxRef} className="relative overflow-hidden rounded-lg border border-cam-border bg-black">
         {current && src ? (
           <>
@@ -318,8 +339,12 @@ export function PlaybackPage() {
               onPause={() => setPlaying(false)}
               onError={() => setVideoError(`无法播放 ${current.name}（分段可能损坏或缺 moov）`)}
             />
-            <span className="cam-num absolute left-3 top-3 z-10 inline-flex h-6 items-center rounded-md bg-black/45 px-2 text-caption text-white/70 backdrop-blur-md">
-              {absoluteTime ? formatTime(absoluteTime) : ''} · {current.name}
+            {/* HUD：仅 左=当前时刻 右=相机名（任务书 §35，不堆 chip） */}
+            <span className="cam-num absolute left-3 top-3 z-10 inline-flex h-6 items-center rounded-md bg-black/45 px-2 text-caption text-white/85 backdrop-blur-md">
+              {absoluteTime ? formatTime(absoluteTime) : ''}
+            </span>
+            <span className="cam-num absolute right-3 top-3 z-10 inline-flex h-6 items-center rounded-md bg-black/45 px-2 text-caption text-white/70 backdrop-blur-md">
+              {camName}
             </span>
           </>
         ) : (
@@ -355,11 +380,27 @@ export function PlaybackPage() {
         </div>
         {timelineEmpty ? (
           <EmptyState
-            title={`${date} 没有录像与事件`}
-            description="可能当天未开启录像，或录像已被保留策略清理。"
+            title="没有录像与事件"
+            description="可能当天未开启录像，或录像已被保留策略清理。换个日期试试。"
           />
         ) : (
-          <div className="cam-timeline">
+          <div
+            ref={timelineRef}
+            className="cam-timeline"
+            onMouseMove={onTimelineHover}
+            onMouseLeave={() => setHoverSec(null)}
+          >
+            {/* hover 预览：跟随光标的小时刻 chip（任务书 §37：不做巨大 Tooltip） */}
+            {hoverSec != null ? (
+              <span
+                className="cam-num pointer-events-none absolute top-0 z-20 -translate-x-1/2 rounded border border-cam-border-strong bg-cam-elevated px-1.5 py-0.5 text-[11px] leading-4 text-cam-text-secondary shadow-popover"
+                style={{ left: `${(hoverSec / 86400) * 100}%` }}
+              >
+                {`${String(Math.floor(hoverSec / 3600)).padStart(2, '0')}:${String(
+                  Math.floor((hoverSec % 3600) / 60),
+                ).padStart(2, '0')}`}
+              </span>
+            ) : null}
             <div className="cam-tl-track" />
             {Array.from({ length: 25 }, (_, i) => (
               <div

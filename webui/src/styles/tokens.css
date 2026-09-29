@@ -267,3 +267,19 @@ body[arco-theme='dark'] .arco-input-wrapper:focus-within .arco-input-wrap {
   border-color: rgba(255, 255, 255, 0.22);
   background-color: var(--cam-elevated);
 }
+
+/* ============================== 4. 控件规格统一（v1.4.3） ============================== */
+/* 全部输入类控件 32px 高（任务书 §15）；圆角走 --border-radius-medium=6px。
+   multiple 选择器（可变高度）不约束。 */
+.arco-input-wrapper,
+.arco-select-view-single,
+.arco-picker,
+.arco-input-number {
+  height: 32px;
+}
+/* 下拉/浮层圆角 8px */
+.arco-select-popup,
+.arco-picker-container .arco-picker-range,
+.arco-picker-dropdown {
+  border-radius: 8px;
+}

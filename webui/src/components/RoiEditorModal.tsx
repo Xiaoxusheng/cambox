@@ -166,7 +166,7 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
         <Button size="small" icon={<IconDelete />} disabled={rois.length === 0} onClick={clearRois}>
           清空
         </Button>
-        <span className="cam-num text-body-secondary text-cam-text-tertiary" style={{ marginLeft: 'auto' }}>
+        <span className="cam-num ml-auto text-body-secondary text-cam-text-tertiary">
           {rois.length}/{MAX_ROIS}
         </span>
       </div>
@@ -199,8 +199,8 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
           onError={() => setImgLoaded(true)}
         />
         {!imgLoaded ? (
-          <div style={{ position: 'absolute', inset: 0 }}>
-            <Skeleton loading animation style={{ width: '100%', height: '100%' }} />
+          <div className="absolute inset-0">
+            <Skeleton loading animation className="h-full w-full" />
           </div>
         ) : null}
 
@@ -240,7 +240,7 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
         ) : null}
       </div>
 
-      <div className="text-body-secondary text-cam-text-tertiary" style={{ marginTop: 8, lineHeight: '18px' }}>
+      <div className="mt-2 text-caption leading-[18px] text-cam-text-tertiary">
         在截图上按住鼠标拖拽即可画框；点框右上角 ✕ 删除。空 = 全屏检测。
       </div>
 
@@ -248,7 +248,7 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
         <div className="cam-roi-list">
           {rois.map((r, i) => (
             <div className="cam-roi-item" key={i}>
-              <span style={{ flex: 1 }} className="num">
+              <span className="num flex-1">
                 #{i + 1} x {r[0].toFixed(3)} y {r[1].toFixed(3)} w {r[2].toFixed(3)} h{' '}
                 {r[3].toFixed(3)}
               </span>
@@ -264,7 +264,7 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
           ))}
         </div>
       ) : (
-        <div className="text-body-secondary text-cam-text-tertiary" style={{ marginTop: 8 }}>
+        <div className="mt-2 text-body-secondary text-cam-text-tertiary">
           当前无检测区域，变化像素按全屏统计。
         </div>
       )}

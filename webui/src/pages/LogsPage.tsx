@@ -184,9 +184,9 @@ export function LogsPage() {
   const errorCount = entries.filter((e) => e.level === 'ERROR').length
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-4">
       {/* ---------- Page Header ---------- */}
-      <div className="min-w-0">
+      <div className="shrink-0">
         <h2 className="text-page-title text-cam-text-primary">日志</h2>
         <p className="mt-1.5 text-body-secondary text-cam-text-tertiary">
           SSE 实时推送 · 环形缓冲 {MAX_LINES} 条 · 贴底自动滚动
@@ -195,7 +195,7 @@ export function LogsPage() {
       </div>
 
       {/* ---------- Toolbar（32px；统计为小号 metadata，不挤在搜索后） ---------- */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <SearchInput
           value={keyword}
           onChange={setKeyword}
@@ -271,17 +271,17 @@ export function LogsPage() {
       </div>
 
       {paused ? (
-        <div className="rounded-md border border-cam-border bg-cam-surface px-3 py-2 text-body-secondary text-cam-text-tertiary">
+        <div className="shrink-0 rounded-md border border-cam-border bg-cam-surface px-3 py-2 text-body-secondary text-cam-text-tertiary">
           已暂停接收，暂停期间的新日志不会显示；点「继续」恢复。
         </div>
       ) : null}
 
-      {/* ---------- Log Workspace（实体 Surface，非 Card 阴影） ---------- */}
-      <div className="rounded-lg border border-cam-border bg-cam-surface p-3">
+      {/* ---------- Log Workspace：flex-1 自适应高度（任务书 §50），实体 Surface 非 Card ---------- */}
+      <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-cam-border bg-cam-surface p-3">
         <div
           ref={viewRef}
           onScroll={onScroll}
-          className="cam-num h-[calc(100dvh-330px)] min-h-[320px] overflow-y-auto px-1 font-mono text-[12px]"
+          className="cam-num min-h-0 flex-1 overflow-y-auto px-1 font-mono text-[12px]"
         >
           {shown.length === 0 ? (
             conn === 'connecting' && entries.length === 0 ? (

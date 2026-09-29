@@ -158,11 +158,9 @@ export function SidebarContent({
 export function AppSidebar({ camera }: { camera?: CameraStatus }) {
   return (
     <aside className="hidden w-56 shrink-0 flex-col border-r border-cam-border bg-cam-sidebar md:flex">
-      {/* 品牌行 */}
+      {/* 品牌行：轻图标，不做 Logo 方块（任务书 §60） */}
       <div className="flex h-[52px] shrink-0 items-center gap-2 px-4">
-        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-cam-selected text-cam-text-primary">
-          <IconCamera style={{ fontSize: 14 }} />
-        </span>
+        <IconCamera style={{ fontSize: 16 }} className="shrink-0 text-cam-text-secondary" />
         <span className="text-[14px] font-semibold tracking-tight text-cam-text-primary">CamBox</span>
       </div>
 

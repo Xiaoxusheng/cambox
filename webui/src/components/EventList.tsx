@@ -42,13 +42,13 @@ export function EventList({
       {items.map((e, i) => {
         const clickable = typeof onItemClick === 'function'
         return (
-          <li key={e.id ?? i}>
+          <li key={e.id ?? i} className="border-b border-cam-border last:border-b-0">
             <button
               type="button"
               disabled={!clickable}
               onClick={clickable ? () => onItemClick(e) : undefined}
               className={cx(
-                'flex w-full items-center gap-2.5 rounded-md p-1.5 text-left',
+                'flex w-full items-center gap-2.5 px-1.5 py-2 text-left',
                 'transition-colors duration-150 ease-cam',
                 clickable && 'cursor-pointer hover:bg-cam-hover',
               )}
@@ -57,7 +57,7 @@ export function EventList({
                 src={mediaUrl(e.image)}
                 alt=""
                 loading="lazy"
-                className="h-10 w-[64px] shrink-0 rounded border border-cam-border bg-cam-active object-cover"
+                className="h-10 w-[64px] shrink-0 rounded-md bg-cam-active object-cover"
               />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5">
@@ -71,7 +71,7 @@ export function EventList({
                   {e.type === 'motion' ? (
                     <>
                       {cameraName ? <span className="truncate">{cameraName}</span> : null}
-                      <span className="cam-num text-cam-text-disabled">score {e.score}</span>
+                      <span className="cam-num text-cam-text-4">score {e.score}</span>
                     </>
                   ) : (
                     <span>画面自检 C3</span>

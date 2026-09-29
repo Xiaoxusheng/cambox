@@ -73,8 +73,8 @@ function TypeDot({ e }: { e: Event }) {
 }
 
 function detailText(e: Event, cameraName: string): string {
-  if (e.type === 'motion') return `${cameraName} · score ${e.score} · ${e.image ? '快照已存' : '无快照'}`
-  return e.detail === 'frozen' ? '画面连续静止，疑似冻结' : '画面突变，疑似被遮挡或移动'
+  if (e.type === 'motion') return `${cameraName} · score ${e.score}`
+  return '画面自检 C3'
 }
 
 export function EventsPage() {
@@ -224,9 +224,10 @@ export function EventsPage() {
         </Button>
       </div>
 
-      {/* ---------- 筛选行（任务书 §33：只放最常用，不一行塞十个 Select） ---------- */}
+      {/* ---------- 筛选行（任务书 §23：32px 低对比控件，不做 Admin Filter Bar） ---------- */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Select
+          className="w-[200px]"
           value={type}
           onChange={(v) => {
             setType(v as TypeFilter)
@@ -235,27 +236,26 @@ export function EventsPage() {
             setPage(1)
             setSelected([])
           }}
-          style={{ width: 200 }}
           options={TYPE_OPTIONS}
           aria-label="事件类型"
         />
         {type === 'selfcheck' ? (
           <Select
+            className="w-[168px]"
             value={detailFilter}
             onChange={(v) => {
               setDetailFilter(v as DetailFilter)
               setPage(1)
               setSelected([])
             }}
-            style={{ width: 168 }}
             options={DETAIL_OPTIONS}
             aria-label="异常类型"
           />
         ) : null}
         <DatePicker.RangePicker
+          className="w-[260px]"
           value={range ?? undefined}
           format="YYYY-MM-DD"
-          style={{ width: 260 }}
           placeholder={['开始日期', '结束日期']}
           onChange={(v) => {
             setRange(v && v.length === 2 ? [String(v[0]), String(v[1])] : null)
@@ -267,7 +267,7 @@ export function EventsPage() {
           type="button"
           disabled={!hasFilter}
           onClick={resetFilter}
-          className="h-8 rounded-md border border-cam-border px-3 text-body-secondary text-cam-text-secondary transition-colors duration-150 ease-cam hover:border-cam-border-strong hover:text-cam-text-primary disabled:pointer-events-none disabled:opacity-40"
+          className="h-8 rounded-md px-3 text-body-secondary text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-hover hover:text-cam-text-primary disabled:pointer-events-none disabled:opacity-40"
         >
           重置
         </button>
@@ -308,9 +308,10 @@ export function EventsPage() {
 
             {dayGroups.map((g) => (
               <section key={g.key}>
-                <h3 className="border-b border-cam-border bg-cam-elevated/60 px-4 py-1.5 text-caption font-medium text-cam-text-tertiary">
+                {/* 日期分组头：弱化为 11px uppercase metadata（任务书 §25） */}
+                <h3 className="border-b border-cam-border px-4 py-2 text-[11px] font-medium uppercase tracking-[0.08em] text-cam-text-tertiary">
                   {g.label}
-                  <span className="cam-num ml-2 text-cam-text-disabled">{g.key}</span>
+                  <span className="cam-num ml-2 tracking-normal text-cam-text-4">{g.key}</span>
                 </h3>
                 <ul className="m-0 list-none p-0">
                   {g.items.map((e) => {
@@ -329,9 +330,14 @@ export function EventsPage() {
                           onChange={() => toggleOne(e.id)}
                           aria-label={`选择事件 ${formatDateTimeFull(e.time)}`}
                         />
-                        <span className="cam-num w-16 shrink-0 text-body-secondary tabular-nums text-cam-text-secondary">
-                          {formatDateTime(e.time).slice(6)}
-                        </span>
+                        <img
+                          src={mediaUrl(e.image)}
+                          alt={`${eventTypeLabel(e.type, e.detail)}快照`}
+                          loading="lazy"
+                          className="hidden h-[45px] w-[80px] shrink-0 cursor-pointer rounded-md bg-cam-active object-cover object-center sm:block"
+                          onClick={() => setDetail(e)}
+                        />
+                        {/* 行 = 缩略图 + 标题/元数据；点击进 Drawer（无行内按钮，任务书 §26） */}
                         <button
                           type="button"
                           onClick={() => setDetail(e)}
@@ -340,37 +346,14 @@ export function EventsPage() {
                         >
                           <span className="flex items-center gap-1.5">
                             <TypeDot e={e} />
-                            <span className="truncate text-body-secondary font-medium text-cam-text-primary">
+                            <span className="truncate text-body font-medium text-cam-text-primary">
                               {eventTypeLabel(e.type, e.detail)}
                             </span>
                           </span>
                           <span className="mt-0.5 block truncate text-caption text-cam-text-tertiary">
-                            {detailText(e, cameraName)}
+                            {detailText(e, cameraName)} · <span className="cam-num">{formatDateTime(e.time)}</span>
                           </span>
                         </button>
-                        <img
-                          src={mediaUrl(e.image)}
-                          alt={`${eventTypeLabel(e.type, e.detail)}快照`}
-                          loading="lazy"
-                          className="hidden h-[45px] w-[80px] shrink-0 cursor-pointer rounded border border-cam-border bg-cam-active object-cover sm:block"
-                          onClick={() => setDetail(e)}
-                        />
-                        <div className="flex shrink-0 items-center gap-0.5">
-                          <button
-                            type="button"
-                            onClick={() => setDetail(e)}
-                            className="h-8 rounded-md px-2.5 text-body-secondary text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-hover hover:text-cam-text-primary"
-                          >
-                            查看
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteOne(e)}
-                            className="h-8 rounded-md px-2.5 text-body-secondary text-cam-text-tertiary transition-colors duration-150 ease-cam hover:bg-cam-danger/10 hover:text-cam-danger"
-                          >
-                            删除
-                          </button>
-                        </div>
                       </li>
                     )
                   })}
@@ -394,11 +377,11 @@ export function EventsPage() {
         )}
       </div>
 
-      {/* ---------- 详情 Drawer（任务书 §34：不跳页面） ---------- */}
+      {/* ---------- 详情 Drawer（任务书 §29/30：定义式元数据 + 主/次操作） ---------- */}
       <Drawer
         visible={!!detail}
         width={440}
-        title="事件详情"
+        title={detail ? eventTypeLabel(detail.type, detail.detail) : '事件详情'}
         footer={null}
         onCancel={() => setDetail(null)}
         unmountOnExit
@@ -406,51 +389,56 @@ export function EventsPage() {
         {detail ? (
           <div className="flex flex-col gap-4">
             <AutoCropImage src={mediaUrl(detail.image)} alt="事件快照" radius={8} />
+
+            {/* 定义式两列元数据：每行仅一次间隔，不做 Card */}
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-caption text-cam-text-tertiary">类型</span>
-                <span className="flex items-center gap-1.5 text-body-secondary text-cam-text-primary">
-                  <TypeDot e={detail} />
-                  {eventTypeLabel(detail.type, detail.detail)}
-                </span>
+                <span className="text-caption text-cam-text-tertiary">Camera</span>
+                <span className="text-body-secondary text-cam-text-primary">{cameraName}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-caption text-cam-text-tertiary">时间</span>
+                <span className="text-caption text-cam-text-tertiary">Time</span>
                 <span className="cam-num text-body-secondary text-cam-text-primary">
                   {formatDateTimeFull(detail.time)}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-caption text-cam-text-tertiary">摄像头</span>
-                <span className="text-body-secondary text-cam-text-primary">{cameraName}</span>
+                <span className="text-caption text-cam-text-tertiary">Detection</span>
+                <span className="inline-flex items-center gap-1.5 text-body-secondary text-cam-text-primary">
+                  <TypeDot e={detail} />
+                  {detail.type === 'motion' ? 'Motion' : detail.detail === 'frozen' ? 'Frozen' : 'Occlusion'}
+                </span>
               </div>
               {detail.type === 'motion' ? (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-caption text-cam-text-tertiary">Score</span>
                   <span className="cam-num text-body-secondary text-cam-text-primary">{detail.score}</span>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-caption text-cam-text-tertiary">检测</span>
-                  <span className="text-body-secondary text-cam-text-primary">
-                    {detail.detail === 'frozen' ? '画面冻结' : '画面异常'}
-                  </span>
-                </div>
-              )}
+              ) : null}
               <div className="flex items-start justify-between gap-3">
-                <span className="shrink-0 text-caption text-cam-text-tertiary">快照文件</span>
+                <span className="shrink-0 text-caption text-cam-text-tertiary">Snapshot</span>
                 <span className="cam-num break-all text-right text-caption text-cam-text-secondary">
-                  {detail.image || '-'}
+                  {detail.image ? 'Available' : 'None'}
+                  {detail.image ? <span className="mt-0.5 block text-cam-text-4">{detail.image}</span> : null}
                 </span>
               </div>
             </div>
-            <div className="mt-1 flex items-center gap-2">
-              <Button type="primary" icon={<IconPlayArrow />} onClick={() => viewRecording(detail)}>
+
+            {/* 页脚：主操作 + 次要 + quiet danger（任务书 §30：不做 3 个大按钮） */}
+            <div className="mt-1 flex items-center gap-2 border-t border-cam-border pt-4">
+              <Button type="primary" size="small" icon={<IconPlayArrow />} onClick={() => viewRecording(detail)}>
                 查看回放
               </Button>
-              <Button status="danger" type="text" onClick={() => deleteOne(detail)}>
-                删除事件
+              <Button size="small" onClick={() => setDetail(null)}>
+                关闭
               </Button>
+              <button
+                type="button"
+                onClick={() => deleteOne(detail)}
+                className="ml-auto h-8 rounded-md px-2.5 text-body-secondary text-cam-text-tertiary transition-colors duration-150 ease-cam hover:bg-cam-danger/10 hover:text-cam-danger"
+              >
+                删除事件
+              </button>
             </div>
           </div>
         ) : null}
