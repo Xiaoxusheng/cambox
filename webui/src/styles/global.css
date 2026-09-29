@@ -370,7 +370,7 @@ body {
   gap: 6px;
   height: 26px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--ch-danger-line);
   background: var(--ch-danger-soft);
   color: var(--ch-danger);
@@ -456,7 +456,7 @@ button.ch-rec:disabled {
   height: 30px;
   padding: 0 12px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 8px;
   background: transparent;
   color: var(--ch-text-2);
   font-size: 13px;
@@ -511,7 +511,7 @@ button.ch-rec:disabled {
   align-items: center;
   gap: 5px;
   padding: 2px 9px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--ch-line);
   background: var(--ch-fill);
   color: var(--ch-text-2);
@@ -543,7 +543,7 @@ button.ch-rec:disabled {
 .ch-badge.lg {
   height: 26px;
   padding: 0 20px;
-  border-radius: 999px;
+  border-radius: 8px;
   font-size: 13px;
   border-width: 1.5px;
 }
@@ -643,7 +643,7 @@ button.ch-rec:disabled {
   gap: 6px;
   height: 28px;
   padding: 0 13px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--ch-line);
   background: var(--ch-fill);
   color: var(--ch-text-1);
@@ -843,7 +843,7 @@ button.ch-rec:disabled {
   min-width: 28px;
   height: 28px;
   padding: 0 9px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--ch-line);
   background: var(--ch-fill);
   color: var(--ch-text-2);
@@ -1074,7 +1074,7 @@ button.ch-rec:disabled {
   align-items: center;
   gap: 8px;
   padding: 5px 12px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--ch-ovl-bg);
   border: 1px solid var(--ch-line);
   font-size: 12.5px;
@@ -1167,7 +1167,7 @@ button.ch-rec:disabled {
   gap: 7px;
   height: 30px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--ch-glass-video-border);
   background: var(--ch-glass-video-sheen), var(--ch-glass-video);
   backdrop-filter: var(--ch-glass-video-blur);
@@ -1192,7 +1192,7 @@ button.ch-rec:disabled {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--ch-primary-soft);
   color: var(--ch-primary);
   font-size: 11px;
@@ -1396,7 +1396,7 @@ button.ch-rec:disabled {
   align-items: center;
   height: 32px;
   padding: 0 12px 0 6px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--ch-primary-line);
   background: var(--ch-primary-soft);
 }
@@ -1619,7 +1619,7 @@ button.ch-rec:disabled {
   height: 26px;
   min-width: 40px;
   padding: 0 9px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--ch-line);
   background: var(--ch-fill);
   color: var(--ch-text-2);
@@ -1654,7 +1654,7 @@ button.ch-rec:disabled {
 .ch-tabpill {
   height: 30px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--ch-text-2);
@@ -1912,7 +1912,7 @@ button.ch-rec:disabled {
 .arco-btn {
   height: 30px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: 8px;
   font-size: 13px;
 }
 .arco-btn-icon-only {
@@ -1952,7 +1952,7 @@ button.ch-rec:disabled {
   background: var(--ch-fill-2);
 }
 
-.arco-input,
+.arco-input-inner-wrapper,
 .arco-input-number,
 .arco-select-view-single,
 .arco-select-view-multiple,
@@ -1966,7 +1966,12 @@ button.ch-rec:disabled {
     border-color 0.18s,
     box-shadow 0.18s;
 }
-.arco-input:hover,
+/* 内层输入元素透明化：盒子由 wrapper 统一画，避免双层盒子叠影 */
+.arco-input-inner-wrapper .arco-input {
+  background: transparent !important;
+  border: none !important;
+}
+.arco-input-inner-wrapper:hover,
 .arco-input-number:hover,
 .arco-select-view-single:hover,
 .arco-select-view-multiple:hover,
@@ -1974,7 +1979,7 @@ button.ch-rec:disabled {
   border-color: var(--ch-input-border-hover) !important;
   background: var(--ch-fill-2) !important;
 }
-.arco-input:focus-within,
+.arco-input-inner-wrapper:focus-within,
 .arco-input-focus,
 .arco-input-number:focus-within,
 .arco-select-view-single.arco-select-view-focus,
@@ -2238,7 +2243,7 @@ button.ch-rec:disabled {
   /* 胶囊按钮（紧凑） */
   .ch-btn {
     @apply inline-flex items-center justify-center gap-[6px] h-[28px] px-[13px]
-      rounded-full border border-[color:var(--ch-line)] bg-[color:var(--ch-fill)] text-[12.5px]
+      rounded-[8px] border border-[color:var(--ch-line)] bg-[color:var(--ch-fill)] text-[12.5px]
       text-[color:var(--ch-text-1)] whitespace-nowrap select-none
       transition-all duration-200 ease-apple;
   }
@@ -2276,7 +2281,7 @@ button.ch-rec:disabled {
 
   /* 导航 pill（Profound：低调文字，active 橙字 + 弱填充） */
   .ch-navpill {
-    @apply inline-flex items-center h-[30px] px-3 rounded-full border border-transparent
+    @apply inline-flex items-center h-[30px] px-3 rounded-[8px] border border-transparent
       text-[13px] text-[color:var(--ch-text-2)] whitespace-nowrap cursor-pointer
       transition-all duration-200 ease-apple;
     font-family: inherit;
@@ -2294,7 +2299,7 @@ button.ch-rec:disabled {
 
   /* 设置页 tab pill */
   .ch-tabpill {
-    @apply h-[30px] px-[14px] rounded-full border border-transparent text-[13px]
+    @apply h-[30px] px-[14px] rounded-[8px] border border-transparent text-[13px]
       text-[color:var(--ch-text-2)] cursor-pointer transition-all duration-200 ease-apple;
     font-family: inherit;
   }
@@ -2308,7 +2313,7 @@ button.ch-rec:disabled {
 
   /* 倍速 / 预设 pill */
   .ch-speedbtn {
-    @apply h-[26px] min-w-[40px] px-[9px] rounded-full border border-[color:var(--ch-line)]
+    @apply h-[26px] min-w-[40px] px-[9px] rounded-[8px] border border-[color:var(--ch-line)]
       bg-[color:var(--ch-fill)] text-[12px] text-[color:var(--ch-text-2)] cursor-pointer
       transition-all duration-200 ease-apple;
     font-family: var(--ch-mono);
@@ -2323,7 +2328,7 @@ button.ch-rec:disabled {
 
   /* 分页 pill */
   .ch-pagebtn {
-    @apply min-w-[28px] h-[28px] px-[9px] rounded-full border border-[color:var(--ch-line)]
+    @apply min-w-[28px] h-[28px] px-[9px] rounded-[8px] border border-[color:var(--ch-line)]
       bg-[color:var(--ch-fill)] text-[12.5px] text-[color:var(--ch-text-2)] cursor-pointer
       transition-all duration-200 ease-apple;
     font-family: var(--ch-mono);
@@ -2343,7 +2348,7 @@ button.ch-rec:disabled {
 
   /* 日期圆形按钮 */
   .ch-datebtn {
-    @apply w-8 h-8 rounded-full border border-[color:var(--ch-line)] bg-[color:var(--ch-fill)]
+    @apply w-8 h-8 rounded-[8px] border border-[color:var(--ch-line)] bg-[color:var(--ch-fill)]
       text-[color:var(--ch-text-2)] text-[14px] cursor-pointer
       inline-flex items-center justify-center
       transition-all duration-200 ease-apple;
@@ -2357,7 +2362,7 @@ button.ch-rec:disabled {
 
   /* 徽章 */
   .ch-badge {
-    @apply inline-flex items-center gap-[5px] px-[9px] py-[2px] rounded-full border
+    @apply inline-flex items-center gap-[5px] px-[9px] py-[2px] rounded-[8px] border
       border-[color:var(--ch-line)] bg-[color:var(--ch-fill)] text-[11.5px] leading-4
       text-[color:var(--ch-text-2)] whitespace-nowrap
       transition-colors duration-200 ease-apple;
