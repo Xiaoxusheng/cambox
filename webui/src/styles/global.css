@@ -704,6 +704,7 @@ button.ch-rec:disabled {
   font-size: 13px;
   font-family: inherit;
   color: var(--ch-text-2);
+  text-decoration: none;
   cursor: pointer;
 }
 .ch-linkbtn:hover {
@@ -2370,7 +2371,7 @@ button.ch-rec:disabled {
 
   /* 文本链接按钮 */
   .ch-linkbtn {
-    @apply border-none bg-transparent p-0 text-[12.5px] text-[color:var(--ch-text-2)] cursor-pointer
+    @apply border-none bg-transparent p-0 text-[12.5px] text-[color:var(--ch-text-2)] no-underline cursor-pointer
       transition-colors duration-200 ease-apple;
     font-family: inherit;
   }
