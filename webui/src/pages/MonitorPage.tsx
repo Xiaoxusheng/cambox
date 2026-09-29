@@ -6,6 +6,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { Button, Message, Modal } from '@arco-design/web-react'
+import { IconDoubleLeft, IconDoubleRight } from '@arco-design/web-react/icon'
 import { fetchConfig, fetchEvents, fetchStatus, fetchTimeline, manualSnapshot } from '../api/endpoints'
 import { errorText } from '../api/errors'
 import { IS_MOCK, mediaUrl } from '../api/media'
@@ -94,6 +95,13 @@ export function MonitorPage() {
   const [shot, setShot] = useState<{ file: string; url: string } | null>(null)
   const [roiOpen, setRoiOpen] = useState(false)
   const [preview, setPreview] = useState<Event | null>(null)
+  // 实时事件面板收起/呼出（持久化；收起时 livebar 伸展为全宽）
+  const [eventsOpen, setEventsOpen] = useState(() => localStorage.getItem('camhub-events-open') !== '0')
+  const toggleEvents = () =>
+    setEventsOpen((v) => {
+      localStorage.setItem('camhub-events-open', v ? '0' : '1')
+      return !v
+    })
   const videoBoxRef = useRef<HTMLDivElement>(null)
   // 画面矩形 = contain 后的图像区域（解码输出宽高比即 camera.width/height）
   const camW = data?.[0].camera.width ?? 0
@@ -160,7 +168,7 @@ export function MonitorPage() {
       : ''
 
   return (
-    <div className="ch-monitor">
+    <div className={`ch-monitor ${eventsOpen ? '' : 'events-hidden'}`}>
       <div className="ch-monitor-main" ref={videoBoxRef}>
         {frame.src ? (
           <>
@@ -301,9 +309,16 @@ export function MonitorPage() {
             全屏
           </button>
         </div>
+
+        {/* 面板收起时显示的呼出按钮（毛玻璃小胶囊） */}
+        <button type="button" className="ch-events-tab" onClick={toggleEvents} aria-label="呼出实时事件面板">
+          <IconDoubleLeft />
+          实时事件
+          {todayCount !== null ? <span className="num ch-events-tab-count">{todayCount}</span> : null}
+        </button>
       </div>
 
-      <section className="ch-panel ch-monitor-events">
+      <section className={`ch-panel ch-monitor-events ${eventsOpen ? '' : 'events-hidden'}`}>
         <header className="ch-panel-head">
           <span className="ch-panel-icon">
             <PulseIcon />
@@ -311,6 +326,14 @@ export function MonitorPage() {
           <div className="ch-panel-title">实时事件</div>
           <div className="ch-panel-extra">
             {todayCount !== null ? <span className="ch-badge cyan num">今日 {todayCount}</span> : null}
+            <button
+              type="button"
+              className="ch-btn icon sm"
+              onClick={toggleEvents}
+              aria-label="收起实时事件面板"
+            >
+              <IconDoubleRight />
+            </button>
           </div>
         </header>
         <div className="ch-panel-body">

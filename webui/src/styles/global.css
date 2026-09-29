@@ -55,6 +55,16 @@
   --ch-scrollbar-hover: rgba(255, 255, 255, 0.24);
   /* 悬浮在画面上的小 chip（LIVE / 分辨率）：随主题翻转 */
   --ch-ovl-bg: rgba(10, 12, 16, 0.66);
+  /* 悬浮于画面之上的液态玻璃面板底色（实时事件 / livebar / 呼出按钮）：
+     高透明 + 低模糊 + 高光边缘，不是磨砂毛玻璃 */
+  --ch-glass-video: rgba(12, 15, 20, 0.35);
+  --ch-glass-video-border: rgba(255, 255, 255, 0.2);
+  --ch-glass-video-blur: blur(12px) saturate(150%);
+  --ch-glass-video-highlight:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    inset 1px 0 0 rgba(255, 255, 255, 0.1),
+    inset -1px 0 0 rgba(255, 255, 255, 0.05);
   /* 图表（暗色为默认值；亮色在 body[data-theme='light'] 中覆盖 */
   --chart-grid: rgba(255, 255, 255, 0.07);
   --chart-axis: rgba(255, 255, 255, 0.16);
@@ -1105,7 +1115,7 @@ button.ch-rec:disabled {
   white-space: nowrap;
 }
 
-/* 底部状态条（悬浮于画面，随主题翻转） */
+/* 底部状态条（悬浮于画面，液态玻璃，随主题翻转；面板收起时向右伸展为全宽） */
 .ch-livebar {
   position: absolute;
   left: 14px;
@@ -1118,13 +1128,67 @@ button.ch-rec:disabled {
   height: 52px;
   padding: 0 16px;
   border-radius: var(--ch-radius);
-  background: var(--ch-glass-deep);
-  border: 1px solid var(--ch-line);
-  box-shadow: var(--ch-shadow);
+  background: var(--ch-glass-video);
+  border: 1px solid var(--ch-glass-video-border);
+  backdrop-filter: var(--ch-glass-video-blur);
+  -webkit-backdrop-filter: var(--ch-glass-video-blur);
+  box-shadow:
+    var(--ch-shadow),
+    var(--ch-glass-video-highlight);
   font-size: 12.5px;
   color: var(--ch-text-2);
   flex-wrap: nowrap;
   overflow: hidden;
+  transition: right 0.45s var(--ch-ease);
+}
+
+/* 面板收起时画面右上的呼出按钮（液态玻璃小胶囊） */
+.ch-events-tab {
+  position: absolute;
+  top: 12px;
+  right: 20px;
+  z-index: 11;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--ch-glass-video-border);
+  background: var(--ch-glass-video);
+  backdrop-filter: var(--ch-glass-video-blur);
+  -webkit-backdrop-filter: var(--ch-glass-video-blur);
+  box-shadow: var(--ch-glass-video-highlight);
+  color: var(--ch-text-1);
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(12px);
+  transition:
+    opacity 0.3s var(--ch-ease),
+    transform 0.45s var(--ch-ease);
+}
+.ch-events-tab:hover {
+  border-color: var(--ch-input-border-hover);
+}
+.ch-events-tab-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--ch-primary-soft);
+  color: var(--ch-primary);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+.ch-monitor.events-hidden .ch-events-tab {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
 }
 .ch-livebar-item {
   display: inline-flex;
@@ -1988,6 +2052,10 @@ button.ch-rec:disabled {
     overflow: visible;
     max-height: 460px;
   }
+  /* 窄屏下面板是普通网格行：收起直接移除，livebar 本就是全宽 */
+  .ch-monitor.events-hidden .ch-monitor-events {
+    display: none;
+  }
 }
 
 @media (max-width: 560px) {
@@ -2077,7 +2145,32 @@ button.ch-rec:disabled {
     bottom: 20px;
     width: 340px;
     z-index: 10;
-    box-shadow: var(--ch-shadow);
+    /* 悬浮于画面：液态玻璃（高透明 + 低模糊 + 高光边缘） */
+    background: var(--ch-glass-video);
+    border-color: var(--ch-glass-video-border);
+    backdrop-filter: var(--ch-glass-video-blur);
+    -webkit-backdrop-filter: var(--ch-glass-video-blur);
+    box-shadow:
+      var(--ch-shadow),
+      var(--ch-glass-video-highlight);
+    transition:
+      transform 0.45s var(--ch-ease),
+      opacity 0.35s var(--ch-ease),
+      visibility 0s 0s;
+  }
+  /* 收起：整体滑出右缘；livebar 联动伸展为全宽 */
+  .ch-monitor.events-hidden .ch-monitor-events {
+    transform: translateX(calc(100% + 28px));
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      transform 0.45s var(--ch-ease),
+      opacity 0.3s var(--ch-ease),
+      visibility 0s 0.45s;
+  }
+  .ch-monitor.events-hidden .ch-livebar {
+    right: 20px;
   }
   .ch-livebar {
     left: 20px;
@@ -2267,6 +2360,14 @@ body[data-theme='light'] {
   --ch-scrollbar: rgba(0, 0, 0, 0.18);
   --ch-scrollbar-hover: rgba(0, 0, 0, 0.3);
   --ch-ovl-bg: rgba(255, 255, 255, 0.82);
+  --ch-glass-video: rgba(255, 255, 255, 0.48);
+  --ch-glass-video-border: rgba(255, 255, 255, 0.8);
+  --ch-glass-video-blur: blur(12px) saturate(150%);
+  --ch-glass-video-highlight:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.4),
+    inset 1px 0 0 rgba(255, 255, 255, 0.5),
+    inset -1px 0 0 rgba(255, 255, 255, 0.3);
   --chart-grid: rgba(0, 0, 0, 0.08);
   --chart-axis: rgba(0, 0, 0, 0.18);
   --chart-band: rgba(0, 0, 0, 0.045);
