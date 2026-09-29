@@ -349,7 +349,7 @@ export function DashboardPage() {
             </Link>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
-            <EventList items={events} cameraName={cam.name} />
+            <EventList items={events} cameraName={cam.name} compact />
           </div>
         </div>
       </div>

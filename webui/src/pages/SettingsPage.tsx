@@ -55,7 +55,7 @@ const TABS = [
   { key: 'bot', label: 'Telegram' },
 ] as const
 
-const DANGER_TAB = { key: 'danger', label: 'Danger Zone' } as const
+const DANGER_TAB = { key: 'danger', label: '危险操作' } as const
 
 type TabKey = (typeof TABS)[number]['key'] | (typeof DANGER_TAB)['key']
 
@@ -71,9 +71,9 @@ const MOTION_PRESETS = [
 ] as const
 
 /** 控件宽度常量（任务书 §16：small 160 / medium 220 / large 320，禁止散落 inline width） */
-const FIELD_SM = 'w-40' // 160px
-const FIELD_MD = 'w-[220px]' // 220px
-const FIELD_LG = 'w-80' // 320px
+const FIELD_SM = 'w-full sm:w-40' // 160px
+const FIELD_MD = 'w-full sm:w-[220px]' // 220px
+const FIELD_LG = 'w-full sm:w-80' // 320px
 
 /** 行式设置项（任务书 §14）：min-h 52px，左 Title+Desc，右 Control，行间 border-b 分隔 */
 function Row({
@@ -86,7 +86,7 @@ function Row({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-[52px] items-center justify-between gap-4 border-b border-cam-border py-1.5 last:border-b-0">
+    <div className="flex min-h-[52px] flex-col items-stretch justify-start gap-1 border-b border-cam-border py-2.5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-1.5">
       <div className="min-w-0">
         <div className="text-body text-cam-text-primary">{label}</div>
         {sub ? <div className="mt-0.5 text-caption leading-4 text-cam-text-tertiary">{sub}</div> : null}
@@ -843,7 +843,7 @@ export function SettingsPage() {
           {/* ---------------- Danger Zone（任务书 §21：轻色调，独立最后） ---------------- */}
           {tab === DANGER_TAB.key ? (
             <Section
-              title="Danger Zone"
+              title="危险操作"
               sub="以下操作不可恢复，请谨慎执行"
               className="border border-cam-danger/15 bg-cam-danger/[0.03] px-4 pb-2"
             >
@@ -858,7 +858,7 @@ export function SettingsPage() {
       </div>
 
       {/* ---------- 保存条：实底 + border-top，无 blur（任务书 §20） ---------- */}
-      <div className="sticky bottom-0 z-10 mt-6 flex h-[52px] flex-wrap items-center gap-3 border-t border-cam-border bg-cam-surface px-1">
+      <div className="sticky bottom-0 z-10 mt-6 -mx-5 flex h-[52px] flex-wrap items-center justify-between gap-3 border-t border-cam-border bg-cam-surface px-5 md:-mx-7 md:px-7 xl:-mx-10 xl:px-10 2xl:-mx-12 2xl:px-12">
         <span className={cx('text-body-secondary', dirty ? 'text-cam-warning' : 'text-cam-text-tertiary')}>
           {dirty
             ? `有 ${dirtyCount} 处未保存的修改${cameraDirty ? ' · 摄像头来源与解码参数需重启生效' : ''}`

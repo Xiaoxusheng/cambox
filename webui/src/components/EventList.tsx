@@ -23,12 +23,15 @@ export function EventList({
   cameraName,
   onItemClick,
   className,
+  /** 紧凑变体（System Overview 最新事件）：缩略图更小、行更紧（任务书 §28） */
+  compact = false,
 }: {
   items: Event[]
   /** motion 事件 metadata 里的相机名 */
   cameraName?: string
   onItemClick?: (e: Event) => void
   className?: string
+  compact?: boolean
 }) {
   if (items.length === 0) {
     return (
@@ -48,7 +51,8 @@ export function EventList({
               disabled={!clickable}
               onClick={clickable ? () => onItemClick(e) : undefined}
               className={cx(
-                'flex w-full items-center gap-2.5 px-1.5 py-2 text-left',
+                'flex w-full items-center gap-2.5 px-1.5 text-left',
+                compact ? 'py-1.5' : 'py-2',
                 'transition-colors duration-150 ease-cam',
                 clickable && 'cursor-pointer hover:bg-cam-hover',
               )}
@@ -57,7 +61,7 @@ export function EventList({
                 src={mediaUrl(e.image)}
                 alt=""
                 loading="lazy"
-                className="h-10 w-[64px] shrink-0 rounded-md bg-cam-active object-cover"
+                className={cx('shrink-0 rounded-md bg-cam-active object-cover', compact ? 'h-9 w-14' : 'h-10 w-16')}
               />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5">

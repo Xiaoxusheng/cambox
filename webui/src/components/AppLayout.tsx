@@ -22,6 +22,7 @@ import { watchSystemTheme } from '../theme'
 import { cx } from '../utils/cx'
 import { AppSidebar, SidebarContent, isActivePath } from './app/AppSidebar'
 import { CommandMenu } from './app/CommandMenu'
+import { ArmAction, RecAction } from './app/StatusActions'
 import { TopBar } from './app/TopBar'
 
 /** 移动端底部导航（任务书 §63：监控 / 回看 / 事件 / 更多） */
@@ -34,7 +35,7 @@ function BottomNav({ pathname, onMore }: { pathname: string; onMore: () => void 
   ]
   return (
     <nav
-      className="flex h-14 shrink-0 items-stretch border-t border-cam-border bg-cam-bg/90 backdrop-blur-sm md:hidden"
+      className="flex h-14 shrink-0 items-stretch border-t border-cam-border bg-cam-bg md:hidden"
       aria-label="底部导航"
     >
       {items.map((it) => {
@@ -136,6 +137,12 @@ export function AppLayout() {
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <SidebarContent camera={status?.camera} onNavigate={() => setMobileNavOpen(false)} />
+        </div>
+        {/* 状态操作区：移动端 TopBar 不显示 REC/布防，收进 Drawer（功能不丢，任务书 §45） */}
+        <div className="mt-3 flex shrink-0 items-center gap-3 border-t border-cam-border px-1 pt-3">
+          <RecAction status={status} reload={reload} />
+          <ArmAction status={status} reload={reload} />
+          <span className="cam-num ml-auto text-caption text-cam-text-tertiary">CamBox</span>
         </div>
       </Drawer>
 

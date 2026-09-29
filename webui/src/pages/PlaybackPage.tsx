@@ -394,7 +394,7 @@ export function PlaybackPage() {
             {hoverSec != null ? (
               <span
                 className="cam-num pointer-events-none absolute top-0 z-20 -translate-x-1/2 rounded border border-cam-border-strong bg-cam-elevated px-1.5 py-0.5 text-[11px] leading-4 text-cam-text-secondary shadow-popover"
-                style={{ left: `${(hoverSec / 86400) * 100}%` }}
+                style={{ left: `clamp(28px, ${((hoverSec / 86400) * 100).toFixed(2)}%, calc(100% - 28px))` }}
               >
                 {`${String(Math.floor(hoverSec / 3600)).padStart(2, '0')}:${String(
                   Math.floor((hoverSec % 3600) / 60),
@@ -412,7 +412,7 @@ export function PlaybackPage() {
             {Array.from({ length: 7 }, (_, i) => (
               <span
                 key={i}
-                className="cam-tl-hour-label"
+                className={cx('cam-tl-hour-label', i % 2 === 1 && 'hidden sm:block')}
                 style={{
                   left: `${((i * 4) / 24) * 100}%`,
                   // 首尾标签贴边对齐，避免被面板裁掉一半
@@ -506,8 +506,18 @@ export function PlaybackPage() {
         <span className="cam-num shrink-0 text-caption text-cam-text-secondary">
           {formatClockLong(pos)} / {formatClockLong(segDuration)}
         </span>
+        <button
+          type="button"
+          onClick={fullscreen}
+          aria-label="全屏"
+          disabled={!current || !src}
+          className="order-3 inline-flex h-8 shrink-0 items-center rounded-md border border-cam-border px-3 text-body-secondary text-cam-text-secondary transition-colors duration-150 ease-cam hover:border-cam-border-strong hover:text-cam-text-primary disabled:pointer-events-none disabled:opacity-40 sm:order-none"
+        >
+          全屏
+        </button>
+        <div className="order-4 flex w-full min-w-0 items-center gap-3 sm:order-none sm:w-auto sm:flex-1">
         <Slider
-          className="min-w-[160px] flex-1"
+          className="min-w-0 flex-1"
           min={0}
           max={Math.max(1, segDuration)}
           step={0.1}
@@ -540,15 +550,7 @@ export function PlaybackPage() {
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={fullscreen}
-          aria-label="全屏"
-          disabled={!current || !src}
-          className="h-8 shrink-0 rounded-md border border-cam-border px-3 text-body-secondary text-cam-text-secondary transition-colors duration-150 ease-cam hover:border-cam-border-strong hover:text-cam-text-primary disabled:pointer-events-none disabled:opacity-40"
-        >
-          全屏
-        </button>
+        </div>
       </div>
     </div>
   )

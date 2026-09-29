@@ -157,7 +157,6 @@ export function RecordingsPage() {
               setPage(1)
             }}
             placeholder="按文件名搜索…"
-            width={210}
             ariaLabel="按文件名筛选"
           />
           <IconButton icon={<IconRefresh />} label="刷新" onClick={() => reload()} />
@@ -217,29 +216,24 @@ export function RecordingsPage() {
                     <div className="flex shrink-0 items-center gap-0.5">
                       {url ? (
                         <>
-                          <button
-                            type="button"
+                          <IconButton
+                            icon={<IconPlayArrow style={{ fontSize: 14 }} />}
+                            label="播放"
                             onClick={() => playAt(r)}
-                            className="inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-body-secondary text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-hover hover:text-cam-text-primary"
-                          >
-                            <IconPlayArrow style={{ fontSize: 13 }} />
-                            播放
-                          </button>
+                          />
                           <a
                             href={url}
                             download={r.name}
                             aria-label={`下载 ${r.name}`}
-                            className="inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-body-secondary text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-hover hover:text-cam-text-primary"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-hover hover:text-cam-text-primary"
                           >
-                            <IconDownload style={{ fontSize: 13 }} />
-                            下载
+                            <IconDownload style={{ fontSize: 14 }} />
                           </a>
                         </>
                       ) : (
                         <Tooltip content={IS_MOCK ? 'mock 模式无真实文件可下载' : '暂无下载地址'}>
-                          <span className="inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-body-secondary text-cam-text-disabled opacity-60">
-                            <IconDownload style={{ fontSize: 13 }} />
-                            下载
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md text-cam-text-disabled opacity-60">
+                            <IconDownload style={{ fontSize: 14 }} />
                           </span>
                         </Tooltip>
                       )}

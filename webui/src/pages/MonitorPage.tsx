@@ -81,7 +81,7 @@ function HudChip({ children, className }: { children: React.ReactNode; className
   return (
     <span
       className={cx(
-        'cam-num inline-flex h-6 items-center gap-1.5 rounded-md bg-black/45 px-2 text-caption backdrop-blur-md',
+        'cam-num inline-flex h-6 items-center gap-1.5 rounded-md bg-black/40 px-2 text-caption backdrop-blur-md',
         className,
       )}
     >
@@ -214,7 +214,7 @@ export function MonitorPage() {
         'flex min-h-0 flex-col',
         isNarrow
           ? 'border-t border-cam-border'
-          : 'w-[320px] shrink-0 border-l border-cam-border',
+          : 'w-[300px] shrink-0 border-l border-cam-border 2xl:w-[320px]',
       )}
     >
       <div className="flex shrink-0 items-center justify-between gap-3 px-4 pb-1 pt-3.5">
@@ -231,7 +231,7 @@ export function MonitorPage() {
           全部 →
         </Link>
       </div>
-      <div className={cx('min-h-0 flex-1 overflow-y-auto p-2', isNarrow && 'max-h-[420px]')}>
+      <div className={cx('min-h-0 flex-1 overflow-y-auto p-2', isNarrow && 'max-h-[360px]')}>
         <EventList items={events.items} cameraName={cam.name} onItemClick={setPreview} />
       </div>
     </div>

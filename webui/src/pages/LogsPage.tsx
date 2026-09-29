@@ -200,7 +200,6 @@ export function LogsPage() {
           value={keyword}
           onChange={setKeyword}
           placeholder="在缓冲内搜索…"
-          width={240}
           ariaLabel="搜索日志内容"
         />
         <LevelFilter value={level} onChange={setLevel} />
@@ -319,7 +318,7 @@ export function LogsPage() {
               {shown.map((e, i) => (
                 <div
                   key={`${i}-${e.time}`}
-                  className="grid h-6 grid-cols-[72px_56px_minmax(0,1fr)] items-center gap-3 rounded-sm px-1 transition-colors duration-150 ease-cam hover:bg-cam-hover"
+                  className="grid h-6 grid-cols-[64px_48px_minmax(0,1fr)] items-center gap-2 rounded-sm px-1 text-[11px] transition-colors duration-150 ease-cam hover:bg-cam-hover sm:grid-cols-[72px_56px_minmax(0,1fr)] sm:gap-3 sm:text-[12px]"
                 >
                   <span className="tabular-nums text-cam-log-time">{hhmmss(e.time)}</span>
                   <span className={cx('font-medium', levelClass(e.level))}>{e.level}</span>

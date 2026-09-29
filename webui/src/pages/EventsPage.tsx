@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react'
 import { Button, Checkbox, DatePicker, Drawer, Message, Modal, Pagination, Select } from '@arco-design/web-react'
 import { IconDelete, IconPlayArrow, IconRefresh } from '@arco-design/web-react/icon'
 import { useNavigate } from 'react-router-dom'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { batchDeleteEvents, fetchEvents, fetchStatus, fetchTimeline } from '../api/endpoints'
 import { errorText } from '../api/errors'
 import { mediaUrl } from '../api/media'
@@ -86,6 +87,7 @@ export function EventsPage() {
   const [detail, setDetail] = useState<Event | null>(null)
   const [deleting, setDeleting] = useState(false)
   const navigate = useNavigate()
+  const isMobile = useMediaQuery('(max-width: 640px)')
 
   const today = toLocalDateStr(new Date())
   const from = range?.[0] ? dayStart(range[0]) : undefined
@@ -213,15 +215,6 @@ export function EventsPage() {
             {error && !data ? <span className="text-cam-danger"> · 加载失败：{error}</span> : null}
           </p>
         </div>
-        <Button
-          status="danger"
-          icon={<IconDelete />}
-          disabled={selected.length === 0 || deleting}
-          loading={deleting}
-          onClick={onBatchDelete}
-        >
-          删除选中{selected.length > 0 ? ` · ${selected.length}` : ''}
-        </Button>
       </div>
 
       {/* ---------- 筛选行（任务书 §23：32px 低对比控件，不做 Admin Filter Bar） ---------- */}
@@ -276,6 +269,29 @@ export function EventsPage() {
           每页 {PAGE_SIZE} 条
         </span>
       </div>
+
+      {/* ---------- 选择工具条：仅选中时出现（任务书 §17，quiet danger） ---------- */}
+      {selected.length > 0 ? (
+        <div className="mb-3 flex h-10 items-center gap-3 rounded-md border border-cam-border bg-cam-surface px-3">
+          <span className="text-body-secondary text-cam-text-primary">已选择 {selected.length} 条</span>
+          <button
+            type="button"
+            onClick={() => setSelected([])}
+            className="h-7 rounded px-2 text-caption text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-hover hover:text-cam-text-primary"
+          >
+            取消选择
+          </button>
+          <button
+            type="button"
+            disabled={deleting}
+            onClick={onBatchDelete}
+            className="ml-auto inline-flex h-7 items-center gap-1 rounded px-2 text-caption text-cam-danger transition-colors duration-150 ease-cam hover:bg-cam-danger/10 disabled:pointer-events-none disabled:opacity-40"
+          >
+            <IconDelete style={{ fontSize: 12 }} />
+            {deleting ? '删除中…' : '删除'}
+          </button>
+        </div>
+      ) : null}
 
       {/* ---------- 按日分组的事件列表 ---------- */}
       <div className="rounded-panel border border-cam-border bg-cam-surface">
@@ -334,7 +350,7 @@ export function EventsPage() {
                           src={mediaUrl(e.image)}
                           alt={`${eventTypeLabel(e.type, e.detail)}快照`}
                           loading="lazy"
-                          className="hidden h-[45px] w-[80px] shrink-0 cursor-pointer rounded-md bg-cam-active object-cover object-center sm:block"
+                          className="h-9 w-14 shrink-0 cursor-pointer rounded-md bg-cam-active object-cover object-center sm:h-10 sm:w-20"
                           onClick={() => setDetail(e)}
                         />
                         {/* 行 = 缩略图 + 标题/元数据；点击进 Drawer（无行内按钮，任务书 §26） */}
@@ -380,7 +396,7 @@ export function EventsPage() {
       {/* ---------- 详情 Drawer（任务书 §29/30：定义式元数据 + 主/次操作） ---------- */}
       <Drawer
         visible={!!detail}
-        width={440}
+        width={isMobile ? '100%' : 440}
         title={detail ? eventTypeLabel(detail.type, detail.detail) : '事件详情'}
         footer={null}
         onCancel={() => setDetail(null)}

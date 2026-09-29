@@ -11,25 +11,24 @@ export function SearchInput({
   value,
   onChange,
   placeholder = '搜索…',
-  width = 220,
   ariaLabel,
   className,
 }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
-  width?: number
   ariaLabel: string
+  /** 宽度走响应式类：默认 移动全宽 / sm 起 240px（任务书 §31） */
   className?: string
 }) {
   return (
     <div
       className={cx(
-        'inline-flex h-8 items-center gap-1.5 rounded-md border border-cam-border bg-cam-hover px-2',
+        'inline-flex h-8 w-full items-center gap-1.5 rounded-md border border-cam-border bg-cam-hover px-2',
         'transition-colors duration-150 ease-cam focus-within:border-cam-border-strong',
+        'sm:w-60',
         className,
       )}
-      style={{ width }}
     >
       <IconSearch style={{ fontSize: 13 }} className="shrink-0 text-cam-text-tertiary" />
       <input

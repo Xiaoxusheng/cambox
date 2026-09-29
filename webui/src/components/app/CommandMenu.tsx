@@ -107,7 +107,7 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/60 px-4 pt-[12vh]"
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/60 px-3 pt-[12vh] sm:px-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}

@@ -277,6 +277,13 @@ body[arco-theme='dark'] .arco-input-wrapper:focus-within .arco-input-wrap {
 .arco-input-number {
   height: 32px;
 }
+/* 输入字号与 Body 一致（任务书 §12） */
+.arco-input,
+.arco-select-view-single .arco-select-view-input,
+.arco-picker-input input,
+.arco-input-number .arco-input { 
+  font-size: 13px;
+}
 /* 下拉/浮层圆角 8px */
 .arco-select-popup,
 .arco-picker-container .arco-picker-range,
