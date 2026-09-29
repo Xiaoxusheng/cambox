@@ -63,6 +63,11 @@
   /* 水位条（存储）中性填充 */
   --cam-meter: rgba(255, 255, 255, 0.4);
 
+  /* 日志终端专用（v1.4.2 精修）：时间戳更亮一档，WARN/ERROR 为降饱和语义色 */
+  --cam-log-time: #d4d4d8;
+  --cam-log-warn: #d4a72c;
+  --cam-log-error: #d65a5a;
+
   /* 浮层阴影（仅 Modal / Popover / CommandMenu；内容区一律 border + surface） */
   --cam-shadow-overlay: 0 16px 48px rgba(0, 0, 0, 0.5);
   --cam-shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -107,6 +112,10 @@ body[data-theme='light'] {
   --cam-tl-seg-hover: #8b8b93;
 
   --cam-meter: rgba(9, 9, 11, 0.35);
+
+  --cam-log-time: #52525b;
+  --cam-log-warn: #a16207;
+  --cam-log-error: #b91c1c;
 
   /* light 阴影更轻：只用于浮层 */
   --cam-shadow-overlay: 0 16px 48px rgba(0, 0, 0, 0.12);

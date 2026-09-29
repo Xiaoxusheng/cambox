@@ -23,6 +23,17 @@
   box-sizing: border-box;
 }
 
+/* preflight 关闭 → 浏览器默认 border-style 为 none，Tailwind 的 .border/.border-b 只写
+   width 不写 style，会导致全站边框静默失效（v1.4.2 发现并修复）。
+   与 Tailwind preflight 相同的标准重置：style 固定 solid，width 默认 0。 */
+*,
+*::before,
+*::after {
+  border-width: 0;
+  border-style: solid;
+  border-color: var(--cam-border);
+}
+
 html {
   /* theme.ts 已按主题设置 color-scheme；此处兜底 */
   scrollbar-width: thin;
@@ -46,26 +57,26 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* 滚动条：细、贴主题，不抢视觉 */
+/* 滚动条：6px 极细、贴主题，不抢视觉（v1.4.2 精修 §17） */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.24);
 }
 body[data-theme='light'] ::-webkit-scrollbar-thumb {
-  background: rgba(9, 9, 11, 0.16);
+  background: rgba(9, 9, 11, 0.18);
 }
 body[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(9, 9, 11, 0.26);
+  background: rgba(9, 9, 11, 0.28);
 }
 
 /* 选区与焦点环：中性，克制 */

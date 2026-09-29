@@ -41,7 +41,7 @@ export const isActivePath = (pathname: string, key: string) =>
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="px-2 pb-1 pt-4 text-[11px] font-medium uppercase tracking-[0.08em] text-cam-text-tertiary">
+    <div className="px-2 pb-1 pt-3 text-[10px] font-medium uppercase tracking-[0.08em] text-cam-text-tertiary">
       {children}
     </div>
   )
@@ -66,7 +66,7 @@ export function NavItem({
         onNavigate?.()
       }}
       className={cx(
-        'flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-left text-body-secondary',
+        'flex h-[30px] w-full items-center gap-2 rounded-md px-2 text-left text-body',
         'transition-colors duration-100 ease-cam',
         active
           ? 'bg-cam-selected font-medium text-cam-text-primary'
@@ -75,7 +75,7 @@ export function NavItem({
     >
       <span
         className={cx(
-          'shrink-0 [&_svg]:!h-[15px] [&_svg]:!w-[15px]',
+          'shrink-0 [&_svg]:!h-[14px] [&_svg]:!w-[14px]',
           active ? 'text-cam-text-primary' : 'text-cam-text-tertiary',
         )}
       >
@@ -118,20 +118,9 @@ export function SidebarContent({
           <span className="block truncate text-body font-medium text-cam-text-primary">
             {camera?.name ?? '摄像头'}
           </span>
-          <span className="mt-0.5 block truncate text-caption text-cam-text-tertiary">
-            {camera ? (
-              <>
-                <span className="cam-num">
-                  {camera.width}×{camera.height}
-                </span>
-                <span className="mx-1 text-cam-text-disabled">·</span>
-                <span className={connected ? 'text-cam-success' : 'text-cam-danger'}>
-                  {connected ? 'Online' : 'Offline'}
-                </span>
-              </>
-            ) : (
-              '连接中…'
-            )}
+          {/* 状态只由小圆点表达（不使用彩色大字），metadata 保持 mono 灰 */}
+          <span className="cam-num mt-0.5 block truncate text-caption text-cam-text-tertiary">
+            {camera ? `${camera.width}×${camera.height}` : '连接中…'}
           </span>
         </span>
       </Link>
@@ -179,9 +168,10 @@ export function AppSidebar({ camera }: { camera?: CameraStatus }) {
 
       <SidebarContent camera={camera} />
 
-      {/* 底部：版本（主题切换统一在 TopBar，任务书 Light §33 单一入口） */}
-      <div className="flex shrink-0 items-center px-4 pb-3 pt-2">
-        <span className="cam-num text-caption text-cam-text-disabled">v{pkg.version}</span>
+      {/* 底部：品牌 + 版本（10px metadata；主题切换统一在 TopBar，任务书 Light §33 单一入口） */}
+      <div className="shrink-0 border-t border-cam-border px-4 pb-3 pt-2.5">
+        <div className="text-caption font-medium text-cam-text-secondary">CamBox</div>
+        <div className="cam-num mt-0.5 text-[10px] leading-4 text-cam-text-4">v{pkg.version}</div>
       </div>
     </aside>
   )

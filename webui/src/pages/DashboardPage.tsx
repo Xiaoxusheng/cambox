@@ -193,7 +193,7 @@ export function DashboardPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-page-title text-cam-text-primary">系统概览</h2>
-          <p className="mt-0.5 text-body-secondary text-cam-text-tertiary">
+          <p className="mt-1.5 text-body-secondary text-cam-text-tertiary">
             系统状态与活动 · 数据时间 {formatTime(status.time)} · 每 5 秒自动刷新
             {error ? <span className="text-cam-danger"> · 刷新失败：{error}</span> : null}
           </p>

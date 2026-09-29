@@ -104,13 +104,15 @@ export function AppLayout() {
           onOpenMobileNav={() => setMobileNavOpen(true)}
         />
 
-        {/* 内容：监控页全出血，其余页居中限宽；页面切换极轻入场 */}
+        {/* 内容：监控页全出血，其余页居中限宽 1500（大屏不无限拉伸）；页面切换极轻入场 */}
         <main className="min-h-0 flex-1 overflow-y-auto">
           <div
             key={pathname}
             className={cx(
               'h-full animate-page-in',
-              pathname === '/' ? '' : 'mx-auto w-full max-w-[1600px] px-4 py-4 md:px-6 md:py-5',
+              pathname === '/'
+                ? ''
+                : 'mx-auto w-full max-w-[1500px] px-5 py-5 md:px-7 md:py-6 xl:px-10 2xl:px-12',
             )}
           >
             <Outlet />

@@ -208,7 +208,7 @@ export function EventsPage() {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-page-title text-cam-text-primary">事件</h2>
-          <p className="mt-0.5 text-body-secondary text-cam-text-tertiary">
+          <p className="mt-1.5 text-body-secondary text-cam-text-tertiary">
             共 {total} 条 · 今日 {todayCount} 条 · 按时间倒序
             {error && !data ? <span className="text-cam-danger"> · 加载失败：{error}</span> : null}
           </p>

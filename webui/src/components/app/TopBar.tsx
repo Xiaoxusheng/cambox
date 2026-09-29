@@ -6,8 +6,8 @@
  * 主题入口唯一（Light §33）：ThemeToggle（浅色/深色/跟随系统）。
  */
 import { useEffect, useState } from 'react'
-import { Message, Modal, Switch, Tooltip } from '@arco-design/web-react'
-import { IconMenu, IconRecord, IconRecordStop, IconSearch } from '@arco-design/web-react/icon'
+import { Message, Modal, Tooltip } from '@arco-design/web-react'
+import { IconMenu, IconSearch } from '@arco-design/web-react/icon'
 import type { Status } from '../../api/types'
 import { fetchConfig, saveConfig, setArmed } from '../../api/endpoints'
 import { errorText } from '../../api/errors'
@@ -97,20 +97,22 @@ export function TopBar({
   }
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-cam-border bg-cam-bg px-4 md:px-5">
-      {/* 左：页面名 */}
+    <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-cam-border bg-cam-bg px-5 md:px-7">
+      {/* 左：页面名（Page Context） */}
       <h1 className="truncate text-topbar-title text-cam-text-primary">{PAGE_TITLES[pathname] ?? 'CamBox'}</h1>
 
-      {/* 右：状态与快捷操作 */}
-      <div className="flex shrink-0 items-center gap-2">
+      {/* 右：状态 metadata（非按钮视觉）→ 时钟 → 工具。视觉分层：点+文字的状态、
+          mono 小型 REC、图标工具；只有 ⌘K 保留描边（它代表输入位）。 */}
+      <div className="flex shrink-0 items-center gap-3">
         {IS_MOCK ? (
           <Tooltip content="当前为 mock 数据模式，未连接后端">
-            <span className="hidden h-6 items-center rounded-md border border-cam-warning/40 bg-cam-warning/10 px-2 text-caption font-medium text-cam-warning sm:inline-flex">
+            <span className="hidden rounded bg-cam-warning/[0.08] px-1.5 py-0.5 text-[10px] font-medium leading-[14px] text-cam-warning sm:inline-block">
               MOCK
             </span>
           </Tooltip>
         ) : null}
 
+        {/* REC：小型 metadata（点击切换录像，功能不变，去按钮视觉） */}
         <Tooltip
           content={
             recording
@@ -126,33 +128,47 @@ export function TopBar({
             disabled={!status || recPending}
             onClick={() => toggleRecord(!recording)}
             className={cx(
-              'inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-caption font-medium',
+              'cam-num inline-flex h-7 items-center gap-1.5 rounded-md px-1 text-[11px] font-medium tracking-[0.06em]',
               'transition-colors duration-150 ease-cam disabled:pointer-events-none disabled:opacity-40',
               recording
-                ? 'border border-cam-rec/40 bg-cam-rec/10 text-cam-rec'
-                : 'border border-cam-border text-cam-text-secondary hover:border-cam-border-strong hover:text-cam-text-primary',
+                ? 'text-cam-rec hover:bg-cam-hover'
+                : 'text-cam-text-tertiary hover:bg-cam-hover hover:text-cam-text-secondary',
             )}
           >
-            {recording ? <IconRecordStop style={{ fontSize: 13 }} /> : <IconRecord style={{ fontSize: 13 }} />}
-            <span className={cx(recording && 'animate-rec-pulse')}>REC</span>
+            <span
+              className={cx(
+                'h-1.5 w-1.5 rounded-full',
+                recording ? 'animate-rec-pulse bg-cam-rec' : 'bg-cam-text-4',
+              )}
+            />
+            REC
           </button>
         </Tooltip>
 
+        {/* Armed：状态文字 + 小圆点（非开关视觉），点击布防/撤防 */}
         <Tooltip content={armed ? '布防中：移动侦测事件将入库并推送' : '已撤防：仅停止事件入库与推送'}>
-          <span className="hidden items-center gap-1.5 sm:flex">
-            <Switch
-              size="small"
-              checked={armed}
-              loading={armPending}
-              disabled={!status}
-              onChange={toggleArm}
-              aria-label="布防开关"
+          <button
+            type="button"
+            aria-label={armed ? '撤防' : '布防'}
+            disabled={!status || armPending}
+            onClick={() => toggleArm(!armed)}
+            className={cx(
+              'hidden h-7 items-center gap-1.5 rounded-md px-1 text-caption transition-colors duration-150 ease-cam',
+              'disabled:pointer-events-none disabled:opacity-40 sm:inline-flex',
+              armed ? 'text-cam-text-secondary hover:bg-cam-hover' : 'text-cam-text-tertiary hover:bg-cam-hover',
+            )}
+          >
+            <span
+              className={cx(
+                'h-1.5 w-1.5 rounded-full',
+                armed ? 'animate-breathe bg-cam-success' : 'bg-cam-text-4',
+              )}
             />
-            <span className="hidden text-caption text-cam-text-secondary md:inline">
-              {armed ? '布防中' : '已撤防'}
-            </span>
-          </span>
+            {armed ? '布防中' : '已撤防'}
+          </button>
         </Tooltip>
+
+        <span className="h-4 w-px bg-cam-border" aria-hidden="true" />
 
         <Clock />
 
@@ -180,7 +196,7 @@ export function TopBar({
           type="button"
           aria-label="打开导航"
           onClick={onOpenMobileNav}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-active hover:text-cam-text-primary md:hidden"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-hover hover:text-cam-text-primary md:hidden"
         >
           <IconMenu style={{ fontSize: 15 }} />
         </button>

@@ -349,7 +349,7 @@ export function SettingsPage() {
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-page-title text-cam-text-primary">设置</h2>
-          <p className="mt-0.5 text-body-secondary text-cam-text-tertiary">
+          <p className="mt-1.5 text-body-secondary text-cam-text-tertiary">
             保存后写入 configs/config.yaml · 摄像头来源与解码改动需重启生效
           </p>
         </div>

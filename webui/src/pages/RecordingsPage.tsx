@@ -6,14 +6,15 @@
  * 「播放」通过 /playback?date=&t= 带参跳转到该分段起点（复用回放页跳转逻辑）。
  */
 import { useMemo, useState } from 'react'
-import { Input, Message, Modal, Pagination, Tooltip } from '@arco-design/web-react'
-import { IconDelete, IconDownload, IconPlayArrow, IconRefresh, IconSearch, IconVideoCamera } from '@arco-design/web-react/icon'
+import { Message, Modal, Pagination, Tooltip } from '@arco-design/web-react'
+import { IconDelete, IconDownload, IconPlayArrow, IconRefresh, IconVideoCamera } from '@arco-design/web-react/icon'
 import { useNavigate } from 'react-router-dom'
 import { deleteRecording, fetchConfig, fetchRecordings, fetchStatus } from '../api/endpoints'
 import { errorText } from '../api/errors'
 import { IS_MOCK, recordingUrl } from '../api/media'
 import type { RecordFile } from '../api/types'
 import { IconButton } from '../components/common/IconButton'
+import { SearchInput } from '../components/common/SearchInput'
 import { EmptyState, ErrorState, InitialLoading } from '../components/StateViews'
 import { useAsync } from '../hooks/useAsync'
 import { formatBytes, formatClockLong, formatDateTime, formatTime } from '../utils/format'
@@ -123,7 +124,7 @@ export function RecordingsPage() {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-page-title text-cam-text-primary">录像</h2>
-          <p className="mt-0.5 text-body-secondary text-cam-text-tertiary">
+          <p className="mt-1.5 text-body-secondary text-cam-text-tertiary">
             共 {items.length} 个分段 · {formatBytes(totalSize)} ·{' '}
             {retentionDays > 0 ? `保留 ${retentionDays} 天 · ` : ''}到达 {maxGb} GB 自动清理最旧分段
             {IS_MOCK ? ' · mock 模式不生成模拟录像文件' : ''}
@@ -149,17 +150,15 @@ export function RecordingsPage() {
               {diskPct.toFixed(0)}%
             </span>
           </span>
-          <Input
+          <SearchInput
             value={keyword}
             onChange={(v) => {
               setKeyword(v)
               setPage(1)
             }}
             placeholder="按文件名搜索…"
-            prefix={<IconSearch />}
-            allowClear
-            style={{ width: 210 }}
-            aria-label="按文件名筛选"
+            width={210}
+            ariaLabel="按文件名筛选"
           />
           <IconButton icon={<IconRefresh />} label="刷新" onClick={() => reload()} />
         </div>
