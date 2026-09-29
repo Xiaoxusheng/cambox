@@ -8,9 +8,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Button, Message, Modal } from '@arco-design/web-react'
 import { fetchConfig, fetchEvents, fetchStatus, fetchTimeline, manualSnapshot } from '../api/endpoints'
 import { errorText } from '../api/errors'
-import { mediaUrl } from '../api/media'
+import { IS_MOCK, mediaUrl } from '../api/media'
 import type { Config, Event, EventsResponse, Status, TimelineData } from '../api/types'
-import { AutoCropImage } from '../components/AutoCropImage'
+import { AutoCropImage, detectContentBox, type ContentBox } from '../components/AutoCropImage'
 import { EventList } from '../components/EventList'
 import { RoiEditorModal } from '../components/RoiEditorModal'
 import { ErrorState, InitialLoading } from '../components/StateViews'
@@ -98,7 +98,27 @@ export function MonitorPage() {
   // 画面矩形 = contain 后的图像区域（解码输出宽高比即 camera.width/height）
   const camW = data?.[0].camera.width ?? 0
   const camH = data?.[0].camera.height ?? 0
-  const fitRect = useContainedRect(videoBoxRef, camW, camH)
+  // 直播流内嵌黑边裁切（宽画幅测试流）：后台周期检测，首次检出黑边即采用
+  //（流内黑边位置恒定；混合画幅的流迟早会落在带黑边的镜头上）
+  const [liveBox, setLiveBox] = useState<ContentBox | null>(null)
+  useEffect(() => {
+    if (IS_MOCK) return
+    const timer = window.setInterval(() => {
+      const img = document.querySelector<HTMLImageElement>('.ch-monitor-frame')
+      if (!img || !img.naturalWidth) return
+      try {
+        const b = detectContentBox(img)
+        if (b) setLiveBox((prev) => prev ?? b) // 首次检出生效，此后保持稳定
+      } catch {
+        /* 画面未就绪时跳过本轮 */
+      }
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [])
+  // 裁黑边后的有效画面宽高比（ROI 覆盖对齐用）
+  const effW = liveBox ? (liveBox.x1 - liveBox.x0) * camW : camW
+  const effH = liveBox ? (liveBox.y1 - liveBox.y0) * camH : camH
+  const fitRect = useContainedRect(videoBoxRef, effW, effH)
 
   const doSnapshot = async () => {
     setSnapBusy(true)
@@ -149,6 +169,14 @@ export function MonitorPage() {
               src={frame.src}
               alt="实时画面"
               onError={frame.markFailed}
+              style={
+                liveBox
+                  ? ({
+                      // 只显示内容区，黑边裁掉；object-fit: cover 继续负责铺满容器
+                      objectViewBox: `inset(${(liveBox.y0 * 100).toFixed(2)}% ${((1 - liveBox.x1) * 100).toFixed(2)}% ${((1 - liveBox.y1) * 100).toFixed(2)}% ${(liveBox.x0 * 100).toFixed(2)}%)`,
+                    } as React.CSSProperties)
+                  : undefined
+              }
             />
             {rois.length > 0 ? (
               <div
@@ -159,22 +187,34 @@ export function MonitorPage() {
                   width: fitRect.width,
                   height: fitRect.height,
                   pointerEvents: 'none',
+                  overflow: 'hidden',
                 }}
               >
-                {rois.map((r, i) => (
-                  <div
-                    key={i}
-                    className="ch-roiovl"
-                    style={{
-                      left: `${r[0] * 100}%`,
-                      top: `${r[1] * 100}%`,
-                      width: `${r[2] * 100}%`,
-                      height: `${r[3] * 100}%`,
-                    }}
-                  >
-                    <span className="ch-roiovl-tag">ROI {i + 1}</span>
-                  </div>
-                ))}
+                {rois.map((r, i) => {
+                  // ROI 坐标归一化于完整帧；裁黑边显示时重映射到内容区坐标系
+                  const [rx, ry, rw, rh] = liveBox
+                    ? [
+                        (r[0] - liveBox.x0) / (liveBox.x1 - liveBox.x0),
+                        (r[1] - liveBox.y0) / (liveBox.y1 - liveBox.y0),
+                        r[2] / (liveBox.x1 - liveBox.x0),
+                        r[3] / (liveBox.y1 - liveBox.y0),
+                      ]
+                    : r
+                  return (
+                    <div
+                      key={i}
+                      className="ch-roiovl"
+                      style={{
+                        left: `${rx * 100}%`,
+                        top: `${ry * 100}%`,
+                        width: `${rw * 100}%`,
+                        height: `${rh * 100}%`,
+                      }}
+                    >
+                      <span className="ch-roiovl-tag">ROI {i + 1}</span>
+                    </div>
+                  )
+                })}
               </div>
             ) : null}
           </>

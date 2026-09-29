@@ -8,14 +8,15 @@ import { useState } from 'react'
 import type { SyntheticEvent } from 'react'
 
 /** 归一化内容区（0~1，相对原图宽高） */
-type ContentBox = { x0: number; y0: number; x1: number; y1: number }
+export type ContentBox = { x0: number; y0: number; x1: number; y1: number }
 
 /** 行/列平均亮度低于该值视为黑边（0~255）。黑边是纯黑；暗场景有噪声，均值高于此值，避免误判 */
 const BLACK_LUMA = 12
 /** 内容区小于原图该比例时视为误判，放弃裁切 */
 const MIN_CONTENT_RATIO = 0.5
 
-function detectContentBox(img: HTMLImageElement): ContentBox | null {
+/** 检测图片内嵌黑边（宽画幅内容嵌在 16:9 容器里），返回归一化内容区；无黑边/误判时返回 null */
+export function detectContentBox(img: HTMLImageElement): ContentBox | null {
   const sw = 96
   const sh = Math.max(2, Math.round((img.naturalHeight / img.naturalWidth) * sw))
   const canvas = document.createElement('canvas')
