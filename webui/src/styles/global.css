@@ -1436,8 +1436,9 @@ button.ch-rec:disabled {
   right: 0;
   top: 34px;
   height: 30px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: 9px;
+  background: var(--ch-fill);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 .ch-timeline-hour {
   position: absolute;
@@ -1462,17 +1463,21 @@ button.ch-rec:disabled {
   position: absolute;
   top: 36px;
   height: 26px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #ff6c06, #d95a04);
+  border-radius: 5px;
+  background: linear-gradient(180deg, #ff8a2b, #f26a02 70%, #dd5b04);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 1px 3px rgba(0, 0, 0, 0.14);
   cursor: pointer;
   min-width: 3px;
   transition: filter 0.15s;
 }
 .ch-timeline-seg:hover {
-  filter: brightness(1.2);
+  filter: brightness(1.07) saturate(1.05);
 }
 .ch-timeline-seg.current {
-  outline: 1.5px solid #fff;
+  outline: 2px solid var(--ch-text-1);
   outline-offset: 1px;
 }
 .ch-timeline-event {
@@ -2559,7 +2564,7 @@ body[data-theme='light'] .ch-log-line:hover {
 }
 
 body[data-theme='light'] .ch-timeline-track {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.05);
 }
 body[data-theme='light'] .ch-timeline-hour {
   background: rgba(0, 0, 0, 0.08);
