@@ -39,6 +39,7 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
   const [saving, setSaving] = useState(false)
   const [draft, setDraft] = useState<DraftRect | null>(null)
   const [imgLoaded, setImgLoaded] = useState(false)
+  const [imgAspect, setImgAspect] = useState(16 / 9)
   const [bust, setBust] = useState(() => Date.now())
 
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -173,6 +174,10 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
       <div
         className="ch-roi-wrap"
         ref={wrapRef}
+        style={{
+          aspectRatio: imgAspect.toFixed(4),
+          maxWidth: `min(100%, calc((100vh - 350px) * ${imgAspect.toFixed(3)}))`,
+        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -184,7 +189,13 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
           src={snapshotUrl(bust)}
           alt="ROI 编辑底图"
           draggable={false}
-          onLoad={() => setImgLoaded(true)}
+          onLoad={(e) => {
+            setImgLoaded(true)
+            const n = e.currentTarget
+            if (n.naturalWidth > 0 && n.naturalHeight > 0) {
+              setImgAspect(n.naturalWidth / n.naturalHeight)
+            }
+          }}
           onError={() => setImgLoaded(true)}
         />
         {!imgLoaded ? (
@@ -291,9 +302,8 @@ export function RoiEditorModal({
       autoFocus={false}
       unmountOnExit
     >
-      <div style={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}>
-        {visible ? <RoiEditorInner onDone={onCancel} /> : null}
-      </div>
+      {/* 底图按视口高度自适应（见 ch-roi-wrap 的 maxWidth），内容天然放得下，无滚动条 */}
+      {visible ? <RoiEditorInner onDone={onCancel} /> : null}
     </Modal>
   )
 }
