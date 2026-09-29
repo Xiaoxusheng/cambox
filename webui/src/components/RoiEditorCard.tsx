@@ -111,7 +111,7 @@ export function RoiEditorCard({
     <>
       <div
         ref={canvasRef}
-        className="ch-roi-canvas"
+        className="cam-roi-canvas"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -123,17 +123,17 @@ export function RoiEditorCard({
         {rois.map((r, i) => (
           <div
             key={i}
-            className="ch-roi-rect"
+            className="cam-roi-rect"
             style={{ left: pct(r[0]), top: pct(r[1]), width: pct(r[2]), height: pct(r[3]) }}
             onPointerDown={(e) => startMove(e, i)}
             onPointerUp={onPointerUp}
           >
-            <span className="ch-roi-tag num">
+            <span className="cam-roi-tag cam-num">
               ROI {i + 1} · {r[0].toFixed(2)}, {r[1].toFixed(2)} ~ {(r[0] + r[2]).toFixed(2)},{' '}
               {(r[1] + r[3]).toFixed(2)}
             </span>
             <span
-              className="ch-roi-handle"
+              className="cam-roi-handle"
               role="button"
               aria-label={`缩放区域 ${i + 1}`}
               onPointerDown={(e) => startResize(e, i)}
@@ -143,18 +143,18 @@ export function RoiEditorCard({
         ))}
         {draft ? (
           <div
-            className="ch-roi-rect drawing"
+            className="cam-roi-rect drawing"
             style={{ left: pct(draft[0]), top: pct(draft[1]), width: pct(draft[2]), height: pct(draft[3]) }}
           />
         ) : null}
       </div>
 
-      <div className="ch-roi-list">
+      <div className="cam-roi-list">
         {rois.length === 0 ? (
-          <span className="ch-muted">未设置检测区域，按全屏统计变化像素。</span>
+          <span className="text-body-secondary text-cam-text-tertiary">未设置检测区域，按全屏统计变化像素。</span>
         ) : (
           rois.map((r, i) => (
-            <span key={i} className="ch-roi-item">
+            <span key={i} className="cam-roi-item">
               ROI {i + 1} · {r[0].toFixed(2)}, {r[1].toFixed(2)} · {r[2].toFixed(2)}×{r[3].toFixed(2)}
               <Button
                 type="text"
@@ -179,7 +179,7 @@ export function RoiEditorCard({
           onClick={() => setBust(Date.now())}
         />
       </div>
-      <div className="ch-hint">
+      <div className="text-caption leading-5 text-cam-text-tertiary mt-2">
         在画面上拖拽画出新区域；拖动矩形移动位置，右下角手柄缩放。坐标为归一化 0~1，随「保存全部」提交后热更新生效。
       </div>
     </>

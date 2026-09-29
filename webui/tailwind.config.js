@@ -1,8 +1,8 @@
 /**
- * camhub webui —— Tailwind 主样式层 Design Token 全集
+ * CamBox webui —— Tailwind 主样式层 Design Token 全集（v1.4 Linear-style）
  *
  * Tailwind = 视觉系统（布局/间距/颜色/字级/响应式/动效）；Arco = 交互组件能力。
- * 颜色一律走 CSS 变量（cam.*），双主题自动切换：dark 默认基准，light 用同名变量覆盖。
+ * 颜色一律走 CSS 变量（tokens.css），双主题自动切换：dark 默认基准，light 用同名变量覆盖。
  * preflight 保持关闭：不重置 Arco 组件默认样式。
  *
  * @type {import('tailwindcss').Config}
@@ -18,10 +18,10 @@ export default {
           surface: 'var(--cam-surface)',
           elevated: 'var(--cam-elevated)',
           active: 'var(--cam-active)',
+          hover: 'var(--cam-hover)',
+          selected: 'var(--cam-selected)',
           border: 'var(--cam-border)',
           'border-strong': 'var(--cam-border-strong)',
-          accent: 'rgb(var(--cam-accent-rgb) / <alpha-value>)',
-          'accent-dim': 'var(--cam-accent-dim)',
           success: 'rgb(var(--cam-success-rgb) / <alpha-value>)',
           warning: 'rgb(var(--cam-warning-rgb) / <alpha-value>)',
           danger: 'rgb(var(--cam-danger-rgb) / <alpha-value>)',
@@ -39,30 +39,31 @@ export default {
         mono: 'var(--cam-mono)',
       },
       fontSize: {
-        // Typography 规范（任务书 §13）：禁止页面散落 text-[17px] 等任意值
-        'page-title': ['20px', { lineHeight: '28px', fontWeight: '600' }],
-        'section-title': ['15px', { lineHeight: '24px', fontWeight: '600' }],
-        body: ['14px', { lineHeight: '22px' }],
-        'body-secondary': ['13px', { lineHeight: '20px' }],
-        caption: ['12px', { lineHeight: '18px' }],
+        // Typography 规范（任务书 §17）：小而精确，禁止页面散落任意字号
+        'page-title': ['18px', { lineHeight: '26px', fontWeight: '600' }],
+        'topbar-title': ['14px', { lineHeight: '20px', fontWeight: '500' }],
+        'section-title': ['13px', { lineHeight: '20px', fontWeight: '600' }],
+        body: ['13px', { lineHeight: '20px' }],
+        'body-secondary': ['12px', { lineHeight: '18px' }],
+        caption: ['11px', { lineHeight: '16px' }],
       },
       borderRadius: {
-        // 任务书圆角规范：Page container 16 / Panel 14 / Button+Input 8 / chip 6
-        panel: '14px',
+        // 任务书圆角规范：控件/导航 6（rounded-md）· popover 8（rounded-lg）· Panel/Modal 10
+        panel: '10px',
       },
       boxShadow: {
-        // 深色 UI 克制阴影：真正浮层才有大投影，内容区一律 border + surface 对比
-        overlay: '0 16px 50px rgba(0, 0, 0, 0.35)',
-        popover: '0 8px 24px rgba(0, 0, 0, 0.28)',
+        // 深色 UI 克制阴影：仅浮层使用，内容区一律 border + surface 对比
+        overlay: '0 16px 48px rgba(0, 0, 0, 0.5)',
+        popover: '0 8px 24px rgba(0, 0, 0, 0.35)',
       },
       transitionTimingFunction: {
-        // 统一动效曲线（任务书：120/150/200/240ms，ease-out，克制）
+        // 统一动效曲线（任务书 §60：100~250ms，ease-out，克制）
         cam: 'cubic-bezier(0.32, 0.72, 0, 1)',
       },
       transitionDuration: {
-        120: '120ms',
+        100: '100ms',
         150: '150ms',
-        240: '240ms',
+        200: '200ms',
       },
       keyframes: {
         // 状态点呼吸（在线/REC）：极弱透明度呼吸，不闪烁不放大
@@ -75,19 +76,24 @@ export default {
           '50%': { opacity: '0.55' },
         },
         'page-in': {
-          from: { opacity: '0', transform: 'translateY(4px)' },
+          from: { opacity: '0', transform: 'translateY(2px)' },
           to: { opacity: '1', transform: 'none' },
         },
         'hud-in': {
-          from: { opacity: '0', transform: 'translateY(6px)' },
+          from: { opacity: '0', transform: 'translateY(4px)' },
+          to: { opacity: '1', transform: 'none' },
+        },
+        'menu-in': {
+          from: { opacity: '0', transform: 'translateY(-4px) scale(0.98)' },
           to: { opacity: '1', transform: 'none' },
         },
       },
       animation: {
         breathe: 'breathe 2.4s ease-in-out infinite',
         'rec-pulse': 'rec-pulse 1.6s ease-in-out infinite',
-        'page-in': 'page-in 200ms cubic-bezier(0.32, 0.72, 0, 1) both',
+        'page-in': 'page-in 150ms cubic-bezier(0.32, 0.72, 0, 1) both',
         'hud-in': 'hud-in 150ms cubic-bezier(0.32, 0.72, 0, 1) both',
+        'menu-in': 'menu-in 120ms cubic-bezier(0.32, 0.72, 0, 1) both',
       },
     },
   },

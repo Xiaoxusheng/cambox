@@ -1,7 +1,7 @@
 /**
- * 今日事件趋势 —— 轻量 SVG 柱图（24 小时，v1.3 设计稿样式）。
+ * 今日事件趋势 —— 轻量 SVG 柱图（24 小时，v1.4 中性化）。
  * 不用图表库：单一维度、24 根柱，手写 SVG 更轻更可控。
- * 双系列：移动侦测（青）+ 画面自检（黄）。selfcheck 未传时视为全青。
+ * 双系列：移动侦测（中性灰）+ 画面自检（amber）。selfcheck 未传时视为全中性。
  */
 import { useState } from 'react'
 import { toLocalDateStr } from '../utils/format'
@@ -19,7 +19,7 @@ export function HourlyChart({
 }: {
   /** 长度 24 的当日每小时事件总数 */
   hourly: number[]
-  /** 长度 24 的当日每小时自检事件数（可选；>0 的小时画黄柱） */
+  /** 长度 24 的当日每小时自检事件数（可选；>0 的小时画 amber 柱） */
   selfcheck?: number[]
   /** YYYY-MM-DD，用于判断是否高亮"当前小时" */
   date: string
@@ -69,7 +69,7 @@ export function HourlyChart({
           const hOf = (c: number) => (c === 0 ? 0 : Math.max(4, (c / max) * usable))
           const hm = hOf(motion)
           const hs = hOf(self)
-          const cyanW = hs > 0 ? (slot - 4) / 2 : slot
+          const grayW = hs > 0 ? (slot - 4) / 2 : slot
           const amberW = (slot - 4) / 2
           const dim = hover !== null && hover !== i
           const isNow = isToday && i === nowHour
@@ -82,20 +82,20 @@ export function HourlyChart({
                 <rect
                   x={x}
                   y={H - 26 - hm}
-                  width={cyanW}
+                  width={grayW}
                   height={hm}
-                  rx={3}
-                  style={{ fill: 'var(--ch-primary)' }}
+                  rx={2}
+                  style={{ fill: 'var(--chart-bar)' }}
                 />
               ) : null}
               {self > 0 ? (
                 <rect
-                  x={hs > 0 && motion > 0 ? x + cyanW + 4 : x}
+                  x={hs > 0 && motion > 0 ? x + grayW + 4 : x}
                   y={H - 26 - hs}
                   width={amberW}
                   height={hs}
-                  rx={3}
-                  style={{ fill: 'var(--ch-warn)' }}
+                  rx={2}
+                  style={{ fill: 'var(--chart-bar-warn)' }}
                 />
               ) : null}
               {/* 命中区域放大，避免细柱难以悬停 */}
@@ -121,20 +121,21 @@ export function HourlyChart({
             top: 0,
             transform: 'translateX(-50%)',
             padding: '4px 10px',
-            borderRadius: 8,
-            background: 'rgba(10,16,24,0.95)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            color: 'var(--ch-text-1)',
+            borderRadius: 6,
+            background: 'var(--cam-elevated)',
+            border: '1px solid var(--cam-border-strong)',
+            color: 'var(--cam-text-1)',
             fontSize: 12,
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
             zIndex: 2,
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)',
           }}
         >
-          <span className="num">{String(hover).padStart(2, '0')}:00</span>
-          <span style={{ color: 'var(--ch-primary)' }}> · 侦测 {Math.max(0, values[hover] - (sc[hover] ?? 0))}</span>
+          <span className="cam-num">{String(hover).padStart(2, '0')}:00</span>
+          <span style={{ color: 'var(--cam-text-2)' }}> · 侦测 {Math.max(0, values[hover] - (sc[hover] ?? 0))}</span>
           {(sc[hover] ?? 0) > 0 ? (
-            <span style={{ color: 'var(--ch-warn)' }}> · 自检 {sc[hover]}</span>
+            <span style={{ color: 'rgb(var(--cam-warning-rgb))' }}> · 自检 {sc[hover]}</span>
           ) : null}
         </div>
       ) : null}
@@ -148,8 +149,8 @@ export function HourlyChart({
               flex: 1,
               textAlign: 'left',
               fontSize: 11,
-              fontFamily: 'var(--ch-mono)',
-              color: isToday && i === nowHour ? 'var(--ch-primary)' : 'var(--ch-text-3)',
+              fontFamily: 'var(--cam-mono)',
+              color: isToday && i === nowHour ? 'var(--cam-text-1)' : 'var(--cam-text-3)',
             }}
           >
             {i % 4 === 0 ? `${String(i).padStart(2, '0')}` : ''}

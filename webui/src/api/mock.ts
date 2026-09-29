@@ -135,7 +135,7 @@ export function mockMediaSvg(seedText: string, label: string): string {
     `<text x="8" y="15" font-family="monospace" font-size="11" fill="#c9d6de">` +
     `${label}</text>` +
     `<text x="472" y="262" text-anchor="end" font-family="monospace" font-size="10" ` +
-    `fill="#8a9aa5">MOCK · camhub v1.1</text>` +
+    `fill="#8a9aa5">MOCK · CamBox v1.3</text>` +
     `</svg>`
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }

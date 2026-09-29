@@ -3,99 +3,28 @@
 @tailwind utilities;
 
 /**
- * camhub webui 全局样式 —— Design Token + 基础层 + Arco 变量对齐
+ * CamBox 全局样式（v1.4 Linear-style 重构）
  *
- * 分层（本文件自上而下）：
- *   0. @tailwind 指令：生成工具类（preflight 已关，不会重置 Arco）——丢失会导致全站工具类失效
- *   1. Design Token：cam.* 双主题 CSS 变量（dark 默认基准 / body[data-theme='light'] 覆盖）
- *   2. 基础层：body 背景/字体/滚动条/选区/焦点环 + 等宽数字工具类
- *   3. Arco 变量对齐：少量 --color-* / --primary-6 / 圆角覆盖，让 Arco 交互组件融入 camhub 视觉
- *   4. 遗留页面皮肤：ch-* 布局与专用皮肤（时间轴 / ROI / 日志 / HUD 定位）——
- *      Phase 2~7 页面重写时逐段删除，最终只保留 1~3 层 + cam-* 命名的专用皮肤
+ * 分层：
+ *   tokens.css —— Design Token + Arco 对齐（本文件之前引入）
+ *   本文件     —— 基础层 + 专用皮肤（监控画面 / ROI 覆盖 / 回放时间轴 / ROI 编辑器）
  *
- * 规则：颜色禁止页面硬编码，一律 var(--cam-*)；Tailwind = 主样式层（见 tailwind.config.js）。
+ * 规则：颜色一律走 var(--cam-*)；布局与间距优先 Tailwind 工具类；
+ *       只有「无法用工具类稳定表达的定位型皮肤」才写在这里。
  */
 
-/* ============================== 1. Design Token ============================== */
+/* ============================== 基础层 ============================== */
 
-/* dark（默认基准） */
-:root {
-  /* 表面层级：页面底 → 面板 → 浮层 → 悬停/选中 */
-  --cam-bg: #07090c;
-  --cam-bg-rgb: 7 9 12;
-  --cam-surface: #0d1015;
-  --cam-elevated: #12161c;
-  --cam-active: #1a1f27;
-
-  /* 边框：内容区细描边代替阴影 */
-  --cam-border: rgba(255, 255, 255, 0.07);
-  --cam-border-strong: rgba(255, 255, 255, 0.12);
-
-  /* 文本四级 */
-  --cam-text-1: #eef2f6;
-  --cam-text-2: #9aa3ad;
-  --cam-text-3: #646b76;
-  --cam-text-4: #4a505a;
-
-  /* accent（青）+ 状态色：RGB 三元组，供 Tailwind <alpha-value> 与 rgba() 使用 */
-  --cam-accent-rgb: 47 198 207;
-  --cam-accent-dim: rgba(47, 198, 207, 0.14);
-  --cam-success-rgb: 61 220 151;
-  --cam-warning-rgb: 245 185 66;
-  --cam-danger-rgb: 255 93 104;
-  --cam-info-rgb: 85 168 255;
-  --cam-rec-rgb: 255 77 94;
-
-  /* 等宽字体：数字/时间/IP/文件名/日志 */
-  --cam-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
-
-  /* 旧 ch-* 别名 —— 遗留皮肤与未重写页面仍在引用，Phase 2~7 逐页删除 */
-  --ch-primary: rgb(var(--cam-accent-rgb));
-  --ch-teal: rgb(var(--cam-accent-rgb));
-  --ch-ok: rgb(var(--cam-success-rgb));
-  --ch-warn: rgb(var(--cam-warning-rgb));
-  --ch-danger: rgb(var(--cam-danger-rgb));
-  --ch-text-1: var(--cam-text-1);
-  --ch-text-3: var(--cam-text-3);
-  --ch-mono: var(--cam-mono);
-  --chart-grid: rgba(255, 255, 255, 0.08);
-  --chart-axis: rgba(255, 255, 255, 0.14);
-  --chart-band: rgba(var(--cam-accent-rgb), 0.08);
+/* preflight 关闭 → box-sizing 不会自动设为 border-box，w-full + padding 会横向溢出。
+   这条是 Web 标准默认，Arco 组件同样按 border-box 设计。 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
-
-/* light（同名变量覆盖，机制与 theme.ts 一致） */
-body[data-theme='light'] {
-  --cam-bg: #f2f4f7;
-  --cam-bg-rgb: 242 244 247;
-  --cam-surface: #ffffff;
-  --cam-elevated: #ffffff;
-  --cam-active: #eef1f5;
-
-  --cam-border: rgba(15, 23, 32, 0.08);
-  --cam-border-strong: rgba(15, 23, 32, 0.14);
-
-  --cam-text-1: #1a2129;
-  --cam-text-2: #5c6670;
-  --cam-text-3: #8a939e;
-  --cam-text-4: #b0b8c0;
-
-  --cam-accent-rgb: 15 154 165;
-  --cam-accent-dim: rgba(15, 154, 165, 0.12);
-  --cam-success-rgb: 17 168 109;
-  --cam-warning-rgb: 191 135 0;
-  --cam-danger-rgb: 226 61 76;
-  --cam-info-rgb: 47 125 235;
-  --cam-rec-rgb: 226 53 70;
-
-  --chart-grid: rgba(15, 23, 32, 0.1);
-  --chart-axis: rgba(15, 23, 32, 0.18);
-  --chart-band: rgba(15, 154, 165, 0.1);
-}
-
-/* ============================== 2. 基础层 ============================== */
 
 html {
-  /* theme.ts 已按主题设置 color-scheme；此处兜底，防内置脚本未执行 */
+  /* theme.ts 已按主题设置 color-scheme；此处兜底 */
   scrollbar-width: thin;
   scrollbar-color: var(--cam-text-4) transparent;
 }
@@ -105,8 +34,14 @@ body {
   background: var(--cam-bg);
   color: var(--cam-text-1);
   font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', sans-serif;
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -120,134 +55,83 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.2);
 }
 body[data-theme='light'] ::-webkit-scrollbar-thumb {
-  background: rgba(15, 23, 32, 0.18);
+  background: rgba(9, 9, 11, 0.16);
 }
 body[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 23, 32, 0.28);
+  background: rgba(9, 9, 11, 0.26);
 }
 
-/* 选区与焦点环：accent，克制 */
+/* 选区与焦点环：中性，克制 */
 ::selection {
-  background: rgba(var(--cam-accent-rgb), 0.28);
+  background: rgba(255, 255, 255, 0.22);
+}
+body[data-theme='light'] ::selection {
+  background: rgba(9, 9, 11, 0.14);
 }
 :focus-visible {
-  outline: 2px solid rgba(var(--cam-accent-rgb), 0.65);
+  outline: 2px solid rgba(255, 255, 255, 0.5);
   outline-offset: 2px;
 }
+body[data-theme='light'] :focus-visible {
+  outline-color: rgba(9, 9, 11, 0.5);
+}
 
-/* 等宽数字：时间/数值/文件名（.cam-num 新名，.num/.ch-num 为遗留别名） */
-.num,
-.ch-num,
+/* 等宽数字：时间/数值/文件名/IP */
 .cam-num {
   font-family: var(--cam-mono);
   font-variant-numeric: tabular-nums;
 }
-.ch-muted {
-  color: var(--cam-text-3);
-  font-size: 12px;
-}
-.ch-hint {
-  color: var(--cam-text-3);
-  font-size: 12px;
-  line-height: 20px;
-  margin-top: 8px;
-}
 
-/* ============================== 3. Arco 变量对齐 ============================== */
-/* 目标：Arco 交互组件（Modal/Drawer/Select/DatePicker/Message…）默认外观融入 camhub 视觉。
-   只覆盖变量，不覆盖组件结构；Arco 仍负责全部交互能力与自带动画。 */
-
-body[arco-theme='dark'] {
-  --color-bg-1: var(--cam-bg);
-  --color-bg-2: var(--cam-surface);
-  --color-bg-3: var(--cam-elevated);
-  --color-bg-4: var(--cam-active);
-  --color-bg-5: var(--cam-active);
-  --color-fill-1: rgba(255, 255, 255, 0.04);
-  --color-fill-2: rgba(255, 255, 255, 0.07);
-  --color-fill-3: rgba(255, 255, 255, 0.1);
-  --color-fill-4: rgba(255, 255, 255, 0.14);
-  --color-text-1: var(--cam-text-1);
-  --color-text-2: var(--cam-text-2);
-  --color-text-3: var(--cam-text-3);
-  --color-text-4: var(--cam-text-4);
-  --color-border-1: var(--cam-border);
-  --color-border-2: var(--cam-border-strong);
-  --color-border-3: var(--cam-border-strong);
-  /* accent 对齐：primary-6 为主色，5/7 为亮/暗两档 */
-  --primary-5: 70, 211, 220;
-  --primary-6: 47, 198, 207;
-  --primary-7: 34, 158, 167;
-  /* 圆角规范：Button/Input 8 / small chip 6 / large 12 */
-  --border-radius-small: 6px;
-  --border-radius-medium: 8px;
-  --border-radius-large: 12px;
+/* preflight 关闭 → 浏览器默认 button 样式会泄漏（2px outset 边框 + ButtonFace 灰底）。
+   此处做最小重置；Arco 组件类（.arco-btn 等）特异性更高，不受影响；
+   需要边框的按钮由 Tailwind border 工具类（特异性更高）自行补回。 */
+button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
 }
 
-body[data-theme='light'] {
-  --color-bg-1: var(--cam-bg);
-  --color-bg-2: var(--cam-surface);
-  --color-bg-3: var(--cam-surface);
-  --color-bg-4: var(--cam-active);
-  --color-bg-5: var(--cam-active);
-  --color-fill-1: rgba(15, 23, 32, 0.04);
-  --color-fill-2: rgba(15, 23, 32, 0.07);
-  --color-fill-3: rgba(15, 23, 32, 0.1);
-  --color-fill-4: rgba(15, 23, 32, 0.14);
-  --color-text-1: var(--cam-text-1);
-  --color-text-2: var(--cam-text-2);
-  --color-text-3: var(--cam-text-3);
-  --color-text-4: var(--cam-text-4);
-  --color-border-1: var(--cam-border);
-  --color-border-2: var(--cam-border-strong);
-  --color-border-3: var(--cam-border-strong);
-  --primary-5: 31, 170, 180;
-  --primary-6: 15, 154, 165;
-  --primary-7: 11, 124, 132;
-  --border-radius-small: 6px;
-  --border-radius-medium: 8px;
-  --border-radius-large: 12px;
-}
+/* ============================== 监控台皮肤 ============================== */
 
-/* ============================== 4. 遗留页面皮肤 ============================== */
-/* 以下为上一版 ch-* 页面布局与专用皮肤。Phase 2~7 按页面重写逐段删除；
-   删除前保证对应页面已迁移（每 Phase 独立可验证）。 */
-
-/* ---------- 监控台（cam-*，v1.3 Phase 3；画面 contain 不裁切，任务书 §13） ---------- */
+/* 画面 contain 不裁切 */
 .cam-monitor-frame {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
+
+/* ROI 覆盖：1px 虚线框 + 极弱填充（任务书 §26：默认隐藏，工具条开启后显示） */
 .cam-roiovl {
   position: absolute;
   z-index: 5;
-  border: 1.5px dashed rgb(var(--cam-accent-rgb));
-  background: rgba(var(--cam-accent-rgb), 0.12);
+  border: 1px dashed rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.06);
   box-sizing: border-box;
 }
 .cam-roiovl-tag {
   position: absolute;
   left: 4px;
   top: 4px;
-  padding: 1px 6px;
-  border-radius: 4px;
+  padding: 1px 5px;
+  border-radius: 3px;
   font-family: var(--cam-mono);
-  font-size: 12px;
-  color: rgb(var(--cam-accent-rgb));
+  font-size: 11px;
+  line-height: 14px;
+  color: rgba(255, 255, 255, 0.92);
   background: rgba(0, 0, 0, 0.55);
   pointer-events: none;
 }
 
-/* ---------- 回看：24h 时间轴 + 日期胶囊（cam-*，v1.3 Phase 4；无对应 Arco 组件，自绘） ---------- */
+/* ============================== 回放时间轴皮肤 ============================== */
+
 .cam-timeline {
   position: relative;
   height: 108px;
@@ -259,7 +143,7 @@ body[data-theme='light'] {
   right: 0;
   top: 34px;
   height: 30px;
-  border-radius: 6px;
+  border-radius: 5px;
   background: var(--cam-active);
 }
 .cam-tl-hour {
@@ -276,29 +160,31 @@ body[data-theme='light'] {
   position: absolute;
   top: 74px;
   transform: translateX(-50%);
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--cam-text-3);
   font-family: var(--cam-mono);
   pointer-events: none;
 }
+/* 录像段：中性灰实心带（任务书 §36：subtle gray / neutral segment） */
 .cam-tl-seg {
   position: absolute;
   top: 37px;
   height: 24px;
   border-radius: 4px;
-  background: rgb(var(--cam-accent-rgb));
+  background: rgba(255, 255, 255, 0.16);
   cursor: pointer;
   min-width: 3px;
-  transition: filter 150ms;
+  transition: background-color 150ms;
   z-index: 2;
 }
 .cam-tl-seg:hover {
-  filter: brightness(1.12);
+  background: rgba(255, 255, 255, 0.24);
 }
 .cam-tl-seg.current {
-  outline: 2px solid var(--cam-text-1);
+  outline: 1.5px solid var(--cam-text-1);
   outline-offset: 1px;
 }
+/* 事件 marker：motion 中性 / 冻结 amber / 遮挡 red，小刻度不喧宾 */
 .cam-tl-event {
   position: absolute;
   top: 43px;
@@ -313,11 +199,9 @@ body[data-theme='light'] {
 .cam-tl-event:hover {
   transform: translateX(-1.5px) scaleY(1.2);
 }
-/* 移动侦测：中性色细刻度（活动纹理），不能和录像条同色 */
 .cam-tl-event.motion {
   background: var(--cam-text-2);
 }
-/* 自检冻结 / 遮挡：少见但重要，通高刻度突出 */
 .cam-tl-event.selfcheck-frozen {
   top: 37px;
   height: 24px;
@@ -334,7 +218,7 @@ body[data-theme='light'] {
   height: 24px;
   min-width: 3px;
   border-radius: 2px;
-  opacity: 0.3;
+  opacity: 0.25;
   transform: none;
 }
 .cam-tl-event.dense:hover {
@@ -362,122 +246,73 @@ body[data-theme='light'] {
   color: var(--cam-bg);
   white-space: nowrap;
 }
+body[data-theme='light'] .cam-tl-playhead-tag {
+  color: #fff;
+}
+
 /* 日期胶囊内的 DatePicker：去边框融入容器 */
 .cam-date-pill .arco-picker {
   background: transparent;
   border: none;
 }
-/* ---------- 设置页 ---------- */
-.ch-settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 12px;
-  align-items: start;
-}
-.ch-setrow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 11px 0;
-}
-.ch-setrow + .ch-setrow {
-  border-top: 1px solid var(--color-fill-2);
-}
-.ch-setrow-main {
-  min-width: 0;
-}
-.ch-setrow-label {
-  font-size: 14px;
-  color: var(--color-text-1);
-}
-.ch-setrow-desc {
-  font-size: 12px;
-  color: var(--color-text-3);
-  margin-top: 2px;
-}
-.ch-setrow-control {
-  flex-shrink: 0;
-}
-.ch-savebar {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  margin-top: 16px;
-  background: var(--color-bg-2);
-  border-top: 1px solid var(--color-neutral-3);
-}
-.ch-savebar-text {
-  margin-right: auto;
-  font-size: 13px;
-  color: var(--color-text-3);
-}
-.ch-savebar-text.dirty {
-  color: rgb(var(--orange-6));
-}
 
-/* ---------- ROI 编辑器 ---------- */
-.ch-roi-wrap {
-  margin: 0 auto;
-}
-.ch-roi-canvas {
+/* ============================== ROI 编辑器皮肤 ============================== */
+/* （RoiEditorModal / RoiEditorCard 共用；逻辑不变，仅皮肤） */
+
+.cam-roi-canvas {
   position: relative;
-  background: var(--color-fill-2);
-  border-radius: 4px;
+  background: var(--cam-active);
+  border-radius: 6px;
   overflow: hidden;
   cursor: crosshair;
   touch-action: none;
 }
-.ch-roi-canvas img {
+.cam-roi-canvas img {
   width: 100%;
   display: block;
   user-select: none;
 }
-.ch-roi-toolbar {
+.cam-roi-toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
 }
-.ch-roi-rect {
+.cam-roi-rect {
   position: absolute;
-  border: 1.5px solid rgb(var(--primary-6));
-  background: rgba(var(--primary-6), 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
   cursor: move;
   box-sizing: border-box;
 }
-.ch-roi-rect.drawing {
+.cam-roi-rect.drawing {
   pointer-events: none;
 }
-.ch-roi-handle {
+.cam-roi-handle {
   position: absolute;
   right: -5px;
   bottom: -5px;
   width: 10px;
   height: 10px;
-  background: rgb(var(--primary-6));
-  border: 2px solid #fff;
+  background: #f4f4f5;
+  border: 2px solid #09090b;
   border-radius: 2px;
   cursor: nwse-resize;
 }
-.ch-roi-tag {
+.cam-roi-tag {
   position: absolute;
   left: 2px;
   top: 2px;
   padding: 1px 5px;
   font-size: 11px;
-  font-family: var(--ch-mono);
-  color: #fff;
+  font-family: var(--cam-mono);
+  color: rgba(255, 255, 255, 0.92);
   background: rgba(0, 0, 0, 0.55);
-  border-radius: 2px;
+  border-radius: 3px;
   white-space: nowrap;
   pointer-events: none;
 }
-.ch-roi-del {
+.cam-roi-del {
   position: absolute;
   right: -7px;
   top: -7px;
@@ -485,8 +320,8 @@ body[data-theme='light'] {
   height: 16px;
   border: none;
   border-radius: 50%;
-  background: rgb(var(--red-6));
-  color: #fff;
+  background: rgb(var(--cam-danger-rgb));
+  color: #09090b;
   font-size: 10px;
   line-height: 16px;
   cursor: pointer;
@@ -495,7 +330,7 @@ body[data-theme='light'] {
   justify-content: center;
   padding: 0;
 }
-.ch-roi-list {
+.cam-roi-list {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -503,13 +338,13 @@ body[data-theme='light'] {
   margin-top: 10px;
   font-size: 12px;
 }
-.ch-roi-item {
+.cam-roi-item {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 2px 4px 2px 10px;
-  border: 1px solid var(--color-neutral-3);
-  border-radius: 4px;
+  border: 1px solid var(--cam-border);
+  border-radius: 5px;
   font-size: 12px;
-  color: var(--color-text-2);
+  color: var(--cam-text-2);
 }

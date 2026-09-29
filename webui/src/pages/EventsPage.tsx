@@ -1,30 +1,20 @@
 /**
- * /events 事件中心 —— camhub v1.3 重设计（Phase 5）。
- * 布局（设计稿 03-事件中心 + 任务书 §26~28）：页头（总数/今日）+ 筛选行（类型/异常/日期区间/重置/刷新）
- * + 轻量事件列表（复选框/缩略图/类型徽章/mono 时间/详情/操作）+ 底部分页 + 右侧 Drawer 详情（不跳页面）。
+ * /events 事件工作区 —— CamBox Event Workspace（v1.4 Linear-style 重构，任务书 §32~34）。
+ * 布局：筛选行（类型/异常/日期区间/重置/刷新）+ 按日分组的紧凑列表 + 底部分页
+ *       + 右侧 Drawer 详情（大图 + 元数据 + 查看回放，不跳页面）。
  * 保留全部逻辑：v1.2 §3.3 detail 精确筛选、批量删除（二次确认）、删后回退页码、mock/real 双模式。
- * 厚重 Arco Table → 轻量列表行（信息密度更高，缩略图 110×62）。
+ * 「查看回放」通过 /playback?date=&t= 带参跳转（t = 当日秒偏移），复用回放页既有跳转逻辑。
  */
-import { useState } from 'react'
-import {
-  Button,
-  Checkbox,
-  DatePicker,
-  Drawer,
-  Message,
-  Modal,
-  Pagination,
-  Select,
-} from '@arco-design/web-react'
-import { IconDelete, IconRefresh } from '@arco-design/web-react/icon'
+import { useMemo, useState } from 'react'
+import { Button, Checkbox, DatePicker, Drawer, Message, Modal, Pagination, Select } from '@arco-design/web-react'
+import { IconDelete, IconPlayArrow, IconRefresh } from '@arco-design/web-react/icon'
+import { useNavigate } from 'react-router-dom'
 import { batchDeleteEvents, fetchEvents, fetchStatus, fetchTimeline } from '../api/endpoints'
 import { errorText } from '../api/errors'
 import { mediaUrl } from '../api/media'
 import type { Event, EventType, TimelineData } from '../api/types'
 import { AutoCropImage } from '../components/AutoCropImage'
 import { IconButton } from '../components/common/IconButton'
-import { PageHeader } from '../components/PageHeader'
-import { Panel } from '../components/common/Panel'
 import { EmptyState, InitialLoading } from '../components/StateViews'
 import { useAsync } from '../hooks/useAsync'
 import { cx } from '../utils/cx'
@@ -50,35 +40,41 @@ const DETAIL_OPTIONS = [
 const dayStart = (s: string) => new Date(`${s}T00:00:00`).toISOString()
 const dayEnd = (s: string) => new Date(`${s}T23:59:59.999`).toISOString()
 
-/** 类型徽章：语义色 chip（侦测=accent / 冻结=warning / 异常=danger），颜色只作辅助 */
-function TypeChip({ e }: { e: Event }) {
-  const [label, tone] =
+/** 当日秒偏移（回放带参跳转用） */
+function secOfDayLocal(iso: string): number {
+  const d = new Date(iso)
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()
+}
+
+/** 事件时间 → 分组键（YYYY-MM-DD）与显示标签（今天 / 昨天 / M-DD） */
+function dayKey(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function dayLabel(iso: string): string {
+  const today = toLocalDateStr(new Date())
+  const y = new Date()
+  y.setDate(y.getDate() - 1)
+  const key = dayKey(iso)
+  if (key === today) return '今天'
+  if (key === toLocalDateStr(y)) return '昨天'
+  return key
+}
+
+/** 类型语义点：只有画面冻结 / 画面异常上色（任务书 §68 少颜色） */
+function TypeDot({ e }: { e: Event }) {
+  const tone =
     e.type === 'motion'
-      ? (['移动侦测', 'accent'] as const)
+      ? 'bg-cam-text-tertiary'
       : e.detail === 'frozen'
-        ? (['画面冻结', 'warning'] as const)
-        : (['画面异常', 'danger'] as const)
-  return (
-    <span
-      className={cx(
-        'inline-flex h-6 shrink-0 items-center rounded-md border px-2 text-caption font-medium',
-        tone === 'accent' && 'border-cam-accent/30 bg-cam-accent/10 text-cam-accent',
-        tone === 'warning' && 'border-cam-warning/30 bg-cam-warning/10 text-cam-warning',
-        tone === 'danger' && 'border-cam-danger/30 bg-cam-danger/10 text-cam-danger',
-      )}
-    >
-      {label}
-    </span>
-  )
+        ? 'bg-cam-warning'
+        : 'bg-cam-danger'
+  return <span className={cx('h-1.5 w-1.5 shrink-0 rounded-full', tone)} />
 }
 
 function detailText(e: Event, cameraName: string): string {
-  if (e.type === 'motion') {
-    return `得分 ${e.score} · ${cameraName} · ${e.image ? '快照已存' : '无快照'}`
-  }
-  return e.detail === 'frozen'
-    ? '自检 C3 · 画面连续静止，疑似冻结'
-    : '自检 C3 · 画面突变，疑似被遮挡或移动'
+  if (e.type === 'motion') return `${cameraName} · score ${e.score} · ${e.image ? '快照已存' : '无快照'}`
+  return e.detail === 'frozen' ? '画面连续静止，疑似冻结' : '画面突变，疑似被遮挡或移动'
 }
 
 export function EventsPage() {
@@ -89,6 +85,7 @@ export function EventsPage() {
   const [selected, setSelected] = useState<number[]>([])
   const [detail, setDetail] = useState<Event | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const navigate = useNavigate()
 
   const today = toLocalDateStr(new Date())
   const from = range?.[0] ? dayStart(range[0]) : undefined
@@ -106,15 +103,24 @@ export function EventsPage() {
     [page, type, detailFilter, from, to],
   )
   // 「今日 N 条」：今日 timeline 小时求和，低频刷新
-  const { data: timeline } = useAsync<TimelineData>(
-    (signal) => fetchTimeline(today, signal),
-    [today],
-  )
+  const { data: timeline } = useAsync<TimelineData>(signal => fetchTimeline(today, signal), [today])
 
   const items = data?.items ?? []
   const total = data?.total ?? 0
   const cameraName = data?.cameraName ?? ''
   const todayCount = timeline ? timeline.hourly.reduce((a, b) => a + b, 0) : 0
+
+  // 按日分组（服务端已按时间倒序，页面内顺序分组即可）
+  const dayGroups = useMemo(() => {
+    const groups: { key: string; label: string; items: Event[] }[] = []
+    for (const e of items) {
+      const key = dayKey(e.time)
+      const last = groups[groups.length - 1]
+      if (last && last.key === key) last.items.push(e)
+      else groups.push({ key, label: dayLabel(e.time), items: [e] })
+    }
+    return groups
+  }, [items])
 
   const hasFilter = type !== '' || detailFilter !== '' || range !== null
 
@@ -189,33 +195,36 @@ export function EventsPage() {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
+  /** 详情 → 回放：带上日期与当日秒偏移 */
+  const viewRecording = (e: Event) => {
+    navigate(`/playback?date=${encodeURIComponent(dayKey(e.time))}&t=${secOfDayLocal(e.time)}`)
+  }
+
   if (loading && !data) return <InitialLoading rows={5} />
 
   return (
     <>
-      <PageHeader
-        title="事件中心"
-        description={
-          <>
-            共 {total} 条记录 · 今日 {todayCount} 条 · 按时间倒序
+      {/* ---------- 页头：总数 / 今日 ---------- */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-page-title text-cam-text-primary">事件</h2>
+          <p className="mt-0.5 text-body-secondary text-cam-text-tertiary">
+            共 {total} 条 · 今日 {todayCount} 条 · 按时间倒序
             {error && !data ? <span className="text-cam-danger"> · 加载失败：{error}</span> : null}
-          </>
-        }
-        actions={
-          <Button
-            type="primary"
-            status="danger"
-            icon={<IconDelete />}
-            disabled={selected.length === 0 || deleting}
-            loading={deleting}
-            onClick={onBatchDelete}
-          >
-            删除选中{selected.length > 0 ? ` · ${selected.length}` : ''}
-          </Button>
-        }
-      />
+          </p>
+        </div>
+        <Button
+          status="danger"
+          icon={<IconDelete />}
+          disabled={selected.length === 0 || deleting}
+          loading={deleting}
+          onClick={onBatchDelete}
+        >
+          删除选中{selected.length > 0 ? ` · ${selected.length}` : ''}
+        </Button>
+      </div>
 
-      {/* ---------- 筛选行（任务书 §27：少量筛选，不堆按钮） ---------- */}
+      {/* ---------- 筛选行（任务书 §33：只放最常用，不一行塞十个 Select） ---------- */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Select
           value={type}
@@ -258,7 +267,7 @@ export function EventsPage() {
           type="button"
           disabled={!hasFilter}
           onClick={resetFilter}
-          className="h-8 rounded-lg border border-cam-border px-3 text-caption text-cam-text-secondary transition-colors duration-150 ease-cam hover:border-cam-border-strong hover:text-cam-text-primary disabled:pointer-events-none disabled:opacity-40"
+          className="h-8 rounded-md border border-cam-border px-3 text-body-secondary text-cam-text-secondary transition-colors duration-150 ease-cam hover:border-cam-border-strong hover:text-cam-text-primary disabled:pointer-events-none disabled:opacity-40"
         >
           重置
         </button>
@@ -268,15 +277,13 @@ export function EventsPage() {
         </span>
       </div>
 
-      {/* ---------- 轻量事件列表 ---------- */}
-      <Panel>
+      {/* ---------- 按日分组的事件列表 ---------- */}
+      <div className="rounded-panel border border-cam-border bg-cam-surface">
         {items.length === 0 ? (
           <EmptyState
             title={hasFilter ? '没有符合条件的事件' : '还没有事件'}
             description={
-              hasFilter
-                ? '试着放宽类型或日期范围。'
-                : '布防状态下侦测到移动或画面异常时，事件会记录在这里。'
+              hasFilter ? '试着放宽类型或日期范围。' : '布防状态下侦测到移动或画面异常时，事件会记录在这里。'
             }
             action={
               hasFilter ? (
@@ -288,7 +295,7 @@ export function EventsPage() {
           />
         ) : (
           <>
-            {/* 表头：全选 */}
+            {/* 全选行 */}
             <div className="flex items-center gap-3 border-b border-cam-border px-4 py-2">
               <Checkbox
                 checked={allChecked}
@@ -298,61 +305,79 @@ export function EventsPage() {
               />
               <span className="text-caption text-cam-text-tertiary">全选本页</span>
             </div>
-            <ul className="m-0 list-none p-0">
-              {items.map((e) => {
-                const checked = selected.includes(e.id)
-                return (
-                  <li
-                    key={e.id}
-                    className={cx(
-                      'flex items-center gap-3 border-b border-cam-border px-4 py-2.5 last:border-b-0',
-                      'transition-colors duration-150 ease-cam',
-                      checked ? 'bg-cam-accent/[0.06]' : 'hover:bg-cam-active/60',
-                    )}
-                  >
-                    <Checkbox
-                      checked={checked}
-                      onChange={() => toggleOne(e.id)}
-                      aria-label={`选择事件 ${formatDateTimeFull(e.time)}`}
-                    />
-                    <img
-                      src={mediaUrl(e.image)}
-                      alt={`${eventTypeLabel(e.type, e.detail)}快照`}
-                      loading="lazy"
-                      className="h-[62px] w-[110px] shrink-0 cursor-zoom-in rounded-md border border-cam-border bg-cam-active object-cover"
-                      onClick={() => setDetail(e)}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <TypeChip e={e} />
-                        <span className="cam-num text-caption text-cam-text-secondary">
-                          {formatDateTimeFull(e.time)}
+
+            {dayGroups.map((g) => (
+              <section key={g.key}>
+                <h3 className="border-b border-cam-border bg-cam-elevated/60 px-4 py-1.5 text-caption font-medium text-cam-text-tertiary">
+                  {g.label}
+                  <span className="cam-num ml-2 text-cam-text-disabled">{g.key}</span>
+                </h3>
+                <ul className="m-0 list-none p-0">
+                  {g.items.map((e) => {
+                    const checked = selected.includes(e.id)
+                    return (
+                      <li
+                        key={e.id}
+                        className={cx(
+                          'flex items-center gap-3 border-b border-cam-border px-4 py-2 last:border-b-0',
+                          'transition-colors duration-150 ease-cam',
+                          checked ? 'bg-cam-selected' : 'hover:bg-cam-active/60',
+                        )}
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onChange={() => toggleOne(e.id)}
+                          aria-label={`选择事件 ${formatDateTimeFull(e.time)}`}
+                        />
+                        <span className="cam-num w-16 shrink-0 text-body-secondary tabular-nums text-cam-text-secondary">
+                          {formatDateTime(e.time).slice(6)}
                         </span>
-                      </div>
-                      <div className="mt-1 truncate text-caption text-cam-text-tertiary">
-                        {detailText(e, cameraName)}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setDetail(e)}
-                        className="h-8 rounded-lg px-2.5 text-caption text-cam-accent transition-colors duration-150 ease-cam hover:bg-cam-accent/10"
-                      >
-                        查看
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteOne(e)}
-                        className="h-8 rounded-lg px-2.5 text-caption text-cam-danger transition-colors duration-150 ease-cam hover:bg-cam-danger/10"
-                      >
-                        删除
-                      </button>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+                        <button
+                          type="button"
+                          onClick={() => setDetail(e)}
+                          className="min-w-0 flex-1 text-left"
+                          aria-label={`查看事件详情：${eventTypeLabel(e.type, e.detail)}`}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <TypeDot e={e} />
+                            <span className="truncate text-body-secondary font-medium text-cam-text-primary">
+                              {eventTypeLabel(e.type, e.detail)}
+                            </span>
+                          </span>
+                          <span className="mt-0.5 block truncate text-caption text-cam-text-tertiary">
+                            {detailText(e, cameraName)}
+                          </span>
+                        </button>
+                        <img
+                          src={mediaUrl(e.image)}
+                          alt={`${eventTypeLabel(e.type, e.detail)}快照`}
+                          loading="lazy"
+                          className="hidden h-[45px] w-[80px] shrink-0 cursor-pointer rounded border border-cam-border bg-cam-active object-cover sm:block"
+                          onClick={() => setDetail(e)}
+                        />
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setDetail(e)}
+                            className="h-8 rounded-md px-2.5 text-body-secondary text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-hover hover:text-cam-text-primary"
+                          >
+                            查看
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteOne(e)}
+                            className="h-8 rounded-md px-2.5 text-body-secondary text-cam-text-tertiary transition-colors duration-150 ease-cam hover:bg-cam-danger/10 hover:text-cam-danger"
+                          >
+                            删除
+                          </button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            ))}
+
             {/* 分页 */}
             <div className="flex items-center justify-end border-t border-cam-border px-4 py-3">
               <Pagination
@@ -367,12 +392,12 @@ export function EventsPage() {
             </div>
           </>
         )}
-      </Panel>
+      </div>
 
-      {/* ---------- 详情 Drawer（任务书 §28：不跳页面） ---------- */}
+      {/* ---------- 详情 Drawer（任务书 §34：不跳页面） ---------- */}
       <Drawer
         visible={!!detail}
-        width={480}
+        width={440}
         title="事件详情"
         footer={null}
         onCancel={() => setDetail(null)}
@@ -380,11 +405,14 @@ export function EventsPage() {
       >
         {detail ? (
           <div className="flex flex-col gap-4">
-            <AutoCropImage src={mediaUrl(detail.image)} alt="事件快照" />
+            <AutoCropImage src={mediaUrl(detail.image)} alt="事件快照" radius={8} />
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-caption text-cam-text-tertiary">类型</span>
-                <TypeChip e={detail} />
+                <span className="flex items-center gap-1.5 text-body-secondary text-cam-text-primary">
+                  <TypeDot e={detail} />
+                  {eventTypeLabel(detail.type, detail.detail)}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-caption text-cam-text-tertiary">时间</span>
@@ -392,14 +420,18 @@ export function EventsPage() {
                   {formatDateTimeFull(detail.time)}
                 </span>
               </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-caption text-cam-text-tertiary">摄像头</span>
+                <span className="text-body-secondary text-cam-text-primary">{cameraName}</span>
+              </div>
               {detail.type === 'motion' ? (
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-caption text-cam-text-tertiary">得分</span>
+                  <span className="text-caption text-cam-text-tertiary">Score</span>
                   <span className="cam-num text-body-secondary text-cam-text-primary">{detail.score}</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-caption text-cam-text-tertiary">自检结果</span>
+                  <span className="text-caption text-cam-text-tertiary">检测</span>
                   <span className="text-body-secondary text-cam-text-primary">
                     {detail.detail === 'frozen' ? '画面冻结' : '画面异常'}
                   </span>
@@ -411,6 +443,14 @@ export function EventsPage() {
                   {detail.image || '-'}
                 </span>
               </div>
+            </div>
+            <div className="mt-1 flex items-center gap-2">
+              <Button type="primary" icon={<IconPlayArrow />} onClick={() => viewRecording(detail)}>
+                查看回放
+              </Button>
+              <Button status="danger" type="text" onClick={() => deleteOne(detail)}>
+                删除事件
+              </Button>
             </div>
           </div>
         ) : null}

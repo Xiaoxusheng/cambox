@@ -1,11 +1,15 @@
 /**
- * / 监控台 —— camhub v1.3 视觉基准页（全面 UI 重设计 Phase 3）。
+ * / 监控 —— CamBox Camera Workspace（v1.4 Linear-style 重构，任务书 §21~31）。
  *
- * 布局（设计稿 01-监控 + 任务书 §12/50）：
- *   xl+  左主区（视口 contain + HUD + 悬浮工具条 + 状态条）│ 右 320px 实时事件
- *   <xl  事件转视口下方区块；移动端（<sm）工具条常驻不依赖 hover
- * 画面 object-contain（不裁切主画面，任务书 §13）；ROI 覆盖按 contain 公式对齐实际渲染矩形。
- * HUD 极克制：LIVE/时钟 左上、分辨率·FPS 右上、REC 右下（呼吸不闪烁）；玻璃拟态仅限 HUD 与工具条。
+ * 布局（xl+）：
+ *   ┌────────────────────────────────────┬──────────────┐
+ *   │  CameraViewport（黑底 contain 主角）│ Recent       │
+ *   │  HUD：LIVE/时钟 · 分辨率·FPS · REC │ Events       │
+ *   ├────────────────────────────────────┤ 320px 栏     │
+ *   │  单行状态（在线·FPS·分辨率·存储）  │              │
+ *   └────────────────────────────────────┴──────────────┘
+ * <xl：事件栏转为视口下方区块；移动端工具条常驻不依赖 hover。
+ * ROI 覆盖只在「启用编辑」时显示（任务书 §26），坐标按 contain 公式对齐实际渲染矩形。
  * 功能零丢失：5s 轮询 / 黑边检测 / 抓拍 / ROI 弹层 / 事件预览 / 全屏 / 今日计数 全部保留。
  */
 import { useEffect, useRef, useState } from 'react'
@@ -20,15 +24,11 @@ import { detectContentBox, type ContentBox } from '../components/AutoCropImage'
 import { EventList } from '../components/EventList'
 import { RoiEditorModal } from '../components/RoiEditorModal'
 import { ErrorState, InitialLoading } from '../components/StateViews'
-import { Panel } from '../components/common/Panel'
-import { StatusBadge } from '../components/common/StatusBadge'
 import { useAsync } from '../hooks/useAsync'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useStreamFrame } from '../hooks/useStreamFrame'
-import { formatBytes, formatClockFull, toLocalDateStr } from '../utils/format'
+import { formatClockFull, toLocalDateStr } from '../utils/format'
 import { cx } from '../utils/cx'
-
-const GB = 1024 ** 3
 
 type MonitorData = [Status, { items: Event[]; total: number }]
 
@@ -44,8 +44,7 @@ function LiveClock() {
 
 /**
  * object-fit: contain 后图像实际渲染的矩形（ROI 覆盖对齐用）。
- * v1.3 变更：cover → contain（任务书 §13 不裁切主画面），计算公式相应翻转——
- * contain = 短边贴满、长边留黑边；覆盖率取 min 而非 max。
+ * contain = 短边贴满、长边留黑边；不裁切主画面。
  */
 function useContainedRect(
   ref: React.RefObject<HTMLDivElement | null>,
@@ -61,7 +60,6 @@ function useContainedRect(
       const ch = el.clientHeight
       if (cw <= 0 || ch <= 0) return
       const ar = imgW / imgH
-      // contain：完整显示画面、不足处留黑边（不裁切）
       let w = cw
       let h = w / ar
       if (h > ch) {
@@ -76,6 +74,20 @@ function useContainedRect(
     return () => ro.disconnect()
   }, [ref, imgW, imgH])
   return rect
+}
+
+/** HUD 信息条：小号 mono + 低对比，玻璃拟态仅限此处（任务书 §24） */
+function HudChip({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <span
+      className={cx(
+        'cam-num inline-flex h-6 items-center gap-1.5 rounded-md bg-black/45 px-2 text-caption backdrop-blur-md',
+        className,
+      )}
+    >
+      {children}
+    </span>
+  )
 }
 
 /** 悬浮工具条按钮（hover 克制：bg 变化 150ms，禁 scale；aria-label 必备） */
@@ -99,7 +111,7 @@ function HudButton({
       disabled={disabled || loading}
       onClick={onClick}
       className={cx(
-        'inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-caption font-medium',
+        'inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-body-secondary font-medium',
         'text-white/75 transition-colors duration-150 ease-cam',
         'hover:bg-white/10 hover:text-white',
         'disabled:pointer-events-none disabled:opacity-40',
@@ -117,11 +129,11 @@ function HudButton({
 
 export function MonitorPage() {
   const { data, loading, error, reload } = useAsync<MonitorData>(
-    (signal) => Promise.all([fetchStatus(signal), fetchEvents({ limit: 8, offset: 0 }, signal)]),
+    (signal) => Promise.all([fetchStatus(signal), fetchEvents({ limit: 12, offset: 0 }, signal)]),
     [],
     { pollMs: 5000 },
   )
-  // ROI 覆盖与「今日 N 条」：初始加载一次即可
+  // ROI 编辑与「今日 N 条」：初始加载一次即可
   const { data: config } = useAsync<Config>((signal) => fetchConfig(signal), [])
   const today = toLocalDateStr(new Date())
   const { data: timeline } = useAsync<TimelineData>((signal) => fetchTimeline(today, signal), [today])
@@ -186,7 +198,7 @@ export function MonitorPage() {
   const recording = status.recorder.running
   const diskPct = Math.min(
     100,
-    (status.disk.recordings_bytes / Math.max(1, status.disk.max_gb * GB)) * 100,
+    (status.disk.recordings_bytes / Math.max(1, status.disk.max_gb * 1024 ** 3)) * 100,
   )
   const rois = config?.motion.rois ?? []
   const todayCount = timeline ? timeline.hourly.reduce((a, b) => a + b, 0) : null
@@ -196,36 +208,43 @@ export function MonitorPage() {
       ? '摄像头未连接，正在等待取流'
       : ''
 
-  const eventsPanel = (
-    <Panel className={cx('flex min-h-0 flex-col', isNarrow ? 'w-full' : 'w-80 shrink-0')}>
-      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-cam-border px-4 py-3">
-        <div className="min-w-0">
-          <h3 className="text-section-title text-cam-text-primary">实时事件</h3>
+  const eventsRail = (
+    <div
+      className={cx(
+        'flex min-h-0 flex-col',
+        isNarrow
+          ? 'border-t border-cam-border'
+          : 'w-[320px] shrink-0 border-l border-cam-border',
+      )}
+    >
+      <div className="flex shrink-0 items-center justify-between gap-3 px-4 pb-1 pt-3.5">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <h2 className="text-section-title text-cam-text-primary">最近事件</h2>
           {todayCount !== null ? (
-            <p className="cam-num mt-0.5 text-caption text-cam-text-tertiary">今日 {todayCount} 条</p>
+            <span className="cam-num text-caption text-cam-text-tertiary">今日 {todayCount}</span>
           ) : null}
         </div>
         <Link
           to="/events"
-          className="shrink-0 text-caption text-cam-accent no-underline transition-colors duration-150 ease-cam hover:text-cam-accent/80"
+          className="shrink-0 text-caption text-cam-text-secondary no-underline transition-colors duration-150 ease-cam hover:text-cam-text-primary"
         >
           全部 →
         </Link>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className={cx('min-h-0 flex-1 overflow-y-auto p-2', isNarrow && 'max-h-[420px]')}>
         <EventList items={events.items} cameraName={cam.name} onItemClick={setPreview} />
       </div>
-    </Panel>
+    </div>
   )
 
   return (
-    <div className="flex flex-col gap-3 p-3 xl:h-[calc(100dvh-3.5rem)] xl:flex-row">
-      {/* ---------- 左主区：视口 + 状态条 ---------- */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-        {/* 视口：contain 不裁切 + HUD + 悬浮工具条（玻璃拟态仅限此处） */}
+    <div className="flex h-full flex-col xl:flex-row">
+      {/* ---------- 左主区：视口 + 单行状态 ---------- */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col p-3 md:p-4">
+        {/* 视口：直接作为主 Surface（黑底 contain），不套 Panel（任务书 §23） */}
         <div
           ref={videoBoxRef}
-          className="group relative aspect-video min-h-0 flex-1 overflow-hidden rounded-2xl border border-cam-border bg-black xl:aspect-auto"
+          className="group relative min-h-0 flex-1 overflow-hidden rounded-lg border border-cam-border bg-black"
         >
           {frame.src ? (
             <>
@@ -237,13 +256,13 @@ export function MonitorPage() {
                 style={
                   liveBox
                     ? ({
-                        // 只显示内容区，黑边裁掉；object-fit: contain 继续负责不裁切
                         objectViewBox: `inset(${(liveBox.y0 * 100).toFixed(2)}% ${((1 - liveBox.x1) * 100).toFixed(2)}% ${((1 - liveBox.y1) * 100).toFixed(2)}% ${(liveBox.x0 * 100).toFixed(2)}%)`,
                       } as React.CSSProperties)
                     : undefined
                 }
               />
-              {rois.length > 0 ? (
+              {/* ROI 覆盖：只在启用编辑（弹层打开）时显示（任务书 §26） */}
+              {roiOpen && rois.length > 0 ? (
                 <div
                   className="pointer-events-none absolute overflow-hidden"
                   style={{
@@ -254,7 +273,6 @@ export function MonitorPage() {
                   }}
                 >
                   {rois.map((r, i) => {
-                    // ROI 坐标归一化于完整帧；裁黑边显示时重映射到内容区坐标系
                     const [rx, ry, rw, rh] = liveBox
                       ? [
                           (r[0] - liveBox.x0) / (liveBox.x1 - liveBox.x0),
@@ -283,11 +301,11 @@ export function MonitorPage() {
             </>
           ) : null}
 
-          {/* 离线 / 加载失败态：发生了什么 + 怎么办（任务书 §17，不弹 Toast 后消失） */}
+          {/* 离线 / 加载失败态：发生了什么 + 怎么办 */}
           {maskText ? (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/55 px-6 text-center backdrop-blur-sm">
-              <IconCamera style={{ fontSize: 28 }} className="text-cam-text-tertiary" />
-              <div className="max-w-[420px] text-body font-medium text-white/90">{maskText}</div>
+              <IconCamera style={{ fontSize: 26 }} className="text-cam-text-tertiary" />
+              <div className="max-w-[420px] text-body text-white/90">{maskText}</div>
               <Button size="small" type="outline" onClick={frame.retry}>
                 重试
               </Button>
@@ -295,28 +313,28 @@ export function MonitorPage() {
           ) : (
             <>
               {/* HUD 左上：LIVE + 时钟（呼吸点，克制） */}
-              <div className="cam-hud absolute left-4 top-4 z-10 flex flex-col items-start gap-1.5">
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-black/45 px-2 py-1 text-caption font-semibold tracking-widest text-cam-rec backdrop-blur-md">
-                  <span className="h-1.5 w-1.5 animate-rec-pulse rounded-full bg-current" />
+              <div className="cam-hud absolute left-3.5 top-3.5 z-10 flex flex-col items-start gap-1.5">
+                <HudChip className="font-semibold tracking-[0.14em] text-white/85">
+                  <span className="h-1.5 w-1.5 animate-rec-pulse rounded-full bg-cam-rec" />
                   LIVE
-                </span>
-                <span className="cam-num rounded-md bg-black/45 px-2 py-1 text-caption text-white/85 backdrop-blur-md">
+                </HudChip>
+                <HudChip className="!text-white/70">
                   <LiveClock />
-                </span>
+                </HudChip>
               </div>
               {/* HUD 右上：分辨率 · FPS */}
-              <div className="cam-hud absolute right-4 top-4 z-10">
-                <span className="cam-num rounded-md bg-black/45 px-2 py-1 text-caption text-white/85 backdrop-blur-md">
+              <div className="cam-hud absolute right-3.5 top-3.5 z-10">
+                <HudChip className="!text-white/70">
                   {cam.width}×{cam.height} · {cam.fps.toFixed(1)} FPS
-                </span>
+                </HudChip>
               </div>
-              {/* HUD 右下：REC（录像中才出现，呼吸不闪烁） */}
+              {/* HUD 左下：REC（录像中才出现，克制红点不发光，任务书 §25） */}
               {recording ? (
-                <div className="cam-hud absolute bottom-4 right-4 z-10">
-                  <span className="cam-num inline-flex items-center gap-1.5 rounded-md bg-black/45 px-2 py-1 text-caption text-cam-rec backdrop-blur-md">
+                <div className="cam-hud absolute bottom-3.5 left-3.5 z-10">
+                  <HudChip className="text-cam-rec">
                     <span className="h-1.5 w-1.5 animate-rec-pulse rounded-full bg-current" />
                     REC
-                  </span>
+                  </HudChip>
                 </div>
               ) : null}
             </>
@@ -333,42 +351,47 @@ export function MonitorPage() {
                 'xl:focus-within:pointer-events-auto xl:focus-within:translate-y-0 xl:focus-within:opacity-100',
               )}
             >
-              <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/55 p-1.5 backdrop-blur-xl">
+              <div className="flex items-center gap-0.5 rounded-lg border border-white/10 bg-black/55 p-1 backdrop-blur-xl">
                 <HudButton
                   icon={<IconCamera style={{ fontSize: 14 }} />}
-                  label="抓拍"
+                  label="截图"
                   loading={snapBusy}
                   onClick={doSnapshot}
                 />
-                <HudButton icon={<IconExpand style={{ fontSize: 14 }} />} label="全屏" onClick={fullscreen} />
                 <HudButton label="检测区域" onClick={() => setRoiOpen(true)} />
+                <HudButton icon={<IconExpand style={{ fontSize: 14 }} />} label="全屏" onClick={fullscreen} />
               </div>
             </div>
           ) : null}
         </div>
 
-        {/* 状态条：单行精致 Status Strip（任务书 §18，替代 8 个 Tag 堆叠） */}
-        <Panel className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5">
-          <StatusBadge
-            tone={connected ? 'success' : 'danger'}
-            label={connected ? '在线' : '离线'}
-            breathe={connected}
-          />
-          <span className="cam-num hidden text-caption text-cam-text-secondary sm:inline">
-            {cam.fps.toFixed(1)} FPS · {cam.width}×{cam.height}
+        {/* 单行状态（任务书 §28：不做 Stat Card，一行即可） */}
+        <div className="flex h-11 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 px-1 pt-3 text-caption text-cam-text-secondary">
+          <span className="inline-flex shrink-0 items-center gap-1.5">
+            <span
+              className={cx(
+                'h-1.5 w-1.5 rounded-full',
+                connected ? 'animate-breathe bg-cam-success' : 'bg-cam-danger',
+              )}
+            />
+            {connected ? 'Online' : 'Offline'}
+          </span>
+          <span className="cam-num shrink-0">{cam.fps.toFixed(1)} FPS</span>
+          <span className="cam-num shrink-0">
+            {cam.width}×{cam.height}
           </span>
           {recording ? (
-            <span className="cam-num inline-flex items-center gap-1.5 text-caption text-cam-rec">
+            <span className="cam-num inline-flex shrink-0 items-center gap-1.5 text-cam-rec">
               <span className="h-1.5 w-1.5 animate-rec-pulse rounded-full bg-current" />
-              录像中
+              Recording
             </span>
           ) : (
-            <span className="text-caption text-cam-text-tertiary">
-              {status.recorder.enabled ? '待机' : '录像已关闭'}
+            <span className="shrink-0 text-cam-text-tertiary">
+              {status.recorder.enabled ? 'Standby' : 'Recording Off'}
             </span>
           )}
-          <Tooltip content={`录像占用 ${formatBytes(status.disk.recordings_bytes)} / 上限 ${status.disk.max_gb} GB`}>
-            <span className="hidden items-center gap-2 md:inline-flex">
+          <Tooltip content={`录像占用（含快照按保留策略清理）`}>
+            <span className="hidden shrink-0 items-center gap-2 md:inline-flex">
               <span className="h-1 w-24 overflow-hidden rounded-full bg-cam-active">
                 <span
                   className="block h-full rounded-full"
@@ -379,38 +402,21 @@ export function MonitorPage() {
                         ? 'rgb(var(--cam-danger-rgb))'
                         : diskPct >= 75
                           ? 'rgb(var(--cam-warning-rgb))'
-                          : 'rgb(var(--cam-accent-rgb))',
+                          : 'rgba(255,255,255,0.4)',
                   }}
                 />
               </span>
-              <span className="cam-num text-caption text-cam-text-tertiary">
-                {(status.disk.recordings_bytes / GB).toFixed(1)} / {status.disk.max_gb} GB
+              <span className="cam-num text-cam-text-tertiary">
+                {(status.disk.recordings_bytes / 1024 ** 3).toFixed(1)} / {status.disk.max_gb} GB
               </span>
             </span>
           </Tooltip>
-          {error ? <span className="text-caption text-cam-danger">刷新失败</span> : null}
-          <div className="ml-auto flex items-center gap-2">
-            <Button type="primary" size="small" icon={<IconCamera />} loading={snapBusy} onClick={doSnapshot}>
-              抓拍
-            </Button>
-            <Button type="outline" size="small" onClick={() => setRoiOpen(true)}>
-              检测区域
-            </Button>
-            <Button
-              type="outline"
-              size="small"
-              icon={<IconExpand />}
-              className="hidden md:inline-flex"
-              onClick={fullscreen}
-            >
-              全屏
-            </Button>
-          </div>
-        </Panel>
+          {error ? <span className="shrink-0 text-cam-danger">刷新失败</span> : null}
+        </div>
       </div>
 
-      {/* ---------- 右侧实时事件：xl+ 固定栏 / <xl 视口下方区块（任务书 §12/50） ---------- */}
-      {eventsPanel}
+      {/* ---------- 右侧最近事件：xl+ 固定栏 / <xl 视口下方区块 ---------- */}
+      {eventsRail}
 
       <RoiEditorModal visible={roiOpen} onCancel={() => setRoiOpen(false)} />
 
@@ -426,7 +432,7 @@ export function MonitorPage() {
             <img
               src={mediaUrl(shot.url)}
               alt="抓拍画面"
-              className="block w-full rounded-lg border border-cam-border bg-black"
+              className="block w-full rounded-md border border-cam-border bg-black"
             />
             <div className="cam-num mt-2 break-all text-caption text-cam-text-tertiary">文件：{shot.file}</div>
           </>
@@ -448,7 +454,7 @@ export function MonitorPage() {
           <img
             src={mediaUrl(preview.image)}
             alt="事件快照"
-            className="block w-full rounded-lg border border-cam-border bg-black"
+            className="block w-full rounded-md border border-cam-border bg-black"
           />
         ) : null}
       </Modal>

@@ -1,0 +1,231 @@
+/**
+ * CamBox Design Token —— zinc 中性暗色体系（v1.4 Linear-style 重构）
+ *
+ * 本文件只做三件事：
+ *   1. cam-* 语义 token（dark 默认基准 / body[data-theme='light'] 同名覆盖）
+ *   2. Arco 变量对齐（bg/text/fill/border/圆角/primary 调色板）
+ *   3. Arco「浅色 primary 上的深色内容」覆盖（dark 专属；light 主题 primary 为深色，无需覆盖）
+ *
+ * 规则：颜色禁止页面硬编码，一律 var(--cam-*) 或 Tailwind cam.* 工具类。
+ */
+
+/* ============================== 1. cam-* token ============================== */
+
+/* dark（默认基准）—— zinc 体系 */
+:root {
+  /* 表面层级：页面底 → 面板 → 浮层 → 悬停/选中 */
+  --cam-bg: #09090b;
+  --cam-bg-rgb: 9 9 11;
+  --cam-surface: #0d0d0f;
+  --cam-elevated: #121214;
+  --cam-active: #18181b;
+
+  /* 边框：内容区细描边代替阴影 */
+  --cam-border: rgba(255, 255, 255, 0.06);
+  --cam-border-strong: rgba(255, 255, 255, 0.1);
+
+  /* 文本四级 */
+  --cam-text-1: #f4f4f5;
+  --cam-text-2: #a1a1aa;
+  --cam-text-3: #71717a;
+  --cam-text-4: #52525b;
+
+  /* 语义状态色（全站唯一允许的色相）：RGB 三元组，供 Tailwind <alpha-value> 与 rgba() 使用 */
+  --cam-success-rgb: 52 211 153;
+  --cam-warning-rgb: 251 191 36;
+  --cam-danger-rgb: 248 113 113;
+  --cam-info-rgb: 96 165 250;
+  --cam-rec-rgb: 248 113 113;
+
+  /* 交互面：导航/按钮的 hover 与选中底（light 主题自动切换为深色透明度） */
+  --cam-hover: rgba(255, 255, 255, 0.04);
+  --cam-selected: rgba(255, 255, 255, 0.08);
+
+  /* 等宽字体：数字/时间/IP/文件名/日志 */
+  --cam-mono: 'JetBrains Mono', 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+
+  /* 图表 */
+  --chart-grid: rgba(255, 255, 255, 0.06);
+  --chart-axis: rgba(255, 255, 255, 0.12);
+  --chart-band: rgba(255, 255, 255, 0.05);
+  --chart-bar: rgba(244, 244, 245, 0.55);
+  --chart-bar-warn: rgba(251, 191, 36, 0.75);
+}
+
+/* light（同名变量覆盖，机制与 theme.ts 一致） */
+body[data-theme='light'] {
+  --cam-bg: #f7f7f8;
+  --cam-bg-rgb: 247 247 248;
+  --cam-surface: #ffffff;
+  --cam-elevated: #ffffff;
+  --cam-active: #efeff1;
+
+  --cam-border: rgba(9, 9, 11, 0.08);
+  --cam-border-strong: rgba(9, 9, 11, 0.14);
+
+  --cam-text-1: #18181b;
+  --cam-text-2: #52525b;
+  --cam-text-3: #71717a;
+  --cam-text-4: #a1a1aa;
+
+  --cam-success-rgb: 5 150 105;
+  --cam-warning-rgb: 180 83 9;
+  --cam-danger-rgb: 220 38 38;
+  --cam-info-rgb: 37 99 235;
+  --cam-rec-rgb: 220 38 38;
+
+  --cam-hover: rgba(9, 9, 11, 0.045);
+  --cam-selected: rgba(9, 9, 11, 0.08);
+
+  --chart-grid: rgba(9, 9, 11, 0.06);
+  --chart-axis: rgba(9, 9, 11, 0.14);
+  --chart-band: rgba(9, 9, 11, 0.04);
+  --chart-bar: rgba(9, 9, 11, 0.5);
+  --chart-bar-warn: rgba(180, 83, 9, 0.7);
+}
+
+/* ============================== 2. Arco 变量对齐 ============================== */
+/* 目标：Arco 交互组件（Modal/Drawer/Select/DatePicker/Message…）默认外观融入 CamBox 视觉。
+   只覆盖变量与极少数内容色，不覆盖组件结构；Arco 仍负责全部交互能力与自带动画。 */
+
+body[arco-theme='dark'] {
+  --color-bg-1: var(--cam-bg);
+  --color-bg-2: var(--cam-surface);
+  --color-bg-3: var(--cam-elevated);
+  --color-bg-4: var(--cam-active);
+  --color-bg-5: var(--cam-active);
+  --color-bg-popup: var(--cam-elevated);
+  --color-fill-1: rgba(255, 255, 255, 0.04);
+  --color-fill-2: rgba(255, 255, 255, 0.06);
+  --color-fill-3: rgba(255, 255, 255, 0.1);
+  --color-fill-4: rgba(255, 255, 255, 0.14);
+  --color-text-1: var(--cam-text-1);
+  --color-text-2: var(--cam-text-2);
+  --color-text-3: var(--cam-text-3);
+  --color-text-4: var(--cam-text-4);
+  --color-border-1: var(--cam-border);
+  --color-border-2: var(--cam-border-strong);
+  --color-border-3: var(--cam-border-strong);
+
+  /* primary = 中性浅灰（任务书 §15 Primary #E4E4E7）；深色内容由第 3 段覆盖保证对比 */
+  --primary-1: 82 82 91;
+  --primary-2: 113 113 122;
+  --primary-3: 161 161 170;
+  --primary-4: 212 212 216;
+  --primary-5: 244 244 245;
+  --primary-6: 228 228 231;
+  --primary-7: 212 212 216;
+  --primary-8: 161 161 170;
+  --primary-9: 113 113 122;
+  --primary-10: 82 82 91;
+
+  /* 圆角规范：控件 6 / chip 6 / 大容器与浮层 10 */
+  --border-radius-small: 6px;
+  --border-radius-medium: 6px;
+  --border-radius-large: 10px;
+}
+
+body[data-theme='light'] {
+  --color-bg-1: var(--cam-bg);
+  --color-bg-2: var(--cam-surface);
+  --color-bg-3: var(--cam-surface);
+  --color-bg-4: var(--cam-active);
+  --color-bg-5: var(--cam-active);
+  --color-bg-popup: var(--cam-surface);
+  --color-fill-1: rgba(9, 9, 11, 0.04);
+  --color-fill-2: rgba(9, 9, 11, 0.06);
+  --color-fill-3: rgba(9, 9, 11, 0.1);
+  --color-fill-4: rgba(9, 9, 11, 0.14);
+  --color-text-1: var(--cam-text-1);
+  --color-text-2: var(--cam-text-2);
+  --color-text-3: var(--cam-text-3);
+  --color-text-4: var(--cam-text-4);
+  --color-border-1: var(--cam-border);
+  --color-border-2: var(--cam-border-strong);
+  --color-border-3: var(--cam-border-strong);
+
+  /* light 主题 primary = 近黑：Arco 默认白内容直接可用 */
+  --primary-1: 250 250 251;
+  --primary-2: 244 244 245;
+  --primary-3: 228 228 231;
+  --primary-4: 212 212 216;
+  --primary-5: 63 63 70;
+  --primary-6: 24 24 27;
+  --primary-7: 9 9 11;
+  --primary-8: 63 63 70;
+  --primary-9: 82 82 91;
+  --primary-10: 113 113 122;
+
+  --border-radius-small: 6px;
+  --border-radius-medium: 6px;
+  --border-radius-large: 10px;
+}
+
+/* ============================== 3. 中性 primary 内容覆盖（dark 专属） ============================== */
+/* dark 主题下 primary-6 是浅灰 #E4E4E7：Arco 默认在 primary 底上画白色内容，对比不足。
+   以下覆盖把「选中底上的图标/文字」翻成深色；light 主题 primary 近黑，不适用。 */
+
+/* 主按钮：中性浅底 + 深字（危险按钮保持语义红） */
+body[arco-theme='dark'] .arco-btn-primary:not(.arco-btn-status-danger):not(.arco-btn-status-success):not(.arco-btn-disabled) {
+  background-color: #e4e4e7;
+  color: #09090b;
+  border: none;
+}
+body[arco-theme='dark'] .arco-btn-primary:not(.arco-btn-status-danger):not(.arco-btn-status-success):not(.arco-btn-disabled):not(.arco-btn-loading):hover {
+  background-color: #f4f4f5;
+}
+body[arco-theme='dark'] .arco-btn-primary:not(.arco-btn-status-danger):not(.arco-btn-status-success):not(.arco-btn-disabled):not(.arco-btn-loading):active {
+  background-color: #d4d4d8;
+}
+body[arco-theme='dark'] .arco-btn-primary.arco-btn-disabled {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--cam-text-4);
+  border: none;
+}
+
+/* 开关：选中轨 #E4E4E7 + 深色圆点 */
+body[arco-theme='dark'] .arco-switch-checked .arco-switch-dot {
+  background-color: #09090b;
+  box-shadow: none;
+}
+
+/* 复选框：选中底 #E4E4E7 + 深色勾/横线 */
+body[arco-theme='dark'] .arco-checkbox-checked .arco-checkbox-mask-icon,
+body[arco-theme='dark'] .arco-checkbox-indeterminate .arco-checkbox-mask-icon {
+  color: #09090b;
+}
+
+/* 单选按钮组（type=button）：选中 = 白 8% 底 + 主文字 */
+body[arco-theme='dark'] .arco-radio-button.arco-radio-checked {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--cam-text-1);
+}
+
+/* 分页当前页：白 10% 底 + 主文字（不用 primary 底色） */
+body[arco-theme='dark'] .arco-pagination-item-active {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--cam-text-1);
+  border-color: transparent;
+}
+
+/* 日期选择：选中日期 = 浅底 + 深字 */
+body[arco-theme='dark'] .arco-picker-cell-selected .arco-picker-date-value,
+body[arco-theme='dark'] .arco-picker-cell-selected:hover .arco-picker-date-value,
+body[arco-theme='dark'] .arco-picker-cell-range-start .arco-picker-date-value,
+body[arco-theme='dark'] .arco-picker-cell-range-end .arco-picker-date-value {
+  color: #09090b;
+}
+
+/* 下拉选中项：主文字 + fill 底（原 primary 色文字对比不足） */
+body[arco-theme='dark'] .arco-select-option-selected {
+  color: var(--cam-text-1);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* 输入框聚焦描边：中性亮灰 */
+body[arco-theme='dark'] .arco-input-wrapper.arco-input-focus .arco-input-wrap,
+body[arco-theme='dark'] .arco-input-wrapper.arco-input-focus:hover .arco-input-wrap,
+body[arco-theme='dark'] .arco-input-wrapper:focus-within .arco-input-wrap {
+  border-color: rgba(255, 255, 255, 0.22);
+  background-color: var(--cam-elevated);
+}

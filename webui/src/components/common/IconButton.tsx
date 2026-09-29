@@ -30,10 +30,10 @@ export function IconButton({
       disabled={disabled}
       onClick={onClick}
       className={cx(
-        'inline-flex h-8 w-8 items-center justify-center rounded-lg',
+        'inline-flex h-8 w-8 items-center justify-center rounded-md',
         'text-cam-text-secondary transition-colors duration-150 ease-cam',
         'hover:bg-cam-active hover:text-cam-text-primary',
-        active && 'bg-cam-accent-dim text-cam-accent',
+        active && 'bg-cam-selected text-cam-text-primary',
         'disabled:pointer-events-none disabled:opacity-40',
         className,
       )}

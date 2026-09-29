@@ -119,9 +119,8 @@ export function eventTypeLabel(type: string, detail?: string): string {
   return type
 }
 
-/** 事件标题强调色（设计稿：侦测=青 / 冻结=黄 / 异常=红） */
-export function eventAccent(type: string, detail?: string): '' | 'cyan' | 'warn' | 'danger' {
-  if (type === 'motion') return 'cyan'
+/** 事件类型语义色（v1.4：仅自检异常上色；移动侦测保持中性，任务书 §68 少颜色） */
+export function eventAccent(type: string, detail?: string): '' | 'warn' | 'danger' {
   if (detail === 'occlusion') return 'danger'
   if (type === 'selfcheck') return 'warn'
   return ''
@@ -132,13 +131,13 @@ export function eventSubLabel(type: string, cameraName?: string): string {
   return type === 'motion' ? cameraName || '摄像头' : '画面自检 C3'
 }
 
-/** 自检状态 → 文案 / 颜色 / 状态点（概览与监控页共用）；正常态用中性白（Profound 单色风） */
+/** 自检状态 → 文案 / 颜色 / 状态点（概览与监控页共用）；正常态用中性主文字 */
 export function selfCheckView(s: {
   enabled: boolean
   state: string
 }): { text: string; color: string; dot: string } {
-  if (!s.enabled) return { text: '已关闭', color: 'var(--color-text-3)', dot: 'off' }
-  if (s.state === 'frozen') return { text: '画面冻结', color: 'var(--ch-danger)', dot: 'err' }
-  if (s.state === 'occlusion') return { text: '画面异常', color: 'var(--ch-warn)', dot: 'warn' }
-  return { text: '正常', color: 'var(--ch-text-1)', dot: 'ok' }
+  if (!s.enabled) return { text: '已关闭', color: 'var(--cam-text-3)', dot: 'off' }
+  if (s.state === 'frozen') return { text: '画面冻结', color: 'rgb(var(--cam-warning-rgb))', dot: 'err' }
+  if (s.state === 'occlusion') return { text: '画面异常', color: 'rgb(var(--cam-danger-rgb))', dot: 'warn' }
+  return { text: '正常', color: 'var(--cam-text-1)', dot: 'ok' }
 }

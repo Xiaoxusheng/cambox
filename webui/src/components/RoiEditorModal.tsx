@@ -156,7 +156,7 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
 
   return (
     <>
-      <div className="ch-roi-toolbar">
+      <div className="cam-roi-toolbar">
         <Button size="small" icon={<IconRefresh />} onClick={() => setBust(Date.now())}>
           刷新底图
         </Button>
@@ -166,13 +166,13 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
         <Button size="small" icon={<IconDelete />} disabled={rois.length === 0} onClick={clearRois}>
           清空
         </Button>
-        <span className="ch-muted num" style={{ marginLeft: 'auto' }}>
+        <span className="cam-num text-body-secondary text-cam-text-tertiary" style={{ marginLeft: 'auto' }}>
           {rois.length}/{MAX_ROIS}
         </span>
       </div>
 
       <div
-        className="ch-roi-wrap"
+        className="cam-roi-wrap"
         ref={wrapRef}
         style={{
           aspectRatio: imgAspect.toFixed(4),
@@ -207,12 +207,12 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
         {rois.map((r, i) => (
           <div
             key={i}
-            className="ch-roi-rect"
+            className="cam-roi-rect"
             style={{ left: pct(r[0]), top: pct(r[1]), width: pct(r[2]), height: pct(r[3]) }}
           >
-            <span className="ch-roi-tag num">区域 {i + 1}</span>
+            <span className="cam-roi-tag cam-num">区域 {i + 1}</span>
             <button
-              className="ch-roi-del"
+              className="cam-roi-del"
               type="button"
               aria-label={`删除区域 ${i + 1}`}
               title="删除该区域"
@@ -229,7 +229,7 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
 
         {draftRect ? (
           <div
-            className="ch-roi-rect drawing"
+            className="cam-roi-rect drawing"
             style={{
               left: pct(draftRect[0]),
               top: pct(draftRect[1]),
@@ -240,14 +240,14 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
         ) : null}
       </div>
 
-      <div className="ch-muted" style={{ marginTop: 8, lineHeight: '18px' }}>
+      <div className="text-body-secondary text-cam-text-tertiary" style={{ marginTop: 8, lineHeight: '18px' }}>
         在截图上按住鼠标拖拽即可画框；点框右上角 ✕ 删除。空 = 全屏检测。
       </div>
 
       {rois.length > 0 ? (
-        <div className="ch-roi-list">
+        <div className="cam-roi-list">
           {rois.map((r, i) => (
-            <div className="ch-roi-item" key={i}>
+            <div className="cam-roi-item" key={i}>
               <span style={{ flex: 1 }} className="num">
                 #{i + 1} x {r[0].toFixed(3)} y {r[1].toFixed(3)} w {r[2].toFixed(3)} h{' '}
                 {r[3].toFixed(3)}
@@ -264,12 +264,12 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
           ))}
         </div>
       ) : (
-        <div className="ch-muted" style={{ marginTop: 8 }}>
+        <div className="text-body-secondary text-cam-text-tertiary" style={{ marginTop: 8 }}>
           当前无检测区域，变化像素按全屏统计。
         </div>
       )}
 
-      <div className="ch-savebar">
+      <div className="sticky bottom-0 z-10 mt-4 flex items-center gap-3 border-t border-cam-border bg-cam-surface pt-3">
         <Button
           type="primary"
           icon={<IconSave />}
@@ -279,7 +279,7 @@ function RoiEditorInner({ onDone }: { onDone: () => void }) {
         >
           保存区域
         </Button>
-        <span className="ch-muted">{dirty ? '有未保存的改动' : '与服务器一致'}</span>
+        <span className="text-body-secondary text-cam-text-tertiary">{dirty ? '有未保存的改动' : '与服务器一致'}</span>
       </div>
     </>
   )
@@ -302,7 +302,7 @@ export function RoiEditorModal({
       autoFocus={false}
       unmountOnExit
     >
-      {/* 底图按视口高度自适应（见 ch-roi-wrap 的 maxWidth），内容天然放得下，无滚动条 */}
+      {/* 底图按视口高度自适应（见 cam-roi-wrap 的 maxWidth），内容天然放得下，无滚动条 */}
       {visible ? <RoiEditorInner onDone={onCancel} /> : null}
     </Modal>
   )
