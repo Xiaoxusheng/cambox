@@ -80,6 +80,27 @@ export function PlaybackPage() {
     [segments],
   )
 
+  /**
+   * 时间轴渲染块：把相邻（间隙 ≤ 45s）或重叠的录像段合并成一个连续块。
+   * 24h 视图下 1px ≈ 66s，几十秒的翻段间隙肉眼不可见，不合并就是一堆毛刺；
+   * 合并后是干净的整块，点击播块内对应段。
+   */
+  const timelineBlocks = useMemo(() => {
+    const MERGE_GAP_SEC = 45
+    const sorted = [...segments].sort((a, b) => secOfDay(a.start) - secOfDay(b.start))
+    const out: { segs: TimelineSegment[]; start: string; end: string }[] = []
+    for (const s of sorted) {
+      const last = out[out.length - 1]
+      if (last && secOfDay(s.start) - secOfDay(last.end) <= MERGE_GAP_SEC) {
+        last.segs.push(s)
+        if (secOfDay(s.end) > secOfDay(last.end)) last.end = s.end
+      } else {
+        out.push({ segs: [s], start: s.start, end: s.end })
+      }
+    }
+    return out
+  }, [segments])
+
   /** 找到包含该时刻的录像段（无则取之后最近的一段） */
   const locate = (iso: string): { seg: TimelineSegment; offset: number } | null => {
     if (segments.length === 0) return null
@@ -256,26 +277,36 @@ export function PlaybackPage() {
                 </span>
               ))}
 
-              {segments.map((s) => {
-                const left = (secOfDay(s.start) / 86400) * 100
-                const width = Math.max(0.2, (durationSec(s.start, s.end) / 86400) * 100)
+              {timelineBlocks.map((b) => {
+                const left = (secOfDay(b.start) / 86400) * 100
+                const width = Math.max(0.2, ((secOfDay(b.end) - secOfDay(b.start)) / 86400) * 100)
+                const isCurrent = current !== null && b.segs.some((s) => s.name === current.name)
+                const target =
+                  current !== null && b.segs.some((s) => s.name === current.name)
+                    ? current
+                    : b.segs[0]
+                const sizeBytes = b.segs.reduce((acc, s) => acc + s.size_bytes, 0)
+                const title =
+                  b.segs.length === 1
+                    ? `${b.segs[0].name}\n${formatTime(b.start)} – ${formatTime(b.end)}（${formatBytes(b.segs[0].size_bytes)}）`
+                    : `${b.segs.length} 段连续录像\n${formatTime(b.start)} – ${formatTime(b.end)}（共 ${formatBytes(sizeBytes)}）`
                 return (
                   <div
-                    key={s.name}
-                    className={`ch-timeline-seg ${current?.name === s.name ? 'current' : ''}`}
+                    key={b.segs[0].name}
+                    className={`ch-timeline-seg ${isCurrent ? 'current' : ''}`}
                     style={{ left: `${left}%`, width: `${width}%` }}
-                    title={`${s.name}\n${formatTime(s.start)} – ${formatTime(s.end)}（${formatBytes(s.size_bytes)}）`}
+                    title={title}
                     role="button"
                     tabIndex={0}
-                    aria-label={`播放录像段 ${s.name}`}
+                    aria-label={`播放录像段 ${target.name}`}
                     onClick={() => {
-                      setCurrent(s)
+                      setCurrent(target)
                       setPendingSeek(0)
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
-                        setCurrent(s)
+                        setCurrent(target)
                         setPendingSeek(0)
                       }
                     }}
