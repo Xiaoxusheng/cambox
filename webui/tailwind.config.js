@@ -14,7 +14,7 @@ export default {
     extend: {
       colors: {
         cam: {
-          bg: 'var(--cam-bg)',
+          bg: 'rgb(var(--cam-bg-rgb) / <alpha-value>)',
           surface: 'var(--cam-surface)',
           elevated: 'var(--cam-elevated)',
           active: 'var(--cam-active)',

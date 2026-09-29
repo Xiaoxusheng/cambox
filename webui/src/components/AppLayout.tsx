@@ -132,7 +132,7 @@ export function AppLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-cam-bg">
       {/* ---------- 胶囊顶栏：sticky + 实体底（内容从其下滚过，无缝隙穿帮） ---------- */}
-      <header className="sticky top-0 z-100 border-b border-cam-border bg-cam-bg/95 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-cam-border bg-cam-bg/95 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-[1560px] items-center justify-between gap-3 px-3 md:px-4">
           {/* 左：品牌 + 相机状态 */}
           <div className="flex min-w-0 items-center gap-3">

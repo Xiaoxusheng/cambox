@@ -1,7 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /**
  * camhub webui 全局样式 —— Design Token + 基础层 + Arco 变量对齐
  *
  * 分层（本文件自上而下）：
+ *   0. @tailwind 指令：生成工具类（preflight 已关，不会重置 Arco）——丢失会导致全站工具类失效
  *   1. Design Token：cam.* 双主题 CSS 变量（dark 默认基准 / body[data-theme='light'] 覆盖）
  *   2. 基础层：body 背景/字体/滚动条/选区/焦点环 + 等宽数字工具类
  *   3. Arco 变量对齐：少量 --color-* / --primary-6 / 圆角覆盖，让 Arco 交互组件融入 camhub 视觉
@@ -17,6 +22,7 @@
 :root {
   /* 表面层级：页面底 → 面板 → 浮层 → 悬停/选中 */
   --cam-bg: #07090c;
+  --cam-bg-rgb: 7 9 12;
   --cam-surface: #0d1015;
   --cam-elevated: #12161c;
   --cam-active: #1a1f27;
@@ -60,6 +66,7 @@
 /* light（同名变量覆盖，机制与 theme.ts 一致） */
 body[data-theme='light'] {
   --cam-bg: #f2f4f7;
+  --cam-bg-rgb: 242 244 247;
   --cam-surface: #ffffff;
   --cam-elevated: #ffffff;
   --cam-active: #eef1f5;
