@@ -1,13 +1,24 @@
 /**
- * 全局布局（Arco Design 原生）：Layout.Header + Menu 导航。
- * 左：品牌 + 相机状态；右：REC · 布防 · 时钟 · 主题 · Menu。
- * 动画全部来自组件内建（Menu 墨条、Switch、Drawer、Modal、Message）。
- * 移动端导航收进 Drawer。
+ * AppLayout —— camhub 胶囊顶栏（v1.3 重设计，Tailwind 主样式层）。
+ *
+ * 结构（依据设计稿 01-监控 顶栏 + 任务书 §8~10）：
+ *   ┌──────────────────────────────────────────────────────────────────────┐
+ *   │ ● camhub  ● 前门摄像头·在线 24.0FPS 2560×1440 │ ●REC ▣布防 17:53:46 │ 监控 回看 …  ☰ │
+ *   └──────────────────────────────────────────────────────────────────────┘
+ * 左：品牌 + 相机状态（呼吸点 = 活着的状态才有动画）；右：REC / 布防 / 时钟 / 导航 / 主题 / MOCK / 移动端 Drawer。
+ * 交互能力仍走 Arco（Switch/Drawer/Modal/Message/Tooltip）；视觉全部 Tailwind cam.* token。
+ * 监控页全出血，其余页居中 max-w-[1440px]。
  */
 import { useEffect, useState } from 'react'
-import { Avatar, Button, Drawer, Layout, Menu, Message, Modal, Switch, Tag, Tooltip, Typography } from '@arco-design/web-react'
-import { IconMenu, IconMoon, IconSun, IconRecord, IconRecordStop } from '@arco-design/web-react/icon'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Drawer, Message, Modal, Switch, Tooltip } from '@arco-design/web-react'
+import {
+  IconMenu,
+  IconMoon,
+  IconRecord,
+  IconRecordStop,
+  IconSun,
+} from '@arco-design/web-react/icon'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { IS_MOCK } from '../api/client'
 import { fetchConfig, fetchStatus, saveConfig, setArmed } from '../api/endpoints'
 import { errorText } from '../api/errors'
@@ -15,9 +26,8 @@ import { useAsync } from '../hooks/useAsync'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { getTheme, setTheme, type Theme } from '../theme'
 import { formatClock } from '../utils/format'
-
-const { Header, Content } = Layout
-const { Text } = Typography
+import { cx } from '../utils/cx'
+import { StatusBadge } from './common/StatusBadge'
 
 const NAV = [
   { key: '/', label: '监控' },
@@ -33,6 +43,7 @@ const NAV = [
 const isActive = (pathname: string, key: string) =>
   key === '/' ? pathname === '/' : pathname.startsWith(key)
 
+/** 顶栏时钟（mono + tabular-nums，秒级跳动不加动画） */
 function Clock() {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -40,9 +51,9 @@ function Clock() {
     return () => window.clearInterval(timer)
   }, [])
   return (
-    <Text className="ch-hide-mobile ch-clock" style={{ fontFamily: 'var(--ch-mono, monospace)' }}>
+    <span className="cam-num hidden text-caption text-cam-text-secondary xl:inline">
       {formatClock(now)}
-    </Text>
+    </span>
   )
 }
 
@@ -55,7 +66,7 @@ export function AppLayout() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
-  // 顶部栏元信息：相机名 / 在线状态 / fps；5s 静默轮询
+  // 顶栏元信息：相机名 / 在线状态 / fps；5s 静默轮询（不打断滚动/hover/选中）
   const { data: status, reload } = useAsync((signal) => fetchStatus(signal), [], { pollMs: 5000 })
 
   useEffect(() => {
@@ -117,134 +128,173 @@ export function AppLayout() {
   const connected = cam?.connected ?? false
   const armed = status?.armed ?? false
   const recording = status?.recorder.running ?? false
-  const activeKey = NAV.find((n) => isActive(pathname, n.key))?.key ?? '/'
 
   return (
-    <Layout className="ch-shell" style={{ minHeight: '100vh' }}>
-      <Header className="ch-header">
-        <div className="ch-header-side">
-          {isMobile ? (
-            <Button
-              shape="circle"
-              type="outline"
-              size="small"
-              icon={<IconMenu />}
-              aria-label="打开导航"
-              onClick={() => setDrawerOpen(true)}
-            />
-          ) : (
-            <span className="ch-brand" aria-hidden="true">
-              <Avatar size={22} shape="square" style={{ backgroundColor: 'rgb(var(--primary-6))' }}>
-                C
-              </Avatar>
-              <Text bold style={{ fontSize: 16 }}>
+    <div className="flex min-h-screen flex-col bg-cam-bg">
+      {/* ---------- 胶囊顶栏：sticky + 实体底（内容从其下滚过，无缝隙穿帮） ---------- */}
+      <header className="sticky top-0 z-100 border-b border-cam-border bg-cam-bg/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-[1560px] items-center justify-between gap-3 px-3 md:px-4">
+          {/* 左：品牌 + 相机状态 */}
+          <div className="flex min-w-0 items-center gap-3">
+            <Link
+              to="/"
+              className="flex shrink-0 items-center gap-2"
+              aria-label="camhub 监控面板"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cam-accent-dim text-cam-accent">
+                <IconRecord style={{ fontSize: 15 }} />
+              </span>
+              <span className="hidden text-[15px] font-semibold tracking-tight text-cam-text-primary sm:inline">
                 camhub
-              </Text>
-            </span>
-          )}
-          <span className="ch-topbar-cam" title={cam?.name}>
-            <Tag color={connected ? 'green' : 'red'} size="small">
-              {connected ? '在线' : '离线'}
-            </Tag>
-            <Text type="secondary" className="ch-hide-mobile" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {cam?.name || '摄像头'}
-            </Text>
-            {connected ? (
-              <Text type="secondary" className="ch-hide-mobile ch-clock">
-                {cam?.fps.toFixed(1)} FPS · {cam?.width}×{cam?.height}
-              </Text>
+              </span>
+            </Link>
+            <span className="h-4 w-px bg-cam-border-strong" aria-hidden="true" />
+            {cam ? (
+              <span className="flex min-w-0 items-center gap-2" title={cam.name}>
+                <StatusBadge
+                  tone={connected ? 'success' : 'danger'}
+                  label={connected ? '在线' : '离线'}
+                  breathe={connected}
+                />
+                <span className="hidden max-w-[180px] truncate text-caption text-cam-text-secondary md:inline">
+                  {cam.name}
+                </span>
+                {connected ? (
+                  <span className="cam-num hidden text-caption text-cam-text-tertiary lg:inline">
+                    {cam.fps.toFixed(1)} FPS · {cam.width}×{cam.height}
+                  </span>
+                ) : (
+                  <span className="hidden text-caption text-cam-danger md:inline">等待取流</span>
+                )}
+              </span>
             ) : (
-              <Text type="error" className="ch-hide-mobile" disabled={false}>
-                等待取流
-              </Text>
+              <StatusBadge tone="neutral" label="连接中" breathe />
             )}
-          </span>
-        </div>
+          </div>
 
-        <div className="ch-header-side">
-          <Tooltip
-            content={
-              recording
-                ? '录像进行中，点击结束录像（写入配置，热更新生效）'
-                : status
-                  ? '点击开始录像（写入配置，热更新生效）'
-                  : '获取状态中…'
-            }
-          >
-            <Button
-              type={recording ? 'primary' : 'outline'}
-              status={recording ? 'danger' : 'default'}
-              size="small"
-              icon={recording ? <IconRecordStop /> : <IconRecord />}
-              loading={recPending}
-              disabled={!status}
-              onClick={toggleRecord}
-              aria-label={recording ? '结束录像' : '开始录像'}
+          {/* 右：REC / 布防 / 时钟 / MOCK / 主题 / 导航 / 移动菜单 */}
+          <div className="flex shrink-0 items-center gap-2">
+            <Tooltip
+              content={
+                recording
+                  ? '录像进行中，点击结束录像（写入配置，热更新生效）'
+                  : status
+                    ? '点击开始录像（写入配置，热更新生效）'
+                    : '获取状态中…'
+              }
             >
-              REC
-            </Button>
-          </Tooltip>
-
-          <Tooltip content={armed ? '布防中：移动侦测事件将入库并推送' : '已撤防：仅停止事件入库与推送'}>
-            <span className="ch-arm">
-              <Switch
-                size="small"
-                checked={armed}
-                loading={armPending}
-                disabled={!status}
-                onChange={toggleArm}
-                aria-label="布防开关"
-              />
-              <Text type="secondary" className="ch-hide-mobile" style={{ fontSize: 12 }}>
-                {armed ? '布防中' : '已撤防'}
-              </Text>
-            </span>
-          </Tooltip>
-
-          {IS_MOCK ? (
-            <Tooltip content="当前为 mock 数据模式，未连接后端">
-              <Tag color="orange" size="small">
-                MOCK
-              </Tag>
+              <button
+                type="button"
+                aria-label={recording ? '结束录像' : '开始录像'}
+                disabled={!status || recPending}
+                onClick={toggleRecord}
+                className={cx(
+                  'inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-caption font-medium',
+                  'transition-colors duration-150 ease-cam disabled:pointer-events-none disabled:opacity-40',
+                  recording
+                    ? 'border border-cam-rec/40 bg-cam-rec/12 text-cam-rec'
+                    : 'border border-cam-border text-cam-text-secondary hover:border-cam-border-strong hover:text-cam-text-primary',
+                )}
+              >
+                {recording ? (
+                  <IconRecordStop style={{ fontSize: 14 }} />
+                ) : (
+                  <IconRecord style={{ fontSize: 14 }} />
+                )}
+                <span className={cx(recording && 'animate-rec-pulse')}>REC</span>
+              </button>
             </Tooltip>
-          ) : null}
 
-          <Clock />
+            <Tooltip content={armed ? '布防中：移动侦测事件将入库并推送' : '已撤防：仅停止事件入库与推送'}>
+              <span className="flex items-center gap-1.5">
+                <Switch
+                  size="small"
+                  checked={armed}
+                  loading={armPending}
+                  disabled={!status}
+                  onChange={toggleArm}
+                  aria-label="布防开关"
+                />
+                <span className="hidden text-caption text-cam-text-secondary md:inline">
+                  {armed ? '布防中' : '已撤防'}
+                </span>
+              </span>
+            </Tooltip>
 
-          <Tooltip content={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}>
-            <Button
-              shape="circle"
-              type="outline"
-              size="small"
-              icon={theme === 'dark' ? <IconSun /> : <IconMoon />}
-              aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
-              onClick={toggleTheme}
-            />
-          </Tooltip>
+            {IS_MOCK ? (
+              <Tooltip content="当前为 mock 数据模式，未连接后端">
+                <span className="hidden h-6 items-center rounded-md border border-cam-warning/40 bg-cam-warning/10 px-2 text-caption font-medium text-cam-warning sm:inline-flex">
+                  MOCK
+                </span>
+              </Tooltip>
+            ) : null}
 
-          {!isMobile ? (
-            <Menu
-              mode="horizontal"
-              ellipsis={false}
-              selectedKeys={[activeKey]}
-              onClickMenuItem={(key) => go(key)}
-              style={{ flexShrink: 0, backgroundColor: 'transparent', borderBottom: 'none' }}
-              aria-label="主导航"
-            >
-              {NAV.map((n) => (
-                <Menu.Item key={n.key}>{n.label}</Menu.Item>
-              ))}
-            </Menu>
-          ) : null}
+            <Clock />
+
+            <Tooltip content={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}>
+              <button
+                type="button"
+                aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
+                onClick={toggleTheme}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-active hover:text-cam-text-primary"
+              >
+                {theme === 'dark' ? <IconSun style={{ fontSize: 15 }} /> : <IconMoon style={{ fontSize: 15 }} />}
+              </button>
+            </Tooltip>
+
+            {/* 桌面导航：胶囊组（非 Arco Menu），active = accent-dim 底 + accent 字 */}
+            {!isMobile ? (
+              <nav className="hidden items-center gap-1 rounded-xl bg-cam-elevated p-1 lg:flex" aria-label="主导航">
+                {NAV.map((n) => {
+                  const active = isActive(pathname, n.key)
+                  return (
+                    <button
+                      key={n.key}
+                      type="button"
+                      aria-current={active ? 'page' : undefined}
+                      onClick={() => go(n.key)}
+                      className={cx(
+                        'h-7 rounded-lg px-3 text-caption font-medium transition-colors duration-150 ease-cam',
+                        active
+                          ? 'bg-cam-accent-dim text-cam-accent'
+                          : 'text-cam-text-secondary hover:bg-cam-active hover:text-cam-text-primary',
+                      )}
+                    >
+                      {n.label}
+                    </button>
+                  )
+                })}
+              </nav>
+            ) : null}
+
+            {isMobile ? (
+              <button
+                type="button"
+                aria-label="打开导航"
+                aria-expanded={drawerOpen}
+                onClick={() => setDrawerOpen(true)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-active hover:text-cam-text-primary lg:hidden"
+              >
+                <IconMenu style={{ fontSize: 16 }} />
+              </button>
+            ) : null}
+          </div>
         </div>
-      </Header>
+      </header>
 
-      <Content className={`ch-content ${pathname === '/' ? 'ch-content-bleed' : ''}`}>
-        <div key={pathname} className="ch-page">
+      {/* 内容：监控页全出血，其余页居中；页面切换极轻入场（opacity + 4px） */}
+      <main
+        className={cx(
+          'min-h-0 flex-1',
+          pathname === '/' ? '' : 'mx-auto w-full max-w-[1440px] px-3 py-4 md:px-6',
+        )}
+      >
+        <div key={pathname} className="animate-page-in">
           <Outlet />
         </div>
-      </Content>
+      </main>
 
+      {/* 移动端导航 Drawer（Arco 交互能力，内容为胶囊按钮组） */}
       <Drawer
         visible={drawerOpen}
         placement="left"
@@ -254,17 +304,28 @@ export function AppLayout() {
         closable
         onCancel={() => setDrawerOpen(false)}
       >
-        <Menu
-          mode="vertical"
-          selectedKeys={[activeKey]}
-          onClickMenuItem={(key) => go(key)}
-          style={{ border: 'none' }}
-        >
-          {NAV.map((n) => (
-            <Menu.Item key={n.key}>{n.label}</Menu.Item>
-          ))}
-        </Menu>
+        <nav className="flex flex-col gap-1" aria-label="移动端导航">
+          {NAV.map((n) => {
+            const active = isActive(pathname, n.key)
+            return (
+              <button
+                key={n.key}
+                type="button"
+                aria-current={active ? 'page' : undefined}
+                onClick={() => go(n.key)}
+                className={cx(
+                  'h-9 rounded-lg px-3 text-left text-body font-medium transition-colors duration-150 ease-cam',
+                  active
+                    ? 'bg-cam-accent-dim text-cam-accent'
+                    : 'text-cam-text-secondary hover:bg-cam-active hover:text-cam-text-primary',
+                )}
+              >
+                {n.label}
+              </button>
+            )
+          })}
+        </nav>
       </Drawer>
-    </Layout>
+    </div>
   )
 }
