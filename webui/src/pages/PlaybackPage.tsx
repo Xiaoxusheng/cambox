@@ -5,13 +5,13 @@
  * video.currentTime = 事件时间 − 所在录像段 start。
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { DatePicker, Message } from '@arco-design/web-react'
-import { IconLeft, IconRight } from '@arco-design/web-react/icon'
+import { Alert, Button, Card, DatePicker, Message, Radio, Slider, Space, Tag, Typography } from '@arco-design/web-react'
+import { IconLeft, IconPause, IconPlayArrowFill, IconRight } from '@arco-design/web-react/icon'
 import { fetchStatus, fetchTimeline } from '../api/endpoints'
 import { IS_MOCK, recordingUrl } from '../api/media'
 import type { Event, Status, TimelineData, TimelineSegment } from '../api/types'
 import { PageHeader } from '../components/PageHeader'
-import { EmptyState, ErrorState, InitialLoading } from '../components/StateViews'
+import { ErrorState, InitialLoading } from '../components/StateViews'
 import { useAsync } from '../hooks/useAsync'
 import {
   eventTypeLabel,
@@ -20,6 +20,8 @@ import {
   formatTime,
   toLocalDateStr,
 } from '../utils/format'
+
+const { Text } = Typography
 
 function shiftDate(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00`)
@@ -174,13 +176,9 @@ export function PlaybackPage() {
     else v.pause()
   }
 
-  const seekFromEvent = (e: React.PointerEvent<HTMLDivElement>) => {
+  const seekTo = (t: number) => {
     const v = videoRef.current
     if (!v || !current) return
-    const r = e.currentTarget.getBoundingClientRect()
-    const pct = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))
-    const dur = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : durationSec(current.start, current.end)
-    const t = pct * dur
     v.currentTime = t
     setPos(t)
   }
@@ -213,303 +211,317 @@ export function PlaybackPage() {
     <>
       <PageHeader title="回看" description="点击时间轴上的事件刻度，跳转到该时刻播放" />
 
-      <div className="ch-datebar">
-        <button
-          type="button"
-          className="ch-datebtn"
+      <Space size={8} style={{ marginBottom: 12 }} wrap>
+        <Button
+          shape="circle"
+          type="outline"
+          size="small"
+          icon={<IconLeft />}
           aria-label="前一天"
           onClick={() => setDate((d) => shiftDate(d, -1))}
-        >
-          <IconLeft />
-        </button>
-        <span className="ch-datepill">
+        />
+        <Space size={4}>
           <DatePicker
             value={date}
             format="YYYY-MM-DD"
             allowClear={false}
             onChange={(v) => setDate(String(v))}
           />
-          {date === today ? <span className="ch-datepill-today num">· 今天</span> : null}
-        </span>
-        <button
-          type="button"
-          className="ch-datebtn"
+          {date === today ? <Tag size="small">今天</Tag> : null}
+        </Space>
+        <Button
+          shape="circle"
+          type="outline"
+          size="small"
+          icon={<IconRight />}
           aria-label="后一天"
           disabled={date >= today}
           onClick={() => setDate((d) => shiftDate(d, 1))}
-        >
-          <IconRight />
-        </button>
+        />
         {date !== today ? (
-          <button type="button" className="ch-btn sm" onClick={() => setDate(today)}>
+          <Button type="outline" size="small" onClick={() => setDate(today)}>
             回到今天
-          </button>
+          </Button>
         ) : null}
-        <span className="ch-filterbar-spacer" />
-        <span className="ch-muted">
-          已录制 <span className="num">{recordedHours.toFixed(1)}h</span> ·{' '}
-          <span className="num">{segments.length}</span> 段
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          已录制 {recordedHours.toFixed(1)}h · {segments.length} 段
           {modeLabel ? ` · ${modeLabel}` : ''}
-        </span>
-      </div>
+        </Text>
+      </Space>
 
-      <section className="ch-panel ch-gap-md">
-        <header className="ch-panel-head">
-          <div className="ch-panel-title">今日时间轴</div>
-          <div className="ch-panel-extra ch-legend">
+      <Card
+        size="small"
+        title="今日时间轴"
+        style={{ marginBottom: 12 }}
+        extra={
+          <Space size={10} style={{ fontSize: 12 }}>
             <span>
-              <i style={{ background: 'linear-gradient(180deg, #ff8a2b, #dd5b04)' }} />
+              <i
+                style={{
+                  display: 'inline-block',
+                  width: 10,
+                  height: 10,
+                  borderRadius: 2,
+                  marginRight: 4,
+                  background: 'rgb(var(--primary-6))',
+                }}
+              />
               录像段
             </span>
             <span>
-              <i style={{ background: 'var(--ch-tick)' }} />
+              <i
+                style={{
+                  display: 'inline-block',
+                  width: 3,
+                  height: 10,
+                  borderRadius: 1.5,
+                  marginRight: 4,
+                  background: 'var(--color-text-2)',
+                }}
+              />
               移动侦测
             </span>
             <span>
-              <i style={{ background: 'var(--ch-warn)' }} />
+              <i
+                style={{
+                  display: 'inline-block',
+                  width: 3,
+                  height: 10,
+                  borderRadius: 1.5,
+                  marginRight: 4,
+                  background: 'rgb(var(--warning-6))',
+                }}
+              />
               自检事件
             </span>
             <span>
-              <i style={{ background: 'var(--ch-danger)' }} />
+              <i
+                style={{
+                  display: 'inline-block',
+                  width: 3,
+                  height: 10,
+                  borderRadius: 1.5,
+                  marginRight: 4,
+                  background: 'rgb(var(--danger-6))',
+                }}
+              />
               异常
             </span>
+          </Space>
+        }
+      >
+        {segments.length === 0 && events.length === 0 ? (
+          <div style={{ padding: '32px 0', textAlign: 'center' }}>
+            <Text type="secondary">{date} 没有录像与事件</Text>
+            <div style={{ marginTop: 4 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                可能当天未开启录像，或录像已被保留策略清理。
+              </Text>
+            </div>
           </div>
-        </header>
-        <div className="ch-panel-body">
-          {segments.length === 0 && events.length === 0 ? (
-            <EmptyState
-              title={`${date} 没有录像与事件`}
-              description="可能当天未开启录像，或录像已被保留策略清理。"
-            />
-          ) : (
-            <div className="ch-timeline">
-              <div className="ch-timeline-track" />
-              {Array.from({ length: 25 }, (_, i) => (
-                <div
-                  key={i}
-                  className={`ch-timeline-hour ${i % 4 === 0 ? 'major' : ''}`}
-                  style={{ left: `${(i / 24) * 100}%` }}
-                />
-              ))}
-              {Array.from({ length: 7 }, (_, i) => (
-                <span
-                  key={i}
-                  className="ch-timeline-hour-label"
-                  style={{
-                    left: `${((i * 4) / 24) * 100}%`,
-                    // 首尾标签贴边对齐，避免被面板裁掉一半
-                    transform:
-                      i === 0 ? 'translateX(0)' : i === 6 ? 'translateX(-100%)' : 'translateX(-50%)',
-                  }}
-                >
-                  {String(i * 4).padStart(2, '0')}:00
-                </span>
-              ))}
+        ) : (
+          <div className="ch-timeline">
+            <div className="ch-timeline-track" />
+            {Array.from({ length: 25 }, (_, i) => (
+              <div
+                key={i}
+                className={`ch-timeline-hour ${i % 4 === 0 ? 'major' : ''}`}
+                style={{ left: `${(i / 24) * 100}%` }}
+              />
+            ))}
+            {Array.from({ length: 7 }, (_, i) => (
+              <span
+                key={i}
+                className="ch-timeline-hour-label"
+                style={{
+                  left: `${((i * 4) / 24) * 100}%`,
+                  // 首尾标签贴边对齐，避免被面板裁掉一半
+                  transform:
+                    i === 0 ? 'translateX(0)' : i === 6 ? 'translateX(-100%)' : 'translateX(-50%)',
+                }}
+              >
+                {String(i * 4).padStart(2, '0')}:00
+              </span>
+            ))}
 
-              {timelineBlocks.map((b) => {
-                const left = (secOfDay(b.start) / 86400) * 100
-                const width = Math.max(0.2, ((secOfDay(b.end) - secOfDay(b.start)) / 86400) * 100)
-                const isCurrent = current !== null && b.segs.some((s) => s.name === current.name)
-                const target =
-                  current !== null && b.segs.some((s) => s.name === current.name)
-                    ? current
-                    : b.segs[0]
-                const sizeBytes = b.segs.reduce((acc, s) => acc + s.size_bytes, 0)
-                const title =
-                  b.segs.length === 1
-                    ? `${b.segs[0].name}\n${formatTime(b.start)} – ${formatTime(b.end)}（${formatBytes(b.segs[0].size_bytes)}）`
-                    : `${b.segs.length} 段连续录像\n${formatTime(b.start)} – ${formatTime(b.end)}（共 ${formatBytes(sizeBytes)}）`
-                return (
-                  <div
-                    key={b.segs[0].name}
-                    className={`ch-timeline-seg ${isCurrent ? 'current' : ''}`}
-                    style={{ left: `${left}%`, width: `${width}%` }}
-                    title={title}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`播放录像段 ${target.name}`}
-                    onClick={() => {
+            {timelineBlocks.map((b) => {
+              const left = (secOfDay(b.start) / 86400) * 100
+              const width = Math.max(0.2, ((secOfDay(b.end) - secOfDay(b.start)) / 86400) * 100)
+              const isCurrent = current !== null && b.segs.some((s) => s.name === current.name)
+              const target =
+                current !== null && b.segs.some((s) => s.name === current.name)
+                  ? current
+                  : b.segs[0]
+              const sizeBytes = b.segs.reduce((acc, s) => acc + s.size_bytes, 0)
+              const title =
+                b.segs.length === 1
+                  ? `${b.segs[0].name}\n${formatTime(b.start)} – ${formatTime(b.end)}（${formatBytes(b.segs[0].size_bytes)}）`
+                  : `${b.segs.length} 段连续录像\n${formatTime(b.start)} – ${formatTime(b.end)}（共 ${formatBytes(sizeBytes)}）`
+              return (
+                <div
+                  key={b.segs[0].name}
+                  className={`ch-timeline-seg ${isCurrent ? 'current' : ''}`}
+                  style={{ left: `${left}%`, width: `${width}%` }}
+                  title={title}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`播放录像段 ${target.name}`}
+                  onClick={() => {
+                    setCurrent(target)
+                    setPendingSeek(0)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
                       setCurrent(target)
                       setPendingSeek(0)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        setCurrent(target)
-                        setPendingSeek(0)
-                      }
-                    }}
-                  />
-                )
-              })}
+                    }
+                  }}
+                />
+              )
+            })}
 
-              {eventTicks.map((t, i) => {
-                const widthPct = Math.max(0.2, t.endPct - t.leftPct)
-                // 密集事件链并成了一根宽刻度 → 渲染为半透明软条带，露出活动范围
-                const dense = t.count > 1 && widthPct > 0.4
-                const title =
-                  t.count === 1
-                    ? `${formatTime(t.first.time)} ${eventTypeLabel(t.first.type, t.first.detail)}${
-                        t.first.type === 'motion' ? `（得分 ${t.first.score}）` : ''
-                      }`
-                    : `${formatTime(t.first.time)} – ${formatTime(t.last.time)} 共 ${t.count} 条${
-                        t.kind === 'motion' ? '移动侦测' : '自检'
-                      }事件`
-                return (
-                  <div
-                    key={`${t.kind}-${i}`}
-                    className={`ch-timeline-event ${t.kind}${dense ? ' dense' : ''}`}
-                    style={{ left: `${t.leftPct}%`, width: `${widthPct}%` }}
-                    title={title}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`跳转到 ${formatTime(t.first.time)} 的事件`}
-                    onClick={() => playAt(t.first.time)}
-                    onKeyDown={(ev) => {
-                      if (ev.key === 'Enter' || ev.key === ' ') {
-                        ev.preventDefault()
-                        playAt(t.first.time)
-                      }
-                    }}
-                  />
-                )
-              })}
+            {eventTicks.map((t, i) => {
+              const widthPct = Math.max(0.2, t.endPct - t.leftPct)
+              // 密集事件链并成了一根宽刻度 → 渲染为半透明软条带，露出活动范围
+              const dense = t.count > 1 && widthPct > 0.4
+              const title =
+                t.count === 1
+                  ? `${formatTime(t.first.time)} ${eventTypeLabel(t.first.type, t.first.detail)}${
+                      t.first.type === 'motion' ? `（得分 ${t.first.score}）` : ''
+                    }`
+                  : `${formatTime(t.first.time)} – ${formatTime(t.last.time)} 共 ${t.count} 条${
+                      t.kind === 'motion' ? '移动侦测' : '自检'
+                    }事件`
+              return (
+                <div
+                  key={`${t.kind}-${i}`}
+                  className={`ch-timeline-event ${t.kind}${dense ? ' dense' : ''}`}
+                  style={{ left: `${t.leftPct}%`, width: `${widthPct}%` }}
+                  title={title}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`跳转到 ${formatTime(t.first.time)} 的事件`}
+                  onClick={() => playAt(t.first.time)}
+                  onKeyDown={(ev) => {
+                    if (ev.key === 'Enter' || ev.key === ' ') {
+                      ev.preventDefault()
+                      playAt(t.first.time)
+                    }
+                  }}
+                />
+              )
+            })}
 
-              {playheadPct != null ? (
-                <div className="ch-timeline-playhead" style={{ left: `${playheadPct}%` }}>
-                  <span className="ch-timeline-playhead-tag num">{formatTime(absoluteTime).slice(0, 5)}</span>
-                </div>
-              ) : null}
+            {playheadPct != null ? (
+              <div className="ch-timeline-playhead" style={{ left: `${playheadPct}%` }}>
+                <span className="ch-timeline-playhead-tag ch-num">{formatTime(absoluteTime).slice(0, 5)}</span>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </Card>
+
+      <Card size="small" bodyStyle={{ padding: 16 }}>
+        <div className="ch-player-box" ref={playerBoxRef}>
+          {current && src ? (
+            <>
+              <video
+                ref={videoRef}
+                src={src}
+                preload="metadata"
+                onLoadedMetadata={onLoadedMetadata}
+                onTimeUpdate={(e) => {
+                  if (!seeking) setPos(e.currentTarget.currentTime)
+                }}
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+                onError={() => setVideoError(`无法播放 ${current.name}（分段可能损坏或缺 moov）`)}
+              />
+              <span className="ch-ovl tl ch-num">
+                回放 · {current.name} · {absoluteTime ? formatTime(absoluteTime) : ''}
+              </span>
+            </>
+          ) : (
+            <div
+              style={{
+                aspectRatio: '16 / 9',
+                maxHeight: '56vh',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                color: 'var(--color-text-3)',
+                fontSize: 13,
+                textAlign: 'center',
+                padding: 16,
+              }}
+            >
+              {IS_MOCK ? (
+                <>
+                  <span>mock 模式没有真实 mp4 视频源</span>
+                  <span style={{ fontSize: 12 }}>
+                    时间轴、跳转与分段选择逻辑可正常自查；播放需连接后端（VITE_API_MODE=real）。
+                  </span>
+                </>
+              ) : (
+                <span>点击时间轴上的录像段或事件刻度开始播放</span>
+              )}
             </div>
           )}
         </div>
-      </section>
 
-      <section className="ch-panel">
-        <div className="ch-panel-body">
-          <div className="ch-player-box" ref={playerBoxRef}>
-            {current && src ? (
-              <>
-                <video
-                  ref={videoRef}
-                  src={src}
-                  preload="metadata"
-                  onLoadedMetadata={onLoadedMetadata}
-                  onTimeUpdate={(e) => {
-                    if (!seeking) setPos(e.currentTarget.currentTime)
-                  }}
-                  onPlay={() => setPlaying(true)}
-                  onPause={() => setPlaying(false)}
-                  onError={() => setVideoError(`无法播放 ${current.name}（分段可能损坏或缺 moov）`)}
-                />
-                <span className="ch-ovl tl num">
-                  回放 · {current.name} · {absoluteTime ? formatTime(absoluteTime) : ''}
-                </span>
-              </>
-            ) : (
-              <div
-                style={{
-                  aspectRatio: '16 / 9',
-                  maxHeight: '56vh',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  color: 'var(--ch-text-3)',
-                  fontSize: 13,
-                  textAlign: 'center',
-                  padding: 16,
-                }}
-              >
-                {IS_MOCK ? (
-                  <>
-                    <span>mock 模式没有真实 mp4 视频源</span>
-                    <span style={{ fontSize: 12 }}>
-                      时间轴、跳转与分段选择逻辑可正常自查；播放需连接后端（VITE_API_MODE=real）。
-                    </span>
-                  </>
-                ) : (
-                  <span>点击时间轴上的录像段或事件刻度开始播放</span>
-                )}
-              </div>
-            )}
-          </div>
+        {videoError ? (
+          <Alert type="error" content={videoError} style={{ marginTop: 12 }} />
+        ) : null}
 
-          {videoError ? (
-            <div className="ch-note danger" style={{ marginTop: 12 }}>
-              {videoError}
-            </div>
-          ) : null}
-
-          <div className="ch-player-bar">
-            <button
-              type="button"
-              className="ch-playbtn"
-              onClick={togglePlay}
-              disabled={!current || !src}
-              aria-label={playing ? '暂停' : '播放'}
-            >
-              {playing ? '❚❚' : '▶'}
-            </button>
-            <span className="ch-playtime num">
-              {formatClockLong(pos)} / {formatClockLong(segDuration)}
-            </span>
-            <div
-              className="ch-seek"
-              role="slider"
-              aria-label="播放进度"
-              aria-valuemin={0}
-              aria-valuemax={Math.round(segDuration)}
-              aria-valuenow={Math.round(pos)}
-              tabIndex={0}
-              onPointerDown={(e) => {
-                if (!current) return
-                e.currentTarget.setPointerCapture(e.pointerId)
-                setSeeking(true)
-                seekFromEvent(e)
-              }}
-              onPointerMove={(e) => {
-                if (seeking) seekFromEvent(e)
-              }}
-              onPointerUp={(e) => {
-                e.currentTarget.releasePointerCapture(e.pointerId)
-                setSeeking(false)
-              }}
-              onPointerCancel={() => setSeeking(false)}
-            >
-              <div className="ch-seek-track">
-                <div
-                  className="ch-seek-fill"
-                  style={{ width: `${segDuration > 0 ? Math.min(100, (pos / segDuration) * 100) : 0}%` }}
-                />
-              </div>
-              <span
-                className="ch-seek-knob"
-                style={{
-                  left: `${segDuration > 0 ? Math.min(100, (pos / segDuration) * 100) : 0}%`,
-                  opacity: current ? 1 : 0,
-                }}
-              />
-            </div>
-            <div className="ch-speedgroup">
-              {[0.5, 1, 2].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  className={`ch-speedbtn ${rate === r ? 'active' : ''}`}
-                  onClick={() => setRate(r)}
-                >
-                  {r}x
-                </button>
-              ))}
-            </div>
-            <button type="button" className="ch-btn sm" onClick={fullscreen}>
-              全屏
-            </button>
-          </div>
-        </div>
-      </section>
+        <Space size={16} style={{ marginTop: 12, width: '100%' }} align="center">
+          <Button
+            shape="circle"
+            type="primary"
+            size="large"
+            icon={playing ? <IconPause /> : <IconPlayArrowFill />}
+            onClick={togglePlay}
+            disabled={!current || !src}
+            aria-label={playing ? '暂停' : '播放'}
+          />
+          <Text className="ch-num" style={{ fontSize: 13, flexShrink: 0 }}>
+            {formatClockLong(pos)} / {formatClockLong(segDuration)}
+          </Text>
+          <Slider
+            style={{ flex: 1 }}
+            min={0}
+            max={Math.max(1, segDuration)}
+            step={0.1}
+            value={Math.min(pos, segDuration)}
+            disabled={!current || !src}
+            formatTooltip={(v) => formatClockLong(Number(v))}
+            onChange={(v) => {
+              setSeeking(true)
+              seekTo(Number(v))
+            }}
+            onAfterChange={() => setSeeking(false)}
+            aria-label="播放进度"
+          />
+          <Radio.Group
+            type="button"
+            size="small"
+            value={rate}
+            onChange={(v) => setRate(Number(v))}
+            aria-label="播放倍速"
+          >
+            {[0.5, 1, 2].map((r) => (
+              <Radio key={r} value={r}>
+                {r}x
+              </Radio>
+            ))}
+          </Radio.Group>
+          <Button type="outline" onClick={fullscreen}>
+            全屏
+          </Button>
+        </Space>
+      </Card>
     </>
   )
 }

@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 /** 初次加载：骨架屏（模拟真实布局，不是一整块灰） */
 export function InitialLoading({ rows = 3 }: { rows?: number }) {
   return (
-    <div style={{ padding: 'var(--ch-space-md) 0' }}>
+    <div style={{ padding: '16px 0' }}>
       <Skeleton
         loading
         animation
@@ -25,7 +25,7 @@ export function InlineLoading({ text = '加载中…' }: { text?: string }) {
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        padding: 'var(--ch-space-lg) 0',
+        padding: '24px 0',
         color: 'var(--color-text-3)',
       }}
     >
@@ -44,7 +44,7 @@ export function EmptyState({
   action?: ReactNode
 }) {
   return (
-    <div style={{ padding: 'var(--ch-space-xl) var(--ch-space-md)', textAlign: 'center' }}>
+    <div style={{ padding: '40px 16px', textAlign: 'center' }}>
       <Empty
         description={
           <div>
@@ -61,7 +61,7 @@ export function EmptyState({
           </div>
         }
       />
-      {action ? <div style={{ marginTop: 'var(--ch-space-md)' }}>{action}</div> : null}
+      {action ? <div style={{ marginTop: '16px' }}>{action}</div> : null}
     </div>
   )
 }
@@ -87,7 +87,7 @@ export function ErrorState({
           </Button>
         ) : undefined
       }
-      style={{ padding: 'var(--ch-space-lg) 0' }}
+      style={{ padding: '24px 0' }}
     />
   )
 }

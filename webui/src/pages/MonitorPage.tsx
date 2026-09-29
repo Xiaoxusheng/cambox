@@ -1,12 +1,12 @@
 /**
- * / 监控（默认路由，v1.3 按 camhub-ui-4k/01 设计稿重做）
- * 画面是视觉主体：LIVE 遮罩 + 分辨率 chip + ROI 虚线覆盖 + 底部玻璃状态条；
- * 右侧（桌面）或下方（移动）实时事件流。ROI 编辑收进弹层；布防开关在顶部栏。
- * 检测 bbox 后端未暴露，不做叠加；ROI 覆盖对齐实际渲染的图像矩形（contain 适配）。
+ * / 监控（默认路由）—— Arco 组件原生实现。
+ * 画面是视觉主体：Card 包裹 MJPEG 流 + Tag 浮层 + ROI 覆盖；工具条用 Space+Button；
+ * 实时事件用 Drawer（mask=false，滑入/滑出为组件自带动画）。ROI 编辑收进弹层；布防开关在顶部栏。
+ * 检测 bbox 后端未暴露，不做叠加；ROI 覆盖对齐实际渲染的图像矩形（cover 适配）。
  */
 import { useEffect, useRef, useState } from 'react'
-import { Button, Message, Modal } from '@arco-design/web-react'
-import { IconDoubleLeft, IconDoubleRight } from '@arco-design/web-react/icon'
+import { Button, Card, Drawer, Message, Modal, Progress, Space, Spin, Tag, Tooltip, Typography } from '@arco-design/web-react'
+import { IconDoubleLeft, IconDoubleRight, IconExpand, IconCamera } from '@arco-design/web-react/icon'
 import { fetchConfig, fetchEvents, fetchStatus, fetchTimeline, manualSnapshot } from '../api/endpoints'
 import { errorText } from '../api/errors'
 import { IS_MOCK, mediaUrl } from '../api/media'
@@ -20,6 +20,7 @@ import { useStreamFrame } from '../hooks/useStreamFrame'
 import { formatBytes, formatClockFull, toLocalDateStr } from '../utils/format'
 
 const GB = 1024 ** 3
+const { Text } = Typography
 
 type MonitorData = [Status, EventsResponse]
 
@@ -30,25 +31,10 @@ function LiveClock() {
     const timer = window.setInterval(() => setNow(new Date()), 1000)
     return () => window.clearInterval(timer)
   }, [])
-  return <span className="num">{formatClockFull(now)}</span>
+  return <span className="ch-num">{formatClockFull(now)}</span>
 }
 
-/** 「实时事件」标题前的脉搏图标（设计稿 01） */
-function PulseIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M1.5 8.5h3l2-5 3 9 2-5.5h3"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-/** object-fit: contain 后图像实际渲染的矩形（ROI 覆盖对齐用） */
+/** object-fit: cover 后图像实际渲染的矩形（ROI 覆盖对齐用） */
 function useContainedRect(
   ref: React.RefObject<HTMLDivElement | null>,
   imgW: number,
@@ -95,19 +81,17 @@ export function MonitorPage() {
   const [shot, setShot] = useState<{ file: string; url: string } | null>(null)
   const [roiOpen, setRoiOpen] = useState(false)
   const [preview, setPreview] = useState<Event | null>(null)
-  // 实时事件面板收起/呼出（持久化；收起时 livebar 伸展为全宽）
+  // 实时事件面板收起/呼出（持久化；Drawer 滑入滑出为组件自带动画）
   const [eventsOpen, setEventsOpen] = useState(() => localStorage.getItem('camhub-events-open') !== '0')
-  const toggleEvents = () =>
-    setEventsOpen((v) => {
-      localStorage.setItem('camhub-events-open', v ? '0' : '1')
-      return !v
-    })
+  const toggleEvents = (next: boolean) => {
+    localStorage.setItem('camhub-events-open', next ? '1' : '0')
+    setEventsOpen(next)
+  }
   const videoBoxRef = useRef<HTMLDivElement>(null)
-  // 画面矩形 = contain 后的图像区域（解码输出宽高比即 camera.width/height）
+  // 画面矩形 = cover 后的图像区域（解码输出宽高比即 camera.width/height）
   const camW = data?.[0].camera.width ?? 0
   const camH = data?.[0].camera.height ?? 0
   // 直播流内嵌黑边裁切（宽画幅测试流）：后台周期检测，首次检出黑边即采用
-  //（流内黑边位置恒定；混合画幅的流迟早会落在带黑边的镜头上）
   const [liveBox, setLiveBox] = useState<ContentBox | null>(null)
   useEffect(() => {
     if (IS_MOCK) return
@@ -168,185 +152,190 @@ export function MonitorPage() {
       : ''
 
   return (
-    <div className={`ch-monitor ${eventsOpen ? '' : 'events-hidden'}`}>
-      <div className="ch-monitor-main" ref={videoBoxRef}>
-        {frame.src ? (
-          <>
-            <img
-              className="ch-monitor-frame"
-              src={frame.src}
-              alt="实时画面"
-              onError={frame.markFailed}
-              style={
-                liveBox
-                  ? ({
-                      // 只显示内容区，黑边裁掉；object-fit: cover 继续负责铺满容器
-                      objectViewBox: `inset(${(liveBox.y0 * 100).toFixed(2)}% ${((1 - liveBox.x1) * 100).toFixed(2)}% ${((1 - liveBox.y1) * 100).toFixed(2)}% ${(liveBox.x0 * 100).toFixed(2)}%)`,
-                    } as React.CSSProperties)
-                  : undefined
-              }
-            />
-            {rois.length > 0 ? (
-              <div
-                style={{
-                  position: 'absolute',
-                  left: fitRect.left,
-                  top: fitRect.top,
-                  width: fitRect.width,
-                  height: fitRect.height,
-                  pointerEvents: 'none',
-                  overflow: 'hidden',
-                }}
-              >
-                {rois.map((r, i) => {
-                  // ROI 坐标归一化于完整帧；裁黑边显示时重映射到内容区坐标系
-                  const [rx, ry, rw, rh] = liveBox
-                    ? [
-                        (r[0] - liveBox.x0) / (liveBox.x1 - liveBox.x0),
-                        (r[1] - liveBox.y0) / (liveBox.y1 - liveBox.y0),
-                        r[2] / (liveBox.x1 - liveBox.x0),
-                        r[3] / (liveBox.y1 - liveBox.y0),
-                      ]
-                    : r
-                  return (
-                    <div
-                      key={i}
-                      className="ch-roiovl"
-                      style={{
-                        left: `${rx * 100}%`,
-                        top: `${ry * 100}%`,
-                        width: `${rw * 100}%`,
-                        height: `${rh * 100}%`,
-                      }}
-                    >
-                      <span className="ch-roiovl-tag">ROI {i + 1}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : null}
-          </>
-        ) : null}
-
-        {maskText ? (
-          <div className="ch-stream-mask">
-            <span className={`ch-status-dot ${frame.failed ? 'err' : 'warn'}`} />
-            <div>{maskText}</div>
-            <Button size="small" onClick={frame.retry}>
-              重试
-            </Button>
-          </div>
-        ) : (
-          <span className="ch-ovl tl">
-            <span className="ch-live-dot" />
-            <span className="ch-live-text">LIVE</span>
-            <LiveClock />
-          </span>
-        )}
-
-        {frame.src ? (
-          <span className="ch-ovl tr num">
-            {cam.width}×{cam.height} · {cam.fps.toFixed(1)} FPS
-          </span>
-        ) : null}
-
-        <div className="ch-livebar">
-          <span className="ch-livebar-item">
-            <span className={`ch-status-dot ${connected ? 'ok' : 'err'}`} />
-            {connected ? '在线' : '离线'}
-          </span>
-          <span className="ch-livebar-item num ch-topbar-fps">{cam.fps.toFixed(1)} FPS</span>
-          <span className="ch-livebar-item num ch-hide-mobile">
-            {cam.width}×{cam.height}
-          </span>
-          <span className="ch-livebar-item">
-            {status.recorder.running ? (
-              <>
-                <span className="ch-status-dot err" />
-                录像中
-              </>
-            ) : status.recorder.enabled ? (
-              '待机'
-            ) : (
-              '录像已关闭'
-            )}
-          </span>
-          <span
-            className="ch-livebar-item ch-hide-mobile"
-            title={`录像占用 ${formatBytes(status.disk.recordings_bytes)} / 上限 ${status.disk.max_gb} GB`}
-          >
-            <span className="ch-meter">
-              <span
-                className="ch-meter-fill"
-                style={{
-                  width: `${diskPct}%`,
-                  background:
-                    diskPct >= 90
-                      ? 'var(--ch-danger)'
-                      : diskPct >= 75
-                        ? 'var(--ch-warn)'
-                        : 'var(--ch-primary)',
-                }}
+    <div className="ch-monitor">
+      <Card
+        size="small"
+        bodyStyle={{ padding: 0, position: 'relative', overflow: 'hidden' }}
+        className="ch-video-card"
+      >
+        <div className="ch-video-box" ref={videoBoxRef}>
+          {frame.src ? (
+            <>
+              <img
+                className="ch-monitor-frame"
+                src={frame.src}
+                alt="实时画面"
+                onError={frame.markFailed}
+                style={
+                  liveBox
+                    ? ({
+                        // 只显示内容区，黑边裁掉；object-fit: cover 继续负责铺满容器
+                        objectViewBox: `inset(${(liveBox.y0 * 100).toFixed(2)}% ${((1 - liveBox.x1) * 100).toFixed(2)}% ${((1 - liveBox.y1) * 100).toFixed(2)}% ${(liveBox.x0 * 100).toFixed(2)}%)`,
+                      } as React.CSSProperties)
+                    : undefined
+                }
               />
-            </span>
-            <span className="num">
-              {(status.disk.recordings_bytes / GB).toFixed(1)} / {status.disk.max_gb} GB
-            </span>
-          </span>
-          {error ? (
-            <span className="ch-livebar-item" style={{ color: 'var(--ch-danger)' }}>
-              刷新失败
-            </span>
+              {rois.length > 0 ? (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: fitRect.left,
+                    top: fitRect.top,
+                    width: fitRect.width,
+                    height: fitRect.height,
+                    pointerEvents: 'none',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {rois.map((r, i) => {
+                    // ROI 坐标归一化于完整帧；裁黑边显示时重映射到内容区坐标系
+                    const [rx, ry, rw, rh] = liveBox
+                      ? [
+                          (r[0] - liveBox.x0) / (liveBox.x1 - liveBox.x0),
+                          (r[1] - liveBox.y0) / (liveBox.y1 - liveBox.y0),
+                          r[2] / (liveBox.x1 - liveBox.x0),
+                          r[3] / (liveBox.y1 - liveBox.y0),
+                        ]
+                      : r
+                    return (
+                      <div
+                        key={i}
+                        className="ch-roiovl"
+                        style={{
+                          left: `${rx * 100}%`,
+                          top: `${ry * 100}%`,
+                          width: `${rw * 100}%`,
+                          height: `${rh * 100}%`,
+                        }}
+                      >
+                        <Tag size="small" color="cyan" style={{ position: 'absolute', left: 4, top: 4 }}>
+                          ROI {i + 1}
+                        </Tag>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </>
           ) : null}
-          <span className="ch-livebar-spacer" />
-          <button type="button" className="ch-btn sm primary" disabled={snapBusy} onClick={doSnapshot}>
-            {snapBusy ? '抓拍中…' : '抓拍'}
-          </button>
-          <button type="button" className="ch-btn sm" onClick={() => setRoiOpen(true)}>
-            检测区域
-          </button>
-          <button type="button" className="ch-btn sm ch-hide-mobile" onClick={fullscreen}>
-            全屏
-          </button>
-        </div>
 
-        {/* 面板收起时显示的呼出按钮（毛玻璃小胶囊） */}
-        <button type="button" className="ch-events-tab" onClick={toggleEvents} aria-label="呼出实时事件面板">
-          <IconDoubleLeft />
-          实时事件
-          {todayCount !== null ? <span className="num ch-events-tab-count">{todayCount}</span> : null}
-        </button>
-      </div>
+          {maskText ? (
+            <div className="ch-stream-mask">
+              <Spin dot size={24} />
+              <div>{maskText}</div>
+              <Button size="small" type="outline" onClick={frame.retry}>
+                重试
+              </Button>
+            </div>
+          ) : (
+            <div className="ch-ovl tl">
+              <Tag color="red" size="small">
+                LIVE
+              </Tag>
+              <Text style={{ color: '#fff', fontSize: 12, textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+                <LiveClock />
+              </Text>
+            </div>
+          )}
 
-      <section className={`ch-panel ch-monitor-events ${eventsOpen ? '' : 'events-hidden'}`}>
-        <header className="ch-panel-head">
-          <span className="ch-panel-icon">
-            <PulseIcon />
-          </span>
-          <div className="ch-panel-title">实时事件</div>
-          <div className="ch-panel-extra">
-            {todayCount !== null ? <span className="ch-badge cyan num">今日 {todayCount}</span> : null}
-            <button
-              type="button"
-              className="ch-btn icon sm"
-              onClick={toggleEvents}
-              aria-label="收起实时事件面板"
+          {frame.src ? (
+            <div className="ch-ovl tr">
+              <Tag size="small" color="black">
+                {cam.width}×{cam.height} · {cam.fps.toFixed(1)} FPS
+              </Tag>
+            </div>
+          ) : null}
+
+          {!eventsOpen ? (
+            <Button
+              type="outline"
+              size="small"
+              icon={<IconDoubleLeft />}
+              className="ch-events-fab"
+              onClick={() => toggleEvents(true)}
+              aria-label="打开实时事件面板"
             >
-              <IconDoubleRight />
-            </button>
-          </div>
-        </header>
-        <div className="ch-panel-body">
-          <EventList items={events.items} cameraName={cam.name} onItemClick={setPreview} />
+              实时事件{todayCount !== null ? ` · ${todayCount}` : ''}
+            </Button>
+          ) : null}
         </div>
-        {events.items.length > 0 ? (
-          <footer className="ch-monitor-events-footer">
-            <a className="ch-linkbtn" href="#/events">
+      </Card>
+
+      {/* 工具条：状态 Tag + 磁盘水位 + 操作按钮 */}
+      <Card size="small" bodyStyle={{ padding: '10px 16px' }} style={{ marginTop: 12 }}>
+        <Space size={16} align="center" wrap>
+          <Tag color={connected ? 'green' : 'red'} size="small">
+            {connected ? '在线' : '离线'}
+          </Tag>
+          <Tag color={status.recorder.running ? 'red' : 'gray'} size="small">
+            {status.recorder.running ? '录像中' : status.recorder.enabled ? '待机' : '录像已关闭'}
+          </Tag>
+          <Text type="secondary" className="ch-num ch-hide-mobile">
+            {cam.fps.toFixed(1)} FPS · {cam.width}×{cam.height}
+          </Text>
+          <Tooltip content={`录像占用 ${formatBytes(status.disk.recordings_bytes)} / 上限 ${status.disk.max_gb} GB`}>
+            <span className="ch-hide-mobile" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Progress
+                percent={diskPct}
+                showText={false}
+                size="small"
+                style={{ width: 120 }}
+                color={
+                  diskPct >= 90
+                    ? 'rgb(var(--danger-6))'
+                    : diskPct >= 75
+                      ? 'rgb(var(--warning-6))'
+                      : 'rgb(var(--primary-6))'
+                }
+              />
+              <Text type="secondary" className="ch-num" style={{ fontSize: 12 }}>
+                {(status.disk.recordings_bytes / GB).toFixed(1)} / {status.disk.max_gb} GB
+              </Text>
+            </span>
+          </Tooltip>
+          {error ? <Text type="error">刷新失败</Text> : null}
+          <Button type="primary" size="small" icon={<IconCamera />} loading={snapBusy} onClick={doSnapshot}>
+            抓拍
+          </Button>
+          <Button type="outline" size="small" onClick={() => setRoiOpen(true)}>
+            检测区域
+          </Button>
+          <Button type="outline" size="small" icon={<IconExpand />} className="ch-hide-mobile" onClick={fullscreen}>
+            全屏
+          </Button>
+        </Space>
+      </Card>
+
+      {/* 实时事件：右侧抽屉（mask=false 不遮挡画面，滑入动画为组件自带） */}
+      <Drawer
+        visible={eventsOpen}
+        placement="right"
+        width={380}
+        mask={false}
+        wrapClassName="ch-events-drawer"
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            实时事件{todayCount !== null ? ` · 今日 ${todayCount}` : ''}
+            <Button
+              type="text"
+              size="small"
+              icon={<IconDoubleRight />}
+              onClick={() => toggleEvents(false)}
+              aria-label="收起实时事件面板"
+            />
+          </span>
+        }
+        footer={
+          events.items.length > 0 ? (
+            <Button type="text" size="small" long onClick={() => (window.location.hash = '#/events')}>
               查看全部事件
-            </a>
-          </footer>
-        ) : null}
-      </section>
+            </Button>
+          ) : null
+        }
+        onCancel={() => toggleEvents(false)}
+      >
+        <EventList items={events.items} cameraName={cam.name} onItemClick={setPreview} />
+      </Drawer>
 
       <RoiEditorModal visible={roiOpen} onCancel={() => setRoiOpen(false)} />
 
@@ -360,8 +349,8 @@ export function MonitorPage() {
         {shot ? (
           <>
             <AutoCropImage src={mediaUrl(shot.url)} alt="抓拍画面" />
-            <div className="ch-muted" style={{ marginTop: 8 }}>
-              文件：{shot.file}
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary">文件：{shot.file}</Text>
             </div>
           </>
         ) : null}

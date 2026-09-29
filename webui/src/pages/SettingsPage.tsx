@@ -6,14 +6,19 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import {
+  Alert,
   Button,
+  Card as ArcoCard,
   Checkbox,
   Input,
   InputNumber,
   Message,
   Modal,
+  Progress,
+  Radio,
   Select,
   Switch,
+  Tag,
   TimePicker,
   Tooltip,
 } from '@arco-design/web-react'
@@ -99,18 +104,23 @@ function Card({
   bodyStyle?: React.CSSProperties
 }) {
   return (
-    <section className="ch-panel">
-      <header className="ch-panel-head" style={{ paddingBottom: 14 }}>
+    <ArcoCard
+      size="small"
+      title={
         <div>
-          <div className="ch-panel-title">{title}</div>
-          {sub ? <div className="ch-setrow-desc" style={{ marginTop: 3 }}>{sub}</div> : null}
+          <div style={{ fontWeight: 600 }}>{title}</div>
+          {sub ? (
+            <div style={{ fontSize: 12, fontWeight: 400, color: 'var(--color-text-3)', marginTop: 2 }}>
+              {sub}
+            </div>
+          ) : null}
         </div>
-        {extra ? <div className="ch-panel-extra">{extra}</div> : null}
-      </header>
-      <div className="ch-panel-body" style={bodyStyle}>
-        {children}
-      </div>
-    </section>
+      }
+      extra={extra}
+      bodyStyle={bodyStyle}
+    >
+      {children}
+    </ArcoCard>
   )
 }
 
@@ -324,26 +334,25 @@ export function SettingsPage() {
         title="设置"
         description="保存后写入 configs/config.yaml · 摄像头与端口改动需重启生效"
         actions={
-          <Button className="ch-btn" icon={<IconRefresh />} loading={loading} onClick={reload}>
+          <Button type="outline" icon={<IconRefresh />} loading={loading} onClick={reload}>
             重新加载
           </Button>
         }
       />
 
-      <div className="ch-tabs" role="tablist" aria-label="设置分组">
+      <Radio.Group
+        type="button"
+        value={tab}
+        onChange={(v) => setTab(v as TabKey)}
+        style={{ marginBottom: 14 }}
+        aria-label="设置分组"
+      >
         {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            className={`ch-tabpill ${tab === t.key ? 'active' : ''}`}
-            onClick={() => setTab(t.key)}
-          >
+          <Radio key={t.key} value={t.key}>
             {t.label}
-          </button>
+          </Radio>
         ))}
-      </div>
+      </Radio.Group>
 
       {/* ---------------- 摄像头 ---------------- */}
       {tab === 'camera' ? (
@@ -542,30 +551,32 @@ export function SettingsPage() {
               />
             </Row>
             <Row label="灵敏度预设" sub="一键套用阈值 / 面积 / 冷却组合">
-              <div className="ch-speedgroup">
-                {MOTION_PRESETS.map((p) => {
-                  const active =
+              <Radio.Group
+                type="button"
+                size="small"
+                value={MOTION_PRESETS.find(
+                  (p) =>
                     motion.threshold === p.threshold &&
                     motion.min_area === p.min_area &&
-                    motion.cooldown_sec === p.cooldown_sec
-                  return (
-                    <button
-                      key={p.key}
-                      type="button"
-                      className={`ch-speedbtn ${active ? 'active' : ''}`}
-                      onClick={() =>
-                        patchSection('motion', {
-                          threshold: p.threshold,
-                          min_area: p.min_area,
-                          cooldown_sec: p.cooldown_sec,
-                        })
-                      }
-                    >
-                      {p.label}
-                    </button>
-                  )
-                })}
-              </div>
+                    motion.cooldown_sec === p.cooldown_sec,
+                )?.key}
+                onChange={(v) => {
+                  const p = MOTION_PRESETS.find((x) => x.key === v)
+                  if (p) {
+                    patchSection('motion', {
+                      threshold: p.threshold,
+                      min_area: p.min_area,
+                      cooldown_sec: p.cooldown_sec,
+                    })
+                  }
+                }}
+              >
+                {MOTION_PRESETS.map((p) => (
+                  <Radio key={p.key} value={p.key}>
+                    {p.label}
+                  </Radio>
+                ))}
+              </Radio.Group>
             </Row>
             <div className="ch-hint">提示：光照突变（开关灯）可能误报，调大三项参数可缓解。</div>
           </Card>
@@ -645,15 +656,13 @@ export function SettingsPage() {
               <div className="ch-setrow-label" style={{ marginBottom: 8 }}>
                 当前磁盘水位
               </div>
-              <div className="ch-meter">
-                <span
-                  className="ch-meter-fill"
-                  style={{
-                    display: 'block',
-                    width: `${Math.min(100, (status.disk.recordings_bytes / Math.max(1, status.disk.max_gb * 1024 ** 3)) * 100)}%`,
-                  }}
-                />
-              </div>
+              <Progress
+                percent={Math.min(
+                  100,
+                  (status.disk.recordings_bytes / Math.max(1, status.disk.max_gb * 1024 ** 3)) * 100,
+                )}
+                showText={false}
+              />
               <div className="ch-muted" style={{ marginTop: 8 }}>
                 录像 <span className="num">{formatBytes(status.disk.recordings_bytes)}</span> /{' '}
                 <span className="num">{status.disk.max_gb} GB</span> · 快照{' '}
@@ -798,9 +807,11 @@ export function SettingsPage() {
       {/* ---------------- 布防日程 ---------------- */}
       {tab === 'schedule' ? (
         <div style={{ maxWidth: 920 }}>
-          <div className="ch-note info ch-gap-md">
-            日程为空时全天按「侦测 / 录像」总开关执行。开始时间等于结束时间表示全天；结束早于开始表示跨零点。
-          </div>
+          <Alert
+            type="info"
+            content="日程为空时全天按「侦测 / 录像」总开关执行。开始时间等于结束时间表示全天；结束早于开始表示跨零点。"
+            style={{ marginBottom: 14 }}
+          />
           <Card
             title="日程规则"
             sub={`最多 16 条 · 当前 ${draft.schedules.rules.length} 条`}
@@ -826,9 +837,9 @@ export function SettingsPage() {
                   <div className="ch-roi-item" key={i} style={{ color: 'var(--ch-text-1)', flexWrap: 'wrap', rowGap: 6 }}>
                     <span style={{ display: 'inline-flex', gap: 4 }}>
                       {(r.days.length === 0 ? [] : r.days).map((d) => (
-                        <span key={d} className="ch-badge num">
+                        <Tag key={d} size="small" className="ch-num">
                           {DAY_LABELS[d - 1] ?? d}
-                        </span>
+                        </Tag>
                       ))}
                       {r.days.length === 0 ? <span className="ch-muted">未选择星期</span> : null}
                     </span>
@@ -836,23 +847,24 @@ export function SettingsPage() {
                       {r.start} – {r.end}
                       {r.start === r.end ? '（全天）' : r.end < r.start ? '（跨零点）' : ''}
                     </span>
-                    <span className={`ch-badge ${r.motion ? 'cyan' : ''}`}>
+                    <Tag color={r.motion ? 'arcoblue' : 'gray'} size="small">
                       侦测 {r.motion ? '开' : '关'}
-                    </span>
-                    <span className={`ch-badge ${r.record ? 'ok' : ''}`}>
+                    </Tag>
+                    <Tag color={r.record ? 'green' : 'gray'} size="small">
                       录像 {r.record ? '开' : '关'}
-                    </span>
+                    </Tag>
                     <span style={{ flex: 1 }} />
-                    <button type="button" className="ch-linkbtn" onClick={() => openRuleEditor(i)}>
+                    <Button type="text" size="small" onClick={() => openRuleEditor(i)}>
                       编辑
-                    </button>
-                    <button
-                      type="button"
-                      className="ch-linkbtn danger"
+                    </Button>
+                    <Button
+                      type="text"
+                      size="small"
+                      status="danger"
                       onClick={() => setRules(draft.schedules.rules.filter((_, k) => k !== i))}
                     >
                       删除
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -914,13 +926,13 @@ export function SettingsPage() {
               />
             </Row>
             <Row label="当前状态">
-              <span className={`ch-badge ${status.selfcheck.state === 'ok' ? 'ok' : 'warn'}`}>
+              <Tag color={status.selfcheck.state === 'ok' ? 'green' : 'orange'}>
                 {status.selfcheck.state === 'ok'
                   ? '正常'
                   : status.selfcheck.state === 'frozen'
                     ? '画面冻结'
                     : '画面异常'}
-              </span>
+              </Tag>
             </Row>
             <div className="ch-hint num">
               连续冻结 {status.selfcheck.consecutive_frozen} 次 · 连续突变{' '}
@@ -950,11 +962,17 @@ export function SettingsPage() {
       {/* ---------------- Bot ---------------- */}
       {tab === 'bot' ? (
         <div style={{ maxWidth: 760 }}>
-          <div className="ch-note info ch-gap-md">
-            Telegram 双向控制。命令：<code>/status</code> <code>/arm</code> <code>/disarm</code>{' '}
-            <code>/snap</code> <code>/events [n]</code> <code>/help</code>。Bot Token
-            变更后需重启服务才会重新建立轮询。
-          </div>
+          <Alert
+            type="info"
+            content={
+              <span>
+                Telegram 双向控制。命令：<code>/status</code> <code>/arm</code> <code>/disarm</code>{' '}
+                <code>/snap</code> <code>/events [n]</code> <code>/help</code>。Bot Token
+                变更后需重启服务才会重新建立轮询。
+              </span>
+            }
+            style={{ marginBottom: 14 }}
+          />
           <Card title="Telegram Bot" bodyStyle={{ paddingTop: 4 }}>
             <Row label="启用 Bot">
               <Switch
@@ -1000,18 +1018,12 @@ export function SettingsPage() {
             ? `有 ${dirtyCount} 处未保存的修改 · 保存后写入 configs/config.yaml${cameraDirty ? '（摄像头来源与解码参数需重启生效）' : ''}`
             : '与服务器一致'}
         </span>
-        <button type="button" className="ch-btn" disabled={!dirty} onClick={onReset}>
-          <IconUndo />
+        <Button type="outline" disabled={!dirty} icon={<IconUndo />} onClick={onReset}>
           撤销
-        </button>
-        <button
-          type="button"
-          className="ch-btn primary"
-          disabled={!dirty || saving}
-          onClick={onSave}
-        >
-          {saving ? '保存中…' : '保存全部'}
-        </button>
+        </Button>
+        <Button type="primary" disabled={!dirty || saving} loading={saving} onClick={onSave}>
+          保存全部
+        </Button>
       </div>
 
       <Modal

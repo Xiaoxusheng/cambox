@@ -1,16 +1,19 @@
 /**
- * 事件列表（监控侧栏「实时事件」与概览「最新事件」共用，v1.3 设计稿样式）。
- * 行：缩略图 + 标题（按类型着色）+ 副标题 + 等宽时间。
+ * 事件列表（监控「实时事件」与概览「最新事件」共用）—— Arco List 原生实现，
+ * 行内动画、hover 反馈与空态均由 List 组件自带。
  */
+import { Avatar, List, Tag, Typography } from '@arco-design/web-react'
 import { mediaUrl } from '../api/media'
 import type { Event } from '../api/types'
-import {
-  eventAccent,
-  eventSubLabel,
-  eventTypeLabel,
-  formatTime,
-} from '../utils/format'
-import { EmptyState } from './StateViews'
+import { eventSubLabel, formatTime } from '../utils/format'
+
+const { Text } = Typography
+
+function typeTag(e: Event) {
+  if (e.type === 'motion') return <Tag color="arcoblue" size="small">移动侦测</Tag>
+  if (e.detail === 'frozen') return <Tag color="orange" size="small">画面冻结</Tag>
+  return <Tag color="red" size="small">画面异常</Tag>
+}
 
 export function EventList({
   items,
@@ -22,47 +25,45 @@ export function EventList({
   cameraName?: string
   onItemClick?: (e: Event) => void
 }) {
-  if (items.length === 0) {
-    return (
-      <EmptyState
-        title="暂无事件"
-        description="布防后有移动侦测或画面异常时，这里会出现最新记录。"
-      />
-    )
-  }
   return (
-    <div className="ch-event-list">
-      {items.map((e) => {
-        const accent = eventAccent(e.type, e.detail)
-        const row = (
-          <>
-            <img className="ch-evthumb" src={mediaUrl(e.image)} alt="" loading="lazy" />
-            <span className="ch-evmain">
-              <span className={`ch-evtitle ${accent}`}>
-                {eventTypeLabel(e.type, e.detail)}
-                {e.type === 'motion' ? <span className="num"> · 得分 {e.score}</span> : null}
+    <List
+      size="small"
+      dataSource={items}
+      render={(e, index) => (
+        <List.Item
+          key={e.id || index}
+          style={{ cursor: onItemClick ? 'pointer' : 'default' }}
+          onClick={onItemClick ? () => onItemClick(e) : undefined}
+        >
+          <List.Item.Meta
+            avatar={
+              <Avatar shape="square" size={48} style={{ backgroundColor: 'var(--color-fill-2)' }}>
+                <img
+                  src={mediaUrl(e.image)}
+                  alt=""
+                  loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </Avatar>
+            }
+            title={
+              <span>
+                {typeTag(e)}
+                {e.type === 'motion' ? (
+                  <Text type="secondary" style={{ fontSize: 12, marginLeft: 6 }}>
+                    得分 {e.score}
+                  </Text>
+                ) : null}
               </span>
-              <span className="ch-evsub">{eventSubLabel(e.type, cameraName)}</span>
-              <span className="ch-evsub num">{formatTime(e.time)}</span>
-            </span>
-          </>
-        )
-        return onItemClick ? (
-          <button
-            type="button"
-            className="ch-evrow"
-            key={e.id}
-            onClick={() => onItemClick(e)}
-            aria-label={`查看 ${formatTime(e.time)} 的${eventTypeLabel(e.type, e.detail)}`}
-          >
-            {row}
-          </button>
-        ) : (
-          <div className="ch-evrow" key={e.id} style={{ cursor: 'default' }}>
-            {row}
-          </div>
-        )
-      })}
-    </div>
+            }
+            description={
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {eventSubLabel(e.type, cameraName)} · {formatTime(e.time)}
+              </Text>
+            }
+          />
+        </List.Item>
+      )}
+    />
   )
 }

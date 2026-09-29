@@ -1,20 +1,24 @@
 /**
- * /events 事件中心（v1.3 按 camhub-ui-4k/03 设计稿重做）
- * 类型 / 异常类型 / 日期区间筛选 + 自绘表格（多选、快照预览、删除）+ 分页 pill。
+ * /events 事件中心 —— Arco Table 原生实现。
+ * 类型 / 异常类型 / 日期区间筛选 + Table（rowSelection 多选、内置分页、loading、
+ * hover 动画均为组件自带）+ 快照预览 + 删除。
  * 保留 v1.2 §3.3 的 detail 精确筛选（frozen / occlusion）。
  */
-import { useMemo, useState } from 'react'
-import { Button, DatePicker, Message, Modal, Select } from '@arco-design/web-react'
+import { useState } from 'react'
+import { Button, DatePicker, Message, Modal, Select, Space, Table, Tag, Tooltip, Typography } from '@arco-design/web-react'
 import { IconDelete, IconRefresh } from '@arco-design/web-react/icon'
+import type { ColumnProps } from '@arco-design/web-react/es/Table'
 import { batchDeleteEvents, fetchEvents, fetchStatus, fetchTimeline } from '../api/endpoints'
 import { errorText } from '../api/errors'
 import { mediaUrl } from '../api/media'
 import type { Event, EventType, TimelineData } from '../api/types'
 import { AutoCropImage } from '../components/AutoCropImage'
 import { PageHeader } from '../components/PageHeader'
-import { EmptyState, InitialLoading } from '../components/StateViews'
+import { InitialLoading } from '../components/StateViews'
 import { useAsync } from '../hooks/useAsync'
 import { eventTypeLabel, formatDateTime, formatDateTimeFull, toLocalDateStr } from '../utils/format'
+
+const { Text } = Typography
 
 type TypeFilter = '' | EventType
 type DetailFilter = '' | 'frozen' | 'occlusion'
@@ -36,10 +40,10 @@ const DETAIL_OPTIONS = [
 const dayStart = (s: string) => new Date(`${s}T00:00:00`).toISOString()
 const dayEnd = (s: string) => new Date(`${s}T23:59:59.999`).toISOString()
 
-function typeBadge(e: Event) {
-  if (e.type === 'motion') return <span className="ch-badge lg cyan">移动侦测</span>
-  if (e.detail === 'frozen') return <span className="ch-badge lg warn">画面冻结</span>
-  return <span className="ch-badge lg danger">画面异常</span>
+function typeTag(e: Event) {
+  if (e.type === 'motion') return <Tag color="arcoblue">移动侦测</Tag>
+  if (e.detail === 'frozen') return <Tag color="orange">画面冻结</Tag>
+  return <Tag color="red">画面异常</Tag>
 }
 
 function detailText(e: Event, cameraName: string): string {
@@ -49,21 +53,6 @@ function detailText(e: Event, cameraName: string): string {
   return e.detail === 'frozen'
     ? '自检 C3 · 画面连续静止，疑似冻结'
     : '自检 C3 · 画面突变，疑似被遮挡或移动'
-}
-
-/** 分页页码列表：1 2 3 … 7（超过 7 页折叠省略号） */
-function pageItems(total: number, cur: number): (number | '…')[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-  const set = new Set([1, 2, total, cur - 1, cur, cur + 1])
-  const list = [...set].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b)
-  const out: (number | '…')[] = []
-  let prev = 0
-  for (const p of list) {
-    if (p - prev > 1) out.push('…')
-    out.push(p)
-    prev = p
-  }
-  return out
 }
 
 export function EventsPage() {
@@ -100,10 +89,6 @@ export function EventsPage() {
   const total = data?.total ?? 0
   const cameraName = data?.cameraName ?? ''
   const todayCount = timeline ? timeline.hourly.reduce((a, b) => a + b, 0) : 0
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-
-  const allChecked = items.length > 0 && items.every((e) => selected.includes(e.id))
-  const someChecked = items.some((e) => selected.includes(e.id))
 
   const hasFilter = type !== '' || detailFilter !== '' || range !== null
 
@@ -115,20 +100,12 @@ export function EventsPage() {
     setSelected([])
   }
 
-  const toggleAll = () => {
-    setSelected(allChecked ? [] : items.map((e) => e.id))
-  }
-
-  const toggleOne = (id: number) => {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-  }
-
   const deleteOne = (e: Event) => {
     Modal.confirm({
       title: '删除该事件？',
       content: (
         <>
-          <span className="num">{formatDateTime(e.time)}</span> 的
+          <Text>{formatDateTime(e.time)}</Text> 的
           {eventTypeLabel(e.type, e.detail)}记录与关联快照会一并删除，操作不可恢复。
         </>
       ),
@@ -175,7 +152,55 @@ export function EventsPage() {
     })
   }
 
-  const pagerItems = useMemo(() => pageItems(pages, page), [pages, page])
+  const columns: ColumnProps<Event>[] = [
+    {
+      title: '快照',
+      width: 140,
+      render: (_, e) => (
+        <img
+          src={mediaUrl(e.image)}
+          alt={`${eventTypeLabel(e.type, e.detail)}快照`}
+          loading="lazy"
+          style={{
+            width: 110,
+            height: 62,
+            objectFit: 'cover',
+            borderRadius: 4,
+            display: 'block',
+            cursor: 'zoom-in',
+            background: 'var(--color-fill-2)',
+          }}
+          onClick={() => setDetail(e)}
+        />
+      ),
+    },
+    { title: '类型', width: 120, render: (_, e) => typeTag(e) },
+    {
+      title: '时间',
+      width: 190,
+      sorter: false,
+      render: (_, e) => <Text className="ch-num">{formatDateTimeFull(e.time)}</Text>,
+    },
+    {
+      title: '详情',
+      render: (_, e) => <Text type="secondary">{detailText(e, cameraName)}</Text>,
+    },
+    {
+      title: '操作',
+      width: 130,
+      align: 'right',
+      render: (_, e) => (
+        <Space size={4}>
+          <Button type="text" size="small" onClick={() => setDetail(e)}>
+            查看
+          </Button>
+          <Button type="text" size="small" status="danger" onClick={() => deleteOne(e)}>
+            删除
+          </Button>
+        </Space>
+      ),
+    },
+  ]
 
   if (loading && !data) return <InitialLoading rows={5} />
 
@@ -185,26 +210,25 @@ export function EventsPage() {
         title="事件中心"
         description={
           <>
-            共 <span className="num">{total}</span> 条记录 · 今日 <span className="num">{todayCount}</span> 条
-            {error && !data ? (
-              <span style={{ color: 'var(--ch-danger)' }}> · 加载失败：{error}</span>
-            ) : null}
+            共 {total} 条记录 · 今日 {todayCount} 条
+            {error && !data ? <Text type="error"> · 加载失败：{error}</Text> : null}
           </>
         }
         actions={
-          <button
-            type="button"
-            className="ch-btn danger"
+          <Button
+            type="primary"
+            status="danger"
+            icon={<IconDelete />}
             disabled={selected.length === 0 || deleting}
+            loading={deleting}
             onClick={onBatchDelete}
           >
-            <IconDelete />
             删除选中{selected.length > 0 ? ` · ${selected.length}` : ''}
-          </button>
+          </Button>
         }
       />
 
-      <div className="ch-filterbar">
+      <Space size={12} style={{ marginBottom: 12 }} wrap>
         <Select
           value={type}
           onChange={(v) => {
@@ -242,168 +266,51 @@ export function EventsPage() {
             setSelected([])
           }}
         />
-        <button type="button" className="ch-btn" disabled={!hasFilter} onClick={resetFilter}>
+        <Button type="outline" disabled={!hasFilter} onClick={resetFilter}>
           重置
-        </button>
-        <span className="ch-filterbar-spacer" />
-        <span className="ch-muted">
-          按时间倒序 · 每页 <span className="num">{PAGE_SIZE}</span> 条
-        </span>
-        <button
-          type="button"
-          className="ch-btn icon"
-          aria-label="刷新"
-          onClick={() => reload()}
-        >
-          <IconRefresh />
-        </button>
-      </div>
+        </Button>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          按时间倒序 · 每页 {PAGE_SIZE} 条
+        </Text>
+        <Tooltip content="刷新">
+          <Button type="text" icon={<IconRefresh />} aria-label="刷新" onClick={() => reload()} />
+        </Tooltip>
+      </Space>
 
-      <section className="ch-panel ch-tablecard">
-        <div className="ch-table-wrap">
-          <table className="ch-table rows-cards">
-            <thead>
-              <tr>
-                <th style={{ width: 44 }}>
-                  <input
-                    type="checkbox"
-                    className="ch-check"
-                    checked={allChecked}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someChecked && !allChecked
-                    }}
-                    onChange={toggleAll}
-                    aria-label="全选本页"
-                  />
-                </th>
-                <th style={{ width: 128 }}>快照</th>
-                <th style={{ width: 120 }}>类型</th>
-                <th style={{ width: 180 }}>
-                  时间
-                  <span className="ch-sort-arrow" title="按时间倒序">
-                    ↓
-                  </span>
-                </th>
-                <th>详情</th>
-                <th style={{ width: 120, textAlign: 'right' }}>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>
-                    <EmptyState
-                      title={hasFilter ? '没有符合条件的事件' : '暂无事件'}
-                      description={
-                        hasFilter
-                          ? '试着放宽类型或日期范围。'
-                          : '布防状态下侦测到移动或画面异常时，事件会记录在这里。'
-                      }
-                      action={
-                        hasFilter ? (
-                          <button type="button" className="ch-btn sm" onClick={resetFilter}>
-                            清除筛选
-                          </button>
-                        ) : undefined
-                      }
-                    />
-                  </td>
-                </tr>
-              ) : (
-                items.map((e) => (
-                  <tr key={e.id} className={selected.includes(e.id) ? 'row-selected' : ''}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        className="ch-check"
-                        checked={selected.includes(e.id)}
-                        onChange={() => toggleOne(e.id)}
-                        aria-label="选择该事件"
-                      />
-                    </td>
-                    <td>
-                      <img
-                        src={mediaUrl(e.image)}
-                        alt={`${eventTypeLabel(e.type, e.detail)}快照`}
-                        loading="lazy"
-                        style={{
-                          width: 110,
-                          height: 62,
-                          objectFit: 'cover',
-                          borderRadius: 10,
-                          display: 'block',
-                          cursor: 'zoom-in',
-                          background: '#0a1017',
-                        }}
-                        onClick={() => setDetail(e)}
-                      />
-                    </td>
-                    <td>{typeBadge(e)}</td>
-                    <td className="num">{formatDateTimeFull(e.time)}</td>
-                    <td style={{ color: 'var(--ch-text-2)' }}>{detailText(e, cameraName)}</td>
-                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button type="button" className="ch-linkbtn" onClick={() => setDetail(e)}>
-                        查看
-                      </button>
-                      <button
-                        type="button"
-                        className="ch-linkbtn danger"
-                        style={{ marginLeft: 14 }}
-                        onClick={() => deleteOne(e)}
-                      >
-                        删除
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <footer className="ch-table-footer">
-          <span className="ch-muted">
-            共 <span className="num">{total}</span> 条 · 第 <span className="num">{page}</span> /{' '}
-            <span className="num">{pages}</span> 页
-          </span>
-          <span className="ch-table-footer-spacer" />
-          <div className="ch-pager">
-            <button
-              type="button"
-              className="ch-pagebtn plain"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              上一页
-            </button>
-            {pagerItems.map((p, i) =>
-              p === '…' ? (
-                <span key={`e${i}`} className="ch-muted" style={{ padding: '0 2px' }}>
-                  …
-                </span>
-              ) : (
-                <button
-                  key={p}
-                  type="button"
-                  className={`ch-pagebtn ${p === page ? 'active' : ''}`}
-                  onClick={() => setPage(p)}
-                  aria-current={p === page ? 'page' : undefined}
-                >
-                  {p}
-                </button>
-              ),
-            )}
-            <button
-              type="button"
-              className="ch-pagebtn plain"
-              disabled={page >= pages}
-              onClick={() => setPage((p) => Math.min(pages, p + 1))}
-            >
-              下一页
-            </button>
+      <Table<Event>
+        rowKey="id"
+        columns={columns}
+        data={items}
+        border={{ wrapper: false, cell: false }}
+        rowSelection={{
+          type: 'checkbox',
+          selectedRowKeys: selected,
+          onChange: (keys) => setSelected(keys as number[]),
+          columnWidth: 44,
+        }}
+        pagination={{
+          total,
+          pageSize: PAGE_SIZE,
+          current: page,
+          sizeCanChange: false,
+          onChange: (p) => setPage(p),
+          showTotal: true,
+        }}
+        noDataElement={
+          <div style={{ padding: '32px 0' }}>
+            <Text type="secondary">
+              {hasFilter ? '没有符合条件的事件，试着放宽类型或日期范围。' : '布防状态下侦测到移动或画面异常时，事件会记录在这里。'}
+            </Text>
+            {hasFilter ? (
+              <div style={{ marginTop: 12 }}>
+                <Button type="outline" size="small" onClick={resetFilter}>
+                  清除筛选
+                </Button>
+              </div>
+            ) : null}
           </div>
-        </footer>
-      </section>
+        }
+      />
 
       <Modal
         visible={!!detail}
@@ -416,15 +323,15 @@ export function EventsPage() {
           <>
             <AutoCropImage src={mediaUrl(detail.image)} alt="事件快照" />
             <div style={{ marginTop: 12, fontSize: 13, lineHeight: '22px' }}>
-              <div>类型：{typeBadge(detail)}</div>
-              <div className="num">时间：{formatDateTime(detail.time)}</div>
+              <div>类型：{typeTag(detail)}</div>
+              <div className="ch-num">时间：{formatDateTime(detail.time)}</div>
               {detail.type === 'motion' ? (
-                <div className="num">得分：{detail.score}</div>
+                <div className="ch-num">得分：{detail.score}</div>
               ) : (
                 <div>自检结果：{detail.detail === 'frozen' ? '画面冻结' : '画面异常'}</div>
               )}
-              <div className="ch-muted" style={{ wordBreak: 'break-all' }}>
-                快照：{detail.image}
+              <div style={{ wordBreak: 'break-all' }}>
+                <Text type="secondary">快照：{detail.image}</Text>
               </div>
             </div>
           </>

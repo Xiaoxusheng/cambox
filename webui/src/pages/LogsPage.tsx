@@ -4,7 +4,8 @@
  * 支持级别筛选、级别着色、暂停接收、清屏；贴底自动滚动。终端风格等宽排版。
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Select } from '@arco-design/web-react'
+import { Alert, Button, Card, Select, Tag } from '@arco-design/web-react'
+import { IconCaretRight, IconPause } from '@arco-design/web-react/icon'
 import { IS_MOCK } from '../api/client'
 import { openLogStream } from '../api/logStream'
 import type { LogEntry } from '../api/types'
@@ -88,20 +89,11 @@ export function LogsPage() {
 
   const connView =
     conn === 'open' ? (
-      <span className="ch-livebar-item" style={{ color: 'var(--ch-ok)' }}>
-        <span className="ch-status-dot ok" />
-        已连接
-      </span>
+      <Tag color="green" size="small">已连接</Tag>
     ) : conn === 'connecting' ? (
-      <span className="ch-livebar-item" style={{ color: 'var(--ch-warn)' }}>
-        <span className="ch-status-dot warn" />
-        连接中
-      </span>
+      <Tag color="orange" size="small">连接中</Tag>
     ) : (
-      <span className="ch-livebar-item" style={{ color: 'var(--ch-danger)' }}>
-        <span className="ch-status-dot err" />
-        连接中断
-      </span>
+      <Tag color="red" size="small">连接中断</Tag>
     )
 
   return (
@@ -132,9 +124,10 @@ export function LogsPage() {
         </span>
         <span className="ch-filterbar-spacer" />
         {connView}
-        <button
-          type="button"
-          className={`ch-btn ${paused ? '' : ''}`}
+        <Button
+          type="outline"
+          size="small"
+          icon={paused ? <IconCaretRight /> : <IconPause />}
           onClick={() => {
             setPaused((p) => !p)
             if (paused) {
@@ -142,28 +135,25 @@ export function LogsPage() {
             }
           }}
         >
-          {paused ? '▶ 继续' : '❚❚ 暂停'}
-        </button>
-        <button
-          type="button"
-          className="ch-btn danger"
+          {paused ? '继续' : '暂停'}
+        </Button>
+        <Button
+          type="primary"
+          status="danger"
+          size="small"
           disabled={entries.length === 0}
           onClick={() => setEntries([])}
         >
           清屏
-        </button>
+        </Button>
       </div>
 
-      {streamError ? (
-        <div className="ch-note danger ch-gap-md">{streamError}</div>
-      ) : null}
+      {streamError ? <Alert type="error" content={streamError} style={{ marginBottom: 12 }} /> : null}
       {paused ? (
-        <div className="ch-note ch-gap-md">
-          已暂停接收，暂停期间的新日志不会显示；点「继续」恢复。
-        </div>
+        <Alert type="info" content="已暂停接收，暂停期间的新日志不会显示；点「继续」恢复。" style={{ marginBottom: 12 }} />
       ) : null}
 
-      <section className="ch-panel">
+      <Card size="small" bodyStyle={{ padding: 0 }}>
         <div className="ch-log-view" ref={viewRef} onScroll={onScroll}>
           {shown.length === 0 ? (
             conn === 'connecting' && entries.length === 0 ? (
@@ -178,9 +168,9 @@ export function LogsPage() {
                 }
                 action={
                   level ? (
-                    <button type="button" className="ch-btn sm" onClick={() => setLevel('')}>
+                    <Button type="outline" size="small" onClick={() => setLevel('')}>
                       显示全部级别
-                    </button>
+                    </Button>
                   ) : undefined
                 }
               />
@@ -195,7 +185,7 @@ export function LogsPage() {
             ))
           )}
         </div>
-      </section>
+      </Card>
     </>
   )
 }

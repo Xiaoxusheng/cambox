@@ -55,12 +55,12 @@ export function HourlyChart({
             x2={W}
             y1={TOP_PAD + usable * f}
             y2={TOP_PAD + usable * f}
-            stroke="var(--chart-grid)"
+            style={{ stroke: 'var(--chart-grid)' }}
             strokeWidth={1}
           />
         ))}
         {/* 基线 */}
-        <line x1={0} y1={H - 26} x2={W} y2={H - 26} stroke="var(--chart-axis)" strokeWidth={1} />
+        <line x1={0} y1={H - 26} x2={W} y2={H - 26} style={{ stroke: 'var(--chart-axis)' }} strokeWidth={1} />
 
         {values.map((v, i) => {
           const self = sc[i] ?? 0
@@ -76,7 +76,7 @@ export function HourlyChart({
           return (
             <g key={i} opacity={dim ? 0.4 : 1} style={{ transition: 'opacity 120ms ease-out' }}>
               {isNow ? (
-                <rect x={x - BAR_GAP / 2} y={0} width={slot + BAR_GAP} height={H} fill="var(--chart-band)" />
+                <rect x={x - BAR_GAP / 2} y={0} width={slot + BAR_GAP} height={H} style={{ fill: 'var(--chart-band)' }} />
               ) : null}
               {motion > 0 ? (
                 <rect
@@ -85,7 +85,7 @@ export function HourlyChart({
                   width={cyanW}
                   height={hm}
                   rx={3}
-                  fill="var(--ch-primary)"
+                  style={{ fill: 'var(--ch-primary)' }}
                 />
               ) : null}
               {self > 0 ? (
@@ -95,7 +95,7 @@ export function HourlyChart({
                   width={amberW}
                   height={hs}
                   rx={3}
-                  fill="var(--ch-warn)"
+                  style={{ fill: 'var(--ch-warn)' }}
                 />
               ) : null}
               {/* 命中区域放大，避免细柱难以悬停 */}

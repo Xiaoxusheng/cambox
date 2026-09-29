@@ -4,8 +4,8 @@
  * 随设置页「保存全部」一次性提交。支持拖拽画框、拖动移动、右下角手柄缩放、列表删除。
  */
 import { useRef, useState } from 'react'
-import { Message } from '@arco-design/web-react'
-import { IconRefresh } from '@arco-design/web-react/icon'
+import { Button, Message } from '@arco-design/web-react'
+import { IconPlus, IconRefresh } from '@arco-design/web-react/icon'
 import { snapshotUrl } from '../api/media'
 import type { Roi } from '../api/types'
 
@@ -156,29 +156,28 @@ export function RoiEditorCard({
           rois.map((r, i) => (
             <span key={i} className="ch-roi-item">
               ROI {i + 1} · {r[0].toFixed(2)}, {r[1].toFixed(2)} · {r[2].toFixed(2)}×{r[3].toFixed(2)}
-              <button
-                type="button"
-                className="ch-linkbtn danger"
+              <Button
+                type="text"
+                size="mini"
+                status="danger"
                 aria-label={`删除区域 ${i + 1}`}
                 onClick={() => onChange(rois.filter((_, k) => k !== i))}
               >
                 删除
-              </button>
+              </Button>
             </span>
           ))
         )}
-        <span className="ch-filterbar-spacer" />
-        <button type="button" className="ch-btn sm" onClick={addDefault}>
-          ＋ 添加区域
-        </button>
-        <button
-          type="button"
-          className="ch-btn icon sm"
+        <Button type="dashed" size="small" icon={<IconPlus />} onClick={addDefault}>
+          添加区域
+        </Button>
+        <Button
+          type="text"
+          size="small"
+          icon={<IconRefresh />}
           aria-label="刷新底图"
           onClick={() => setBust(Date.now())}
-        >
-          <IconRefresh />
-        </button>
+        />
       </div>
       <div className="ch-hint">
         在画面上拖拽画出新区域；拖动矩形移动位置，右下角手柄缩放。坐标为归一化 0~1，随「保存全部」提交后热更新生效。

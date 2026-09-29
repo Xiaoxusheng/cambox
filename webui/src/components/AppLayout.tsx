@@ -1,13 +1,12 @@
 /**
- * 全局布局（v1.3，按 camhub-ui-4k 设计稿重做）：悬浮玻璃顶栏。
- * 左：品牌 | 相机名 · 在线 · FPS · 分辨率；右：REC · 布防开关 · 时钟 | 导航 pill×7。
- * 换页走 View Transitions API（旧页 180ms 淡出，新页逐层 +60ms 错峰入场）；
- * 不支持或 prefers-reduced-motion 时直切。移动端导航收进抽屉。
+ * 全局布局（Arco Design 原生）：Layout.Header + Menu 导航。
+ * 左：品牌 + 相机状态；右：REC · 布防 · 时钟 · 主题 · Menu。
+ * 动画全部来自组件内建（Menu 墨条、Switch、Drawer、Modal、Message）。
+ * 移动端导航收进 Drawer。
  */
-import { useEffect, useMemo, useState } from 'react'
-import { flushSync } from 'react-dom'
-import { Drawer, Message, Modal, Switch, Tag, Tooltip } from '@arco-design/web-react'
-import { IconMenu, IconMoon, IconSun } from '@arco-design/web-react/icon'
+import { useEffect, useState } from 'react'
+import { Avatar, Button, Drawer, Layout, Menu, Message, Modal, Switch, Tag, Tooltip, Typography } from '@arco-design/web-react'
+import { IconMenu, IconMoon, IconSun, IconRecord, IconRecordStop } from '@arco-design/web-react/icon'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { IS_MOCK } from '../api/client'
 import { fetchConfig, fetchStatus, saveConfig, setArmed } from '../api/endpoints'
@@ -17,7 +16,9 @@ import { useMediaQuery } from '../hooks/useMediaQuery'
 import { getTheme, setTheme, type Theme } from '../theme'
 import { formatClock } from '../utils/format'
 
-/** 设计稿为 7 个导航 pill 平铺（不再收「更多▾」） */
+const { Header, Content } = Layout
+const { Text } = Typography
+
 const NAV = [
   { key: '/', label: '监控' },
   { key: '/playback', label: '回看' },
@@ -32,36 +33,17 @@ const NAV = [
 const isActive = (pathname: string, key: string) =>
   key === '/' ? pathname === '/' : pathname.startsWith(key)
 
-/** 换页：优先 View Transitions（旧页淡出 180ms），reduced-motion 或不支持时直切 */
-function useVtNavigate() {
-  const navigate = useNavigate()
-  const reduceMotion = useMemo(
-    () =>
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    [],
-  )
-  return (to: string) => {
-    const doc = document as Document & {
-      startViewTransition?: (cb: () => void) => unknown
-    }
-    if (!reduceMotion && typeof doc.startViewTransition === 'function') {
-      doc.startViewTransition(() => {
-        flushSync(() => navigate(to))
-      })
-    } else {
-      navigate(to)
-    }
-  }
-}
-
 function Clock() {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000)
     return () => window.clearInterval(timer)
   }, [])
-  return <span className="ch-clock ch-hide-mobile">{formatClock(now)}</span>
+  return (
+    <Text className="ch-hide-mobile ch-clock" style={{ fontFamily: 'var(--ch-mono, monospace)' }}>
+      {formatClock(now)}
+    </Text>
+  )
 }
 
 export function AppLayout() {
@@ -70,7 +52,7 @@ export function AppLayout() {
   const [armPending, setArmPending] = useState(false)
   const [recPending, setRecPending] = useState(false)
   const [theme, setThemeState] = useState<Theme>(() => getTheme())
-  const navigate = useVtNavigate()
+  const navigate = useNavigate()
   const { pathname } = useLocation()
 
   // 顶部栏元信息：相机名 / 在线状态 / fps；5s 静默轮询
@@ -135,140 +117,133 @@ export function AppLayout() {
   const connected = cam?.connected ?? false
   const armed = status?.armed ?? false
   const recording = status?.recorder.running ?? false
+  const activeKey = NAV.find((n) => isActive(pathname, n.key))?.key ?? '/'
 
   return (
-    <div className="ch-shell">
-      {/* 固定背景层：网格 + 光晕。独立于 body，规避 backdrop-filter 采样异常 */}
-      <div className="ch-bg" aria-hidden="true" />
-      <header className="ch-topbar">
-        {isMobile ? (
-          <button
-            type="button"
-            className="ch-btn icon"
-            aria-label="打开导航"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <IconMenu />
-          </button>
-        ) : (
-          <span className="ch-brand" aria-hidden="true">
-            <span className="ch-brand-dot" />
-            camhub
-          </span>
-        )}
-
-        <span className="ch-topbar-divider ch-hide-mobile" />
-
-        <span className="ch-topbar-cam" title={cam?.name}>
-          <span className={`ch-status-dot ${connected ? 'ok' : 'err'}`} />
-          <span className="ch-hide-mobile" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {cam?.name || '摄像头'}
-          </span>
-          <span className={`ch-badge ${connected ? 'ok' : 'danger'}`}>
-            {connected ? '在线' : '离线'}
-          </span>
-        </span>
-
-        <span className="ch-topbar-meta ch-hide-mobile">
-          {connected ? (
-            <>
-              <span className="num ch-topbar-fps">{cam?.fps.toFixed(1)} FPS</span>
-              <span className="num ch-topbar-res">
-                {cam?.width}×{cam?.height}
-              </span>
-            </>
-          ) : (
-            <span style={{ color: 'var(--ch-danger)' }}>等待取流</span>
-          )}
-        </span>
-
-        <span className="ch-topbar-spacer" />
-
-        <Tooltip
-          content={
-            recording
-              ? '录像进行中，点击结束录像（写入配置，热更新生效）'
-              : status
-                ? '点击开始录像（写入配置，热更新生效）'
-                : '获取状态中…'
-          }
-        >
-          <button
-            type="button"
-            className={`ch-rec ${recording ? '' : 'off'}`}
-            disabled={!status || recPending}
-            onClick={toggleRecord}
-            aria-label={recording ? '结束录像' : '开始录像'}
-            aria-pressed={recording}
-          >
-            {recording ? <span className="ch-rec-dot" /> : null}
-            {recPending ? (recording ? '结束中…' : '开启中…') : 'REC'}
-          </button>
-        </Tooltip>
-
-        <Tooltip
-          content={armed ? '布防中：移动侦测事件将入库并推送' : '已撤防：仅停止事件入库与推送'}
-        >
-          <span className="ch-arm">
-            <Switch
+    <Layout className="ch-shell" style={{ minHeight: '100vh' }}>
+      <Header className="ch-header">
+        <div className="ch-header-side">
+          {isMobile ? (
+            <Button
+              shape="circle"
+              type="outline"
               size="small"
-              checked={armed}
-              loading={armPending}
-              disabled={!status}
-              onChange={toggleArm}
-              aria-label="布防开关"
+              icon={<IconMenu />}
+              aria-label="打开导航"
+              onClick={() => setDrawerOpen(true)}
             />
-            <span className={`ch-arm-label ch-hide-mobile ${armed ? '' : 'off'}`}>
-              {armed ? '布防中' : '已撤防'}
+          ) : (
+            <span className="ch-brand" aria-hidden="true">
+              <Avatar size={22} shape="square" style={{ backgroundColor: 'rgb(var(--primary-6))' }}>
+                C
+              </Avatar>
+              <Text bold style={{ fontSize: 16 }}>
+                camhub
+              </Text>
             </span>
-          </span>
-        </Tooltip>
-
-        {IS_MOCK ? (
-          <Tooltip content="当前为 mock 数据模式，未连接后端">
-            <Tag color="orange" size="small">
-              MOCK
+          )}
+          <span className="ch-topbar-cam" title={cam?.name}>
+            <Tag color={connected ? 'green' : 'red'} size="small">
+              {connected ? '在线' : '离线'}
             </Tag>
-          </Tooltip>
-        ) : null}
+            <Text type="secondary" className="ch-hide-mobile" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {cam?.name || '摄像头'}
+            </Text>
+            {connected ? (
+              <Text type="secondary" className="ch-hide-mobile ch-clock">
+                {cam?.fps.toFixed(1)} FPS · {cam?.width}×{cam?.height}
+              </Text>
+            ) : (
+              <Text type="error" className="ch-hide-mobile" disabled={false}>
+                等待取流
+              </Text>
+            )}
+          </span>
+        </div>
 
-        <Clock />
-
-        <Tooltip content={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}>
-          <button
-            type="button"
-            className="ch-btn icon"
-            aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
-            onClick={toggleTheme}
+        <div className="ch-header-side">
+          <Tooltip
+            content={
+              recording
+                ? '录像进行中，点击结束录像（写入配置，热更新生效）'
+                : status
+                  ? '点击开始录像（写入配置，热更新生效）'
+                  : '获取状态中…'
+            }
           >
-            {theme === 'dark' ? <IconSun /> : <IconMoon />}
-          </button>
-        </Tooltip>
+            <Button
+              type={recording ? 'primary' : 'outline'}
+              status={recording ? 'danger' : 'default'}
+              size="small"
+              icon={recording ? <IconRecordStop /> : <IconRecord />}
+              loading={recPending}
+              disabled={!status}
+              onClick={toggleRecord}
+              aria-label={recording ? '结束录像' : '开始录像'}
+            >
+              REC
+            </Button>
+          </Tooltip>
 
-        <span className="ch-topbar-divider ch-hide-mobile" />
+          <Tooltip content={armed ? '布防中：移动侦测事件将入库并推送' : '已撤防：仅停止事件入库与推送'}>
+            <span className="ch-arm">
+              <Switch
+                size="small"
+                checked={armed}
+                loading={armPending}
+                disabled={!status}
+                onChange={toggleArm}
+                aria-label="布防开关"
+              />
+              <Text type="secondary" className="ch-hide-mobile" style={{ fontSize: 12 }}>
+                {armed ? '布防中' : '已撤防'}
+              </Text>
+            </span>
+          </Tooltip>
 
-        {!isMobile ? (
-          <nav className="ch-nav" aria-label="主导航">
-            {NAV.map((n) => (
-              <button
-                key={n.key}
-                type="button"
-                className={`ch-navpill ${isActive(pathname, n.key) ? 'active' : ''}`}
-                aria-current={isActive(pathname, n.key) ? 'page' : undefined}
-                onClick={() => go(n.key)}
-              >
-                {n.label}
-              </button>
-            ))}
-          </nav>
-        ) : null}
-      </header>
+          {IS_MOCK ? (
+            <Tooltip content="当前为 mock 数据模式，未连接后端">
+              <Tag color="orange" size="small">
+                MOCK
+              </Tag>
+            </Tooltip>
+          ) : null}
 
-      <main className={`ch-content ${pathname === '/' ? 'ch-content-bleed' : ''}`}>
+          <Clock />
+
+          <Tooltip content={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}>
+            <Button
+              shape="circle"
+              type="outline"
+              size="small"
+              icon={theme === 'dark' ? <IconSun /> : <IconMoon />}
+              aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
+              onClick={toggleTheme}
+            />
+          </Tooltip>
+
+          {!isMobile ? (
+            <Menu
+              mode="horizontal"
+              ellipsis={false}
+              selectedKeys={[activeKey]}
+              onClickMenuItem={(key) => go(key)}
+              style={{ flexShrink: 0, backgroundColor: 'transparent', borderBottom: 'none' }}
+              aria-label="主导航"
+            >
+              {NAV.map((n) => (
+                <Menu.Item key={n.key}>{n.label}</Menu.Item>
+              ))}
+            </Menu>
+          ) : null}
+        </div>
+      </Header>
+
+      <Content className={`ch-content ${pathname === '/' ? 'ch-content-bleed' : ''}`}>
         <div key={pathname} className="ch-page">
           <Outlet />
         </div>
-      </main>
+      </Content>
 
       <Drawer
         visible={drawerOpen}
@@ -278,19 +253,18 @@ export function AppLayout() {
         title="导航"
         closable
         onCancel={() => setDrawerOpen(false)}
-        bodyStyle={{ padding: 'var(--ch-space-sm)' }}
       >
-        {NAV.map((n) => (
-          <button
-            key={n.key}
-            type="button"
-            className={`ch-drawer-link ${isActive(pathname, n.key) ? 'active' : ''}`}
-            onClick={() => go(n.key)}
-          >
-            {n.label}
-          </button>
-        ))}
+        <Menu
+          mode="vertical"
+          selectedKeys={[activeKey]}
+          onClickMenuItem={(key) => go(key)}
+          style={{ border: 'none' }}
+        >
+          {NAV.map((n) => (
+            <Menu.Item key={n.key}>{n.label}</Menu.Item>
+          ))}
+        </Menu>
       </Drawer>
-    </div>
+    </Layout>
   )
 }
