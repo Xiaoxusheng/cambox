@@ -35,6 +35,7 @@ function BottomNav({ pathname, onMore }: { pathname: string; onMore: () => void 
   ]
   return (
     <nav
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       className="flex h-14 shrink-0 items-stretch border-t border-cam-border bg-cam-bg md:hidden"
       aria-label="底部导航"
     >

@@ -378,9 +378,6 @@ export function SettingsPage() {
           className="flex gap-1 overflow-x-auto pb-1 lg:sticky lg:top-[68px] lg:flex-col lg:overflow-visible lg:pb-0"
           aria-label="设置分组"
         >
-          <div className="hidden px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.08em] text-cam-text-tertiary lg:block">
-            Settings
-          </div>
           {TABS.map((t) => {
             const active = tab === t.key
             return (
@@ -878,6 +875,7 @@ export function SettingsPage() {
 
       <Modal
         visible={ruleModal}
+        style={{ width: 'min(520px, calc(100vw - 32px))' }}
         title={ruleIndex >= 0 ? '编辑布防规则' : '添加布防规则'}
         okText="确定"
         cancelText="取消"

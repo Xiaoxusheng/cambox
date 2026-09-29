@@ -221,14 +221,16 @@ export function RecordingsPage() {
                             label="播放"
                             onClick={() => playAt(r)}
                           />
-                          <a
-                            href={url}
-                            download={r.name}
-                            aria-label={`下载 ${r.name}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-hover hover:text-cam-text-primary"
-                          >
-                            <IconDownload style={{ fontSize: 14 }} />
-                          </a>
+                          <Tooltip content={`下载 ${r.name}`}>
+                            <a
+                              href={url}
+                              download={r.name}
+                              aria-label={`下载 ${r.name}`}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-cam-text-secondary transition-colors duration-150 ease-cam hover:bg-cam-hover hover:text-cam-text-primary"
+                            >
+                              <IconDownload style={{ fontSize: 14 }} />
+                            </a>
+                          </Tooltip>
                         </>
                       ) : (
                         <Tooltip content={IS_MOCK ? 'mock 模式无真实文件可下载' : '暂无下载地址'}>

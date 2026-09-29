@@ -416,6 +416,7 @@ export function MonitorPage() {
 
       <Modal
         visible={!!shot}
+        style={{ width: 'min(520px, calc(100vw - 32px))' }}
         title="抓拍结果"
         footer={<Button onClick={() => setShot(null)}>关闭</Button>}
         onCancel={() => setShot(null)}
@@ -435,6 +436,7 @@ export function MonitorPage() {
 
       <Modal
         visible={!!preview}
+        style={{ width: 'min(520px, calc(100vw - 32px))' }}
         title={
           preview
             ? `${preview.type === 'motion' ? `移动侦测 · 得分 ${preview.score}` : preview.detail === 'frozen' ? '画面冻结' : '画面异常'}`

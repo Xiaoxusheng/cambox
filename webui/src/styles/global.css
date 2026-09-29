@@ -15,6 +15,18 @@
 
 /* ============================== 基础层 ============================== */
 
+/* 减少动画偏好：关闭呼吸点/入场/过渡等非必要动画（v1.4.5 §24） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
 /* preflight 关闭 → box-sizing 不会自动设为 border-box，w-full + padding 会横向溢出。
    这条是 Web 标准默认，Arco 组件同样按 border-box 设计。 */
 *,

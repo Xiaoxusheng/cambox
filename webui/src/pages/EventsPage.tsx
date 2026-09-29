@@ -220,7 +220,7 @@ export function EventsPage() {
       {/* ---------- 筛选行（任务书 §23：32px 低对比控件，不做 Admin Filter Bar） ---------- */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Select
-          className="w-[200px]"
+          className="w-full sm:w-[200px]"
           value={type}
           onChange={(v) => {
             setType(v as TypeFilter)
@@ -234,7 +234,7 @@ export function EventsPage() {
         />
         {type === 'selfcheck' ? (
           <Select
-            className="w-[168px]"
+            className="w-full sm:w-[168px]"
             value={detailFilter}
             onChange={(v) => {
               setDetailFilter(v as DetailFilter)
@@ -246,7 +246,7 @@ export function EventsPage() {
           />
         ) : null}
         <DatePicker.RangePicker
-          className="w-[260px]"
+          className="w-full sm:w-[260px]"
           value={range ?? undefined}
           format="YYYY-MM-DD"
           placeholder={['开始日期', '结束日期']}
@@ -384,7 +384,10 @@ export function EventsPage() {
                 pageSize={PAGE_SIZE}
                 current={page}
                 sizeCanChange={false}
-                onChange={(p) => setPage(p)}
+                onChange={(p) => {
+                  setPage(p)
+                  setSelected([])
+                }}
                 showTotal
                 size="small"
               />
