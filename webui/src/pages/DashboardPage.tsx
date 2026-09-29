@@ -1,24 +1,28 @@
 /**
- * /dashboard 概览 —— Arco 组件原生实现。
- * 信息层级：① 六张状态卡（Card + Statistic/Tag/Progress/Switch）
- * ② 今日事件趋势（HourlyChart） ③ 最新事件（EventList）。
+ * /dashboard 概览 —— camhub v1.3 重设计（Phase 6）。
+ * 布局（任务书 §30：System Overview，最多 4 个核心指标）：4 指标卡（连接/录像/存储/运行）
+ * + 布防·自检状态条（快捷开关）+ 今日事件趋势（HourlyChart）+ 最新事件（EventList 复用）。
+ * 5s 静默轮询、自检低频刷新、布防快捷开关逻辑全部保留。
  */
 import { useState } from 'react'
-import { Button, Card, Grid, Message, Progress, Space, Statistic, Switch, Tag, Typography } from '@arco-design/web-react'
-import { IconDashboard, IconNotification, IconRefresh } from '@arco-design/web-react/icon'
+import { Message, Switch } from '@arco-design/web-react'
+import { IconRefresh } from '@arco-design/web-react/icon'
+import { Link } from 'react-router-dom'
 import { fetchEvents, fetchStatus, fetchTimeline, setArmed } from '../api/endpoints'
 import { errorText } from '../api/errors'
 import type { Event, Status, TimelineData } from '../api/types'
-import { HourlyChart } from '../components/HourlyChart'
 import { EventList } from '../components/EventList'
+import { HourlyChart } from '../components/HourlyChart'
+import { IconButton } from '../components/common/IconButton'
 import { PageHeader } from '../components/PageHeader'
+import { Panel } from '../components/common/Panel'
+import { StatusBadge } from '../components/common/StatusBadge'
 import { ErrorState, InitialLoading } from '../components/StateViews'
 import { useAsync } from '../hooks/useAsync'
+import { cx } from '../utils/cx'
 import { formatGB, formatTime, formatUptime, selfCheckView, toLocalDateStr } from '../utils/format'
 
 const GB = 1024 ** 3
-const { Text } = Typography
-const { Row, Col } = Grid
 
 type DashboardData = [Status, TimelineData, Event[]]
 
@@ -33,6 +37,56 @@ function bucketSelfcheck(events: Event[]): number[] {
     if (!Number.isNaN(d.getTime())) out[d.getHours()] += 1
   }
   return out
+}
+
+/** 指标卡：label（caption 次要）+ 主值（20px/600 mono 可选）+ 副值（caption 三级） */
+function Metric({
+  label,
+  value,
+  valueMono = false,
+  sub,
+  accent = false,
+  bar,
+}: {
+  label: string
+  value: React.ReactNode
+  valueMono?: boolean
+  sub?: React.ReactNode
+  accent?: boolean
+  /** 0~100 存储水位条 */
+  bar?: number
+}) {
+  return (
+    <Panel className="min-w-0 px-4 py-3.5">
+      <div className="text-caption text-cam-text-tertiary">{label}</div>
+      <div
+        className={cx(
+          'mt-1.5 truncate text-[20px] font-semibold leading-7',
+          valueMono ? 'cam-num' : '',
+          accent ? 'text-cam-accent' : 'text-cam-text-primary',
+        )}
+      >
+        {value}
+      </div>
+      {typeof bar === 'number' ? (
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-cam-active">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${bar}%`,
+              background:
+                bar >= 90
+                  ? 'rgb(var(--cam-danger-rgb))'
+                  : bar >= 75
+                    ? 'rgb(var(--cam-warning-rgb))'
+                    : 'rgb(var(--cam-accent-rgb))',
+            }}
+          />
+        </div>
+      ) : null}
+      {sub ? <div className="mt-1 truncate text-caption text-cam-text-tertiary">{sub}</div> : null}
+    </Panel>
+  )
 }
 
 export function DashboardPage() {
@@ -86,8 +140,6 @@ export function DashboardPage() {
     }
   }
 
-  const diskColor = diskPct >= 90 ? '--color-danger-6' : diskPct >= 75 ? '--color-warning-6' : '--color-primary-6'
-
   return (
     <>
       <PageHeader
@@ -95,160 +147,134 @@ export function DashboardPage() {
         description={
           <>
             数据时间 {formatTime(status.time)} · 每 5 秒自动刷新
-            {error ? <Text type="error"> · 刷新失败：{error}</Text> : null}
+            {error ? <span className="text-cam-danger"> · 刷新失败：{error}</span> : null}
           </>
         }
-        actions={
-          <Button type="outline" icon={<IconRefresh />} loading={loading} onClick={reload}>
-            刷新
-          </Button>
-        }
+        actions={<IconButton icon={<IconRefresh />} label="刷新" onClick={() => reload()} />}
       />
 
-      <Row gutter={[12, 12]}>
-        <Col xs={12} sm={12} md={8} lg={8} xl={4}>
-          <Card size="small" title="连接" hoverable>
-            <Statistic
-              value={cam.connected ? '已连接' : '未连接'}
-              styleValue={cam.connected ? undefined : { color: 'rgb(var(--danger-6))' }}
-            />
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {cam.type.toUpperCase()} · {cam.fps.toFixed(1)} FPS
-              </Text>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={12} md={8} lg={8} xl={4}>
-          <Card size="small" title="录像" hoverable>
-            <Space align="center">
-              <Tag color={status.recorder.running ? 'red' : 'gray'} size="small">
-                {status.recorder.running ? '录像中' : '已停止'}
-              </Tag>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {status.recorder.enabled ? modeLabel : '配置已关闭'}
-              </Text>
-            </Space>
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }} ellipsis>
-                {status.recorder.current_file || '等待分段'}
-              </Text>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={12} md={8} lg={8} xl={4}>
-          <Card size="small" title="布防" hoverable>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Tag color={status.armed ? 'arcoblue' : 'gray'} size="small">
-                {status.armed ? '布防中' : '已撤防'}
-              </Tag>
-              <Switch
-                size="small"
-                checked={status.armed}
-                loading={armPending}
-                onChange={toggleArm}
-                aria-label="布防开关"
-              />
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                日程 · 侦测 {status.schedule_active.motion ? '开' : '关'} / 录像{' '}
-                {status.schedule_active.record ? '开' : '关'}
-              </Text>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={12} md={8} lg={8} xl={4}>
-          <Card size="small" title="磁盘水位" hoverable>
-            <Statistic value={diskPct.toFixed(1)} suffix="%" />
-            <Progress
-              percent={diskPct}
-              showText={false}
-              size="small"
-              style={{ marginTop: 8 }}
-              color={`rgb(var(${diskColor}))`}
-              aria-label={`磁盘使用率 ${diskPct.toFixed(1)}%`}
-            />
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {formatGB(status.disk.recordings_bytes)} / {status.disk.max_gb} GB
-              </Text>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={12} md={8} lg={8} xl={4}>
-          <Card size="small" title="运行时长" hoverable>
-            <Statistic value={formatUptime(status.uptime_sec)} />
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                累计事件 {status.events_count} 条
-              </Text>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={12} md={8} lg={8} xl={4}>
-          <Card size="small" title="自检状态" hoverable>
-            <Tag color={sc.dot === 'ok' ? 'green' : sc.dot === 'warn' ? 'orange' : 'red'} size="small">
-              {sc.text}
-            </Tag>
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {status.selfcheck.enabled ? `上次 ${formatTime(status.selfcheck.last_run)}` : '未启用画面自检'}
-              </Text>
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={12} style={{ marginTop: 12 }}>
-        <Col xs={24} lg={14}>
-          <Card
-            size="small"
-            title={
-              <span>
-                <IconDashboard style={{ marginRight: 8, verticalAlign: -2 }} />
-                今日事件趋势
+      {/* ---------- 4 核心指标（任务书 §30：不堆卡） ---------- */}
+      <div className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric
+          label="相机连接"
+          value={cam.connected ? '已连接' : '未连接'}
+          accent={cam.connected}
+          sub={`${cam.type.toUpperCase()} · ${cam.fps.toFixed(1)} FPS · ${cam.width}×${cam.height}`}
+        />
+        <Metric
+          label="录像"
+          value={
+            status.recorder.running ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 animate-rec-pulse rounded-full bg-cam-rec" />
+                录像中
               </span>
-            }
-            extra={<Tag size="small">{timeline.date}</Tag>}
-          >
-            <Space size={6} style={{ marginBottom: 12 }}>
-              <Tag size="small" color="arcoblue">
+            ) : status.recorder.enabled ? (
+              '待机'
+            ) : (
+              '已关闭'
+            )
+          }
+          valueMono={false}
+          sub={status.recorder.current_file || (status.recorder.enabled ? modeLabel : '配置已关闭')}
+        />
+        <Metric
+          label="存储水位"
+          value={
+            <span className="cam-num">
+              {formatGB(status.disk.recordings_bytes)}
+              <span className="text-caption font-normal text-cam-text-tertiary"> / {status.disk.max_gb} GB</span>
+            </span>
+          }
+          valueMono
+          bar={diskPct}
+          sub={`快照 ${formatGB(status.disk.snapshots_bytes)} GB · 到限自动清理`}
+        />
+        <Metric
+          label="运行时长"
+          value={formatUptime(status.uptime_sec)}
+          valueMono
+          sub={`累计事件 ${status.events_count} 条`}
+        />
+      </div>
+
+      {/* ---------- 布防 · 自检状态条（快捷开关，非指标卡） ---------- */}
+      <Panel className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5">
+        <span className="flex items-center gap-2">
+          <StatusBadge
+            tone={status.armed ? 'accent' : 'neutral'}
+            label={status.armed ? '布防中' : '已撤防'}
+            breathe={status.armed}
+          />
+          <Switch
+            size="small"
+            checked={status.armed}
+            loading={armPending}
+            onChange={toggleArm}
+            aria-label="布防开关"
+          />
+          <span className="hidden text-caption text-cam-text-tertiary md:inline">
+            日程 · 侦测 {status.schedule_active.motion ? '开' : '关'} / 录像{' '}
+            {status.schedule_active.record ? '开' : '关'}
+          </span>
+        </span>
+        <span className="h-4 w-px bg-cam-border-strong" aria-hidden="true" />
+        <span className="flex items-center gap-2">
+          <span
+            className={cx(
+              'h-1.5 w-1.5 rounded-full',
+              sc.dot === 'ok' && 'bg-cam-success',
+              sc.dot === 'warn' && 'bg-cam-warning',
+              sc.dot === 'err' && 'bg-cam-danger',
+              sc.dot === 'off' && 'bg-cam-text-4',
+            )}
+          />
+          <span className="text-caption text-cam-text-secondary">画面自检 {sc.text}</span>
+          <span className="hidden text-caption text-cam-text-tertiary md:inline">
+            {status.selfcheck.enabled ? `上次 ${formatTime(status.selfcheck.last_run)}` : '未启用'}
+          </span>
+        </span>
+      </Panel>
+
+      {/* ---------- 趋势 + 最新事件 ---------- */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <Panel>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cam-border px-4 py-3">
+            <h3 className="text-section-title text-cam-text-primary">今日事件趋势</h3>
+            <div className="flex items-center gap-4">
+              <span className="inline-flex items-center gap-1.5 text-caption text-cam-text-tertiary">
+                <i className="inline-block h-2 w-2 rounded-sm bg-cam-accent" />
                 移动侦测
-              </Tag>
-              <Tag size="small" color="orange">
-                画面自检
-              </Tag>
-            </Space>
-            <HourlyChart hourly={timeline.hourly} selfcheck={selfcheckHourly} date={timeline.date} height={252} />
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={10}>
-          <Card
-            size="small"
-            title={
-              <span>
-                <IconNotification style={{ marginRight: 8, verticalAlign: -2 }} />
-                最新事件
               </span>
-            }
-            extra={
-              <Button type="text" size="small" onClick={() => (window.location.hash = '#/events')}>
-                全部
-              </Button>
-            }
-            bodyStyle={{ maxHeight: 420, overflow: 'auto' }}
-          >
+              <span className="inline-flex items-center gap-1.5 text-caption text-cam-text-tertiary">
+                <i className="inline-block h-2 w-2 rounded-sm bg-cam-warning" />
+                画面自检
+              </span>
+              <span className="cam-num rounded-md bg-cam-active px-1.5 py-0.5 text-caption text-cam-text-secondary">
+                {timeline.date}
+              </span>
+            </div>
+          </div>
+          <div className="px-4 py-3">
+            <HourlyChart hourly={timeline.hourly} selfcheck={selfcheckHourly} date={timeline.date} height={252} />
+          </div>
+        </Panel>
+
+        <Panel className="flex min-h-0 flex-col">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-cam-border px-4 py-3">
+            <h3 className="text-section-title text-cam-text-primary">最新事件</h3>
+            <Link
+              to="/events"
+              className="text-caption text-cam-accent transition-colors duration-150 ease-cam hover:text-cam-accent/80"
+            >
+              全部 →
+            </Link>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
             <EventList items={events} cameraName={cam.name} />
-          </Card>
-        </Col>
-      </Row>
+          </div>
+        </Panel>
+      </div>
     </>
   )
 }
