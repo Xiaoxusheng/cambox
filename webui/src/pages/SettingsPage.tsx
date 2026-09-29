@@ -8,7 +8,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Button,
-  Card as ArcoCard,
   Checkbox,
   Input,
   InputNumber,
@@ -27,9 +26,11 @@ import { fetchConfig, fetchStatus, saveConfig, testNotify } from '../api/endpoin
 import { errorText } from '../api/errors'
 import type { CameraConfig, Config, NotifyConfig, ScheduleRule, Status } from '../api/types'
 import { PageHeader } from '../components/PageHeader'
+import { Panel } from '../components/common/Panel'
 import { EmptyState, ErrorState, InitialLoading } from '../components/StateViews'
 import { RoiEditorCard } from '../components/RoiEditorCard'
 import { useAsync } from '../hooks/useAsync'
+import { cx } from '../utils/cx'
 import { formatBytes } from '../utils/format'
 
 type Loaded = [Config, Status]
@@ -89,7 +90,7 @@ function Row({
   )
 }
 
-/** 设置卡片 */
+/** 设置分区卡：Panel + 标题/描述头 + 内容区（bodyStyle 兼容旧调用点） */
 function Card({
   title,
   sub,
@@ -104,23 +105,18 @@ function Card({
   bodyStyle?: React.CSSProperties
 }) {
   return (
-    <ArcoCard
-      size="small"
-      title={
-        <div>
-          <div style={{ fontWeight: 600 }}>{title}</div>
-          {sub ? (
-            <div style={{ fontSize: 12, fontWeight: 400, color: 'var(--color-text-3)', marginTop: 2 }}>
-              {sub}
-            </div>
-          ) : null}
+    <Panel>
+      <div className="flex items-start justify-between gap-3 border-b border-cam-border px-4 py-3">
+        <div className="min-w-0">
+          <h3 className="text-section-title text-cam-text-primary">{title}</h3>
+          {sub ? <div className="mt-0.5 text-caption text-cam-text-tertiary">{sub}</div> : null}
         </div>
-      }
-      extra={extra}
-      bodyStyle={bodyStyle}
-    >
-      {children}
-    </ArcoCard>
+        {extra ? <div className="flex shrink-0 items-center gap-2">{extra}</div> : null}
+      </div>
+      <div className="px-4 pb-3" style={bodyStyle}>
+        {children}
+      </div>
+    </Panel>
   )
 }
 
@@ -340,19 +336,34 @@ export function SettingsPage() {
         }
       />
 
-      <Radio.Group
-        type="button"
-        value={tab}
-        onChange={(v) => setTab(v as TabKey)}
-        style={{ marginBottom: 14 }}
-        aria-label="设置分组"
-      >
-        {TABS.map((t) => (
-          <Radio key={t.key} value={t.key}>
-            {t.label}
-          </Radio>
-        ))}
-      </Radio.Group>
+      {/* 左侧极简 Settings Navigation（桌面 200px 竖排 sticky；移动端顶部横滚）+ 内容列 */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start">
+        <nav
+          className="flex gap-1 overflow-x-auto pb-1 lg:sticky lg:top-[76px] lg:flex-col lg:overflow-visible lg:pb-0"
+          aria-label="设置分组"
+        >
+          {TABS.map((t) => {
+            const active = tab === t.key
+            return (
+              <button
+                key={t.key}
+                type="button"
+                aria-current={active ? 'true' : undefined}
+                onClick={() => setTab(t.key)}
+                className={cx(
+                  'h-8 shrink-0 rounded-lg px-3 text-left text-caption font-medium transition-colors duration-150 ease-cam',
+                  'lg:h-9 lg:w-full',
+                  active
+                    ? 'bg-cam-accent-dim text-cam-accent'
+                    : 'text-cam-text-secondary hover:bg-cam-active hover:text-cam-text-primary',
+                )}
+              >
+                {t.label}
+              </button>
+            )
+          })}
+        </nav>
+        <div className="min-w-0">
 
       {/* ---------------- 摄像头 ---------------- */}
       {tab === 'camera' ? (
@@ -1010,10 +1021,12 @@ export function SettingsPage() {
           </Card>
         </div>
       ) : null}
+        </div>
+      </div>
 
       {/* 底部保存条 */}
-      <div className="ch-savebar">
-        <span className={`ch-savebar-text ${dirty ? 'dirty' : ''}`}>
+      <div className="sticky bottom-0 z-10 mt-4 flex items-center gap-3 rounded-panel border border-cam-border bg-cam-surface/95 px-4 py-3 shadow-popover backdrop-blur-xl">
+        <span className={`text-caption ${dirty ? 'text-cam-warning' : 'text-cam-text-tertiary'}`}>
           {dirty
             ? `有 ${dirtyCount} 处未保存的修改 · 保存后写入 configs/config.yaml${cameraDirty ? '（摄像头来源与解码参数需重启生效）' : ''}`
             : '与服务器一致'}

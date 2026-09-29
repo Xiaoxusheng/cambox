@@ -1,16 +1,20 @@
 /**
- * /logs 日志（v1.3 按 camhub-ui-4k/07 设计稿重做）
+ * /logs 日志 —— camhub v1.3 重设计（Phase 7，终端风格）。
  * EventSource 消费 GET /api/logs/stream（契约 §3.3）：先回放缓冲区再实时推送。
- * 支持级别筛选、级别着色、暂停接收、清屏；贴底自动滚动。终端风格等宽排版。
+ * 工具行（级别筛选/计数/连接态/暂停/清屏）+ 凹陷终端视图（mono + 级别着色 + 贴底自动滚动）。
+ * 逻辑零丢失：暂停期间不入列、贴底判定、级别筛选、清屏、重连清缓冲。
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Button, Card, Select, Tag } from '@arco-design/web-react'
+import { Button, Select } from '@arco-design/web-react'
 import { IconCaretRight, IconPause } from '@arco-design/web-react/icon'
 import { IS_MOCK } from '../api/client'
 import { openLogStream } from '../api/logStream'
 import type { LogEntry } from '../api/types'
 import { PageHeader } from '../components/PageHeader'
+import { Panel } from '../components/common/Panel'
+import { StatusBadge } from '../components/common/StatusBadge'
 import { EmptyState, InlineLoading } from '../components/StateViews'
+import { cx } from '../utils/cx'
 
 const MAX_LINES = 2000
 
@@ -23,6 +27,14 @@ const LEVEL_OPTIONS = [
 ]
 
 type ConnState = 'connecting' | 'open' | 'error'
+
+/** 级别 → 语义色（token 唯一来源） */
+function levelColor(level: string): string {
+  if (level === 'ERROR') return 'text-cam-danger'
+  if (level === 'WARN') return 'text-cam-warning'
+  if (level === 'INFO') return 'text-cam-success'
+  return 'text-cam-text-tertiary'
+}
 
 function hhmmss(iso: string): string {
   const d = new Date(iso)
@@ -87,14 +99,8 @@ export function LogsPage() {
     [entries, level],
   )
 
-  const connView =
-    conn === 'open' ? (
-      <Tag color="green" size="small">已连接</Tag>
-    ) : conn === 'connecting' ? (
-      <Tag color="orange" size="small">连接中</Tag>
-    ) : (
-      <Tag color="red" size="small">连接中断</Tag>
-    )
+  const warnCount = entries.filter((e) => e.level === 'WARN').length
+  const errorCount = entries.filter((e) => e.level === 'ERROR').length
 
   return (
     <>
@@ -102,13 +108,14 @@ export function LogsPage() {
         title="日志"
         description={
           <>
-            SSE 实时推送 · 环形缓冲 <span className="num">{MAX_LINES}</span> 条 · 贴底自动滚动
+            SSE 实时推送 · 环形缓冲 {MAX_LINES} 条 · 贴底自动滚动
             {IS_MOCK ? '（当前为 mock 模拟流）' : ''}
           </>
         }
       />
 
-      <div className="ch-filterbar">
+      {/* ---------- 工具行 ---------- */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <Select
           value={level}
           onChange={setLevel}
@@ -116,45 +123,60 @@ export function LogsPage() {
           style={{ width: 150 }}
           aria-label="日志级别筛选"
         />
-        <span className="ch-muted num">
-          共 {entries.length} 条
-          {level ? ` · 显示 ${shown.length} 条` : ''} · 警告{' '}
-          {entries.filter((e) => e.level === 'WARN').length} · 错误{' '}
-          {entries.filter((e) => e.level === 'ERROR').length}
+        <span className="cam-num text-caption text-cam-text-tertiary">
+          共 {entries.length} 条{level ? ` · 显示 ${shown.length}` : ''} · 警告 {warnCount} · 错误 {errorCount}
         </span>
-        <span className="ch-filterbar-spacer" />
-        {connView}
-        <Button
-          type="outline"
-          size="small"
-          icon={paused ? <IconCaretRight /> : <IconPause />}
-          onClick={() => {
-            setPaused((p) => !p)
-            if (paused) {
-              stickRef.current = true
-            }
-          }}
-        >
-          {paused ? '继续' : '暂停'}
-        </Button>
-        <Button
-          type="primary"
-          status="danger"
-          size="small"
-          disabled={entries.length === 0}
-          onClick={() => setEntries([])}
-        >
-          清屏
-        </Button>
+        <span className="ml-auto flex items-center gap-2">
+          {conn === 'open' ? (
+            <StatusBadge tone="success" label="已连接" breathe />
+          ) : conn === 'connecting' ? (
+            <StatusBadge tone="warning" label="连接中" breathe />
+          ) : (
+            <StatusBadge tone="danger" label="连接中断" />
+          )}
+          <Button
+            type="outline"
+            size="small"
+            icon={paused ? <IconCaretRight /> : <IconPause />}
+            onClick={() => {
+              setPaused((p) => !p)
+              if (paused) {
+                stickRef.current = true
+              }
+            }}
+          >
+            {paused ? '继续' : '暂停'}
+          </Button>
+          <Button
+            type="primary"
+            status="danger"
+            size="small"
+            disabled={entries.length === 0}
+            onClick={() => setEntries([])}
+          >
+            清屏
+          </Button>
+        </span>
       </div>
 
-      {streamError ? <Alert type="error" content={streamError} style={{ marginBottom: 12 }} /> : null}
+      {streamError ? (
+        <div className="mb-3 rounded-lg border border-cam-danger/30 bg-cam-danger/10 px-3 py-2 text-caption text-cam-danger">
+          {streamError}
+        </div>
+      ) : null}
       {paused ? (
-        <Alert type="info" content="已暂停接收，暂停期间的新日志不会显示；点「继续」恢复。" style={{ marginBottom: 12 }} />
+        <div className="mb-3 rounded-lg border border-cam-info/30 bg-cam-info/10 px-3 py-2 text-caption text-cam-info">
+          已暂停接收，暂停期间的新日志不会显示；点「继续」恢复。
+        </div>
       ) : null}
 
-      <Card size="small" bodyStyle={{ padding: 0 }}>
-        <div className="ch-log-view" ref={viewRef} onScroll={onScroll}>
+      {/* ---------- 凹陷终端视图 ---------- */}
+      <Panel className="p-2">
+        <div
+          ref={viewRef}
+          onScroll={onScroll}
+          className="cam-num h-[calc(100vh-340px)] min-h-[320px] overflow-auto rounded-lg border border-cam-border bg-cam-bg px-4 py-3 font-mono text-[12.5px] leading-5"
+        >
           {shown.length === 0 ? (
             conn === 'connecting' && entries.length === 0 ? (
               <InlineLoading text="正在连接日志流…" />
@@ -177,15 +199,15 @@ export function LogsPage() {
             )
           ) : (
             shown.map((e, i) => (
-              <div className="ch-log-line" key={`${i}-${e.time}`}>
-                <span className="ch-log-time num">{hhmmss(e.time)}</span>
-                <span className={`ch-log-level ${e.level}`}>{e.level}</span>
-                <span className="ch-log-msg">{e.msg}</span>
+              <div key={`${i}-${e.time}`} className="flex gap-3 whitespace-pre-wrap break-all">
+                <span className="shrink-0 text-cam-text-tertiary">{hhmmss(e.time)}</span>
+                <span className={cx('w-11 shrink-0 font-semibold', levelColor(e.level))}>{e.level}</span>
+                <span className="text-cam-text-secondary">{e.msg}</span>
               </div>
             ))
           )}
         </div>
-      </Card>
+      </Panel>
     </>
   )
 }
