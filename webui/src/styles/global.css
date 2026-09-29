@@ -53,6 +53,8 @@
   --ch-input-border-hover: rgba(255, 255, 255, 0.26);
   --ch-scrollbar: rgba(255, 255, 255, 0.14);
   --ch-scrollbar-hover: rgba(255, 255, 255, 0.24);
+  /* 悬浮在画面上的小 chip（LIVE / 分辨率）：随主题翻转 */
+  --ch-ovl-bg: rgba(10, 12, 16, 0.66);
   /* 图表（暗色为默认值；亮色在 body[data-theme='light'] 中覆盖 */
   --chart-grid: rgba(255, 255, 255, 0.07);
   --chart-axis: rgba(255, 255, 255, 0.16);
@@ -924,7 +926,7 @@ button.ch-rec:disabled {
 .ch-meter {
   height: 7px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.09);
+  background: var(--ch-fill-2);
   overflow: hidden;
 }
 .ch-meter-fill {
@@ -1050,9 +1052,9 @@ button.ch-rec:disabled {
   align-items: center;
   gap: 8px;
   padding: 5px 12px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: var(--ch-ovl-bg);
+  border: 1px solid var(--ch-line);
   font-size: 12.5px;
   color: var(--ch-text-2);
 }
@@ -1103,7 +1105,7 @@ button.ch-rec:disabled {
   white-space: nowrap;
 }
 
-/* 底部玻璃状态条 */
+/* 底部状态条（悬浮于画面，随主题翻转） */
 .ch-livebar {
   position: absolute;
   left: 14px;
@@ -1115,10 +1117,10 @@ button.ch-rec:disabled {
   gap: 14px;
   height: 52px;
   padding: 0 16px;
-  border-radius: 14px;
-  background: rgba(5, 5, 5, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  border-radius: var(--ch-radius);
+  background: var(--ch-glass-deep);
+  border: 1px solid var(--ch-line);
+  box-shadow: var(--ch-shadow);
   font-size: 12.5px;
   color: var(--ch-text-2);
   flex-wrap: nowrap;
@@ -2075,7 +2077,6 @@ button.ch-rec:disabled {
     bottom: 20px;
     width: 340px;
     z-index: 10;
-    background: rgba(8, 8, 8, 0.97);
     box-shadow: var(--ch-shadow);
   }
   .ch-livebar {
@@ -2265,6 +2266,7 @@ body[data-theme='light'] {
   --ch-input-border-hover: rgba(0, 0, 0, 0.3);
   --ch-scrollbar: rgba(0, 0, 0, 0.18);
   --ch-scrollbar-hover: rgba(0, 0, 0, 0.3);
+  --ch-ovl-bg: rgba(255, 255, 255, 0.82);
   --chart-grid: rgba(0, 0, 0, 0.08);
   --chart-axis: rgba(0, 0, 0, 0.18);
   --chart-band: rgba(0, 0, 0, 0.045);
@@ -2440,20 +2442,4 @@ body[data-theme='light'] .arco-btn-primary.arco-btn-disabled,
 body[data-theme='light'] .arco-btn-primary.arco-btn-loading {
   background: #e0e0e0;
   color: #9aa4ad;
-}
-
-/* 悬浮在画面上的元素（事件面板 / livebar / 画面 chip）：两种主题都保持深色浅字 */
-.ch-monitor-events {
-  --ch-text-1: #edf2f5;
-  --ch-text-2: #9aa4ad;
-  --ch-text-3: #6a7278;
-}
-.ch-livebar {
-  --ch-text-1: #edf2f5;
-  --ch-text-2: #9aa4ad;
-  --ch-text-3: #6a7278;
-}
-.ch-ovl {
-  --ch-text-1: #edf2f5;
-  --ch-text-2: #9aa4ad;
 }
