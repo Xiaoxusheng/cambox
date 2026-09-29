@@ -1,27 +1,22 @@
 /**
- * /playback 回看（v1.3 按 camhub-ui-4k/04 设计稿重做）
- * 日期导航 → 24h 时间轴（录像段青条 + 自检黄刻 / 异常红刻 + 播放头）→ 点击跳转播放。
- * 播放器：自定义控制条（播放/进度/倍速/全屏）。跳转规则（契约 §4）：
- * video.currentTime = 事件时间 − 所在录像段 start。
+ * /playback 回看 —— camhub v1.3 重设计（Phase 4）。
+ * 布局（设计稿 04-回看 + 任务书 §22~25）：日期胶囊导航 → 时间轴面板（录像段实心带 + 事件刻度 + 播放头）→ 播放器面板（contain 画面 + HUD 标签 + 自绘控制条：播放/时间/进度/倍速/全屏）。
+ * 跳转规则（契约 §4）不变：video.currentTime = 事件时间 − 所在录像段 start。
+ * 合并/聚合算法原样保留（30min 合并、0.35% 聚合）；时间轴皮肤 ch-timeline-* → cam-tl-*。
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Button, Card, DatePicker, Message, Radio, Slider, Space, Tag, Typography } from '@arco-design/web-react'
+import { Alert, Button, DatePicker, Message, Radio, Slider } from '@arco-design/web-react'
 import { IconLeft, IconPause, IconPlayArrowFill, IconRight } from '@arco-design/web-react/icon'
 import { fetchStatus, fetchTimeline } from '../api/endpoints'
 import { IS_MOCK, recordingUrl } from '../api/media'
 import type { Event, Status, TimelineData, TimelineSegment } from '../api/types'
+import { EmptyState, ErrorState, InitialLoading } from '../components/StateViews'
+import { IconButton } from '../components/common/IconButton'
 import { PageHeader } from '../components/PageHeader'
-import { ErrorState, InitialLoading } from '../components/StateViews'
+import { Panel } from '../components/common/Panel'
 import { useAsync } from '../hooks/useAsync'
-import {
-  eventTypeLabel,
-  formatBytes,
-  formatClockLong,
-  formatTime,
-  toLocalDateStr,
-} from '../utils/format'
-
-const { Text } = Typography
+import { cx } from '../utils/cx'
+import { eventTypeLabel, formatBytes, formatClockLong, formatTime, toLocalDateStr } from '../utils/format'
 
 function shiftDate(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00`)
@@ -40,6 +35,16 @@ function durationSec(a: string, b: string): number {
 }
 
 type PlaybackData = [TimelineData, Status]
+
+/** 时间轴图例色块（录像段=accent 实心带；刻度=中性/警告/危险） */
+function LegendSwatch({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-caption text-cam-text-tertiary">
+      <i className={cx('inline-block', className)} />
+      {label}
+    </span>
+  )
+}
 
 export function PlaybackPage() {
   const today = toLocalDateStr(new Date())
@@ -85,7 +90,7 @@ export function PlaybackPage() {
   /**
    * 时间轴渲染块：把相邻（间隙 ≤ 30 分钟）或重叠的录像段合并成一个连续块，
    * 录像覆盖期呈现为一条填满的实心带；翻段间隙、短暂停录都不可见。
-   * 超过 30 分钟的空档（真的长时间停录）才会断开。
+   * 超过 30 分钟的空档（真的长时间停录）才会断开。算法原样保留（v1.3 仅皮肤重绘）。
    */
   const timelineBlocks = useMemo(() => {
     const MERGE_GAP_SEC = 1800
@@ -105,7 +110,7 @@ export function PlaybackPage() {
 
   /**
    * 事件刻度聚合：同类事件落点间距 ≤ 0.35% 视宽（约 5 分钟）时并成一根刻度。
-   * 一天几千条 motion 事件若逐条渲染，会把时间轴糊成实心带还拖垮 DOM。
+   * 一天几千条 motion 事件若逐条渲染，会把时间轴糊成实心带还拖垮 DOM。算法原样保留。
    */
   const eventTicks = useMemo(() => {
     const MIN_GAP_PCT = 0.35
@@ -206,230 +211,179 @@ export function PlaybackPage() {
     ? new Date(new Date(current.start).getTime() + pos * 1000).toISOString()
     : null
   const segDuration = current ? durationSec(current.start, current.end) : 0
+  const timelineEmpty = segments.length === 0 && events.length === 0
 
   return (
     <>
-      <PageHeader title="回看" description="点击时间轴上的事件刻度，跳转到该时刻播放" />
+      <PageHeader title="回看" description="点击时间轴上的事件刻度或录像段，跳转到该时刻播放" />
 
-      <Space size={8} style={{ marginBottom: 12 }} wrap>
-        <Button
-          shape="circle"
-          type="outline"
-          size="small"
-          icon={<IconLeft />}
-          aria-label="前一天"
-          onClick={() => setDate((d) => shiftDate(d, -1))}
-        />
-        <Space size={4}>
+      {/* ---------- 日期胶囊导航 ---------- */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <IconButton icon={<IconLeft />} label="前一天" onClick={() => setDate((d) => shiftDate(d, -1))} />
+        <div className="flex h-8 items-center rounded-lg border border-cam-border bg-cam-surface px-1.5">
           <DatePicker
             value={date}
             format="YYYY-MM-DD"
             allowClear={false}
             onChange={(v) => setDate(String(v))}
+            className="cam-date-pill"
           />
-          {date === today ? <Tag size="small">今天</Tag> : null}
-        </Space>
-        <Button
-          shape="circle"
-          type="outline"
-          size="small"
+          {date === today ? (
+            <span className="mr-1 rounded-md bg-cam-accent-dim px-1.5 py-0.5 text-caption text-cam-accent">
+              今天
+            </span>
+          ) : null}
+        </div>
+        <IconButton
           icon={<IconRight />}
-          aria-label="后一天"
+          label="后一天"
           disabled={date >= today}
           onClick={() => setDate((d) => shiftDate(d, 1))}
         />
         {date !== today ? (
-          <Button type="outline" size="small" onClick={() => setDate(today)}>
+          <button
+            type="button"
+            onClick={() => setDate(today)}
+            className="h-8 rounded-lg border border-cam-border px-3 text-caption text-cam-text-secondary transition-colors duration-150 ease-cam hover:border-cam-border-strong hover:text-cam-text-primary"
+          >
             回到今天
-          </Button>
+          </button>
         ) : null}
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <span className="cam-num ml-auto text-caption text-cam-text-tertiary">
           已录制 {recordedHours.toFixed(1)}h · {segments.length} 段
           {modeLabel ? ` · ${modeLabel}` : ''}
-        </Text>
-      </Space>
+        </span>
+      </div>
 
-      <Card
-        size="small"
-        title="今日时间轴"
-        style={{ marginBottom: 12 }}
-        extra={
-          <Space size={10} style={{ fontSize: 12 }}>
-            <span>
-              <i
-                style={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: 2,
-                  marginRight: 4,
-                  background: 'rgb(var(--primary-6))',
-                }}
-              />
-              录像段
-            </span>
-            <span>
-              <i
-                style={{
-                  display: 'inline-block',
-                  width: 3,
-                  height: 10,
-                  borderRadius: 1.5,
-                  marginRight: 4,
-                  background: 'var(--color-text-2)',
-                }}
-              />
-              移动侦测
-            </span>
-            <span>
-              <i
-                style={{
-                  display: 'inline-block',
-                  width: 3,
-                  height: 10,
-                  borderRadius: 1.5,
-                  marginRight: 4,
-                  background: 'rgb(var(--warning-6))',
-                }}
-              />
-              自检事件
-            </span>
-            <span>
-              <i
-                style={{
-                  display: 'inline-block',
-                  width: 3,
-                  height: 10,
-                  borderRadius: 1.5,
-                  marginRight: 4,
-                  background: 'rgb(var(--danger-6))',
-                }}
-              />
-              异常
-            </span>
-          </Space>
-        }
-      >
-        {segments.length === 0 && events.length === 0 ? (
-          <div style={{ padding: '32px 0', textAlign: 'center' }}>
-            <Text type="secondary">{date} 没有录像与事件</Text>
-            <div style={{ marginTop: 4 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                可能当天未开启录像，或录像已被保留策略清理。
-              </Text>
-            </div>
+      {/* ---------- 时间轴面板 ---------- */}
+      <Panel className="mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cam-border px-4 py-3">
+          <h3 className="text-section-title text-cam-text-primary">今日时间轴</h3>
+          <div className="flex flex-wrap items-center gap-4">
+            <LegendSwatch className="h-2.5 w-4 rounded-sm bg-cam-accent" label="录像段" />
+            <LegendSwatch className="h-2.5 w-0.5 bg-cam-text-secondary" label="移动侦测" />
+            <LegendSwatch className="h-2.5 w-0.5 bg-cam-warning" label="自检事件" />
+            <LegendSwatch className="h-2.5 w-0.5 bg-cam-danger" label="异常" />
           </div>
-        ) : (
-          <div className="ch-timeline">
-            <div className="ch-timeline-track" />
-            {Array.from({ length: 25 }, (_, i) => (
-              <div
-                key={i}
-                className={`ch-timeline-hour ${i % 4 === 0 ? 'major' : ''}`}
-                style={{ left: `${(i / 24) * 100}%` }}
-              />
-            ))}
-            {Array.from({ length: 7 }, (_, i) => (
-              <span
-                key={i}
-                className="ch-timeline-hour-label"
-                style={{
-                  left: `${((i * 4) / 24) * 100}%`,
-                  // 首尾标签贴边对齐，避免被面板裁掉一半
-                  transform:
-                    i === 0 ? 'translateX(0)' : i === 6 ? 'translateX(-100%)' : 'translateX(-50%)',
-                }}
-              >
-                {String(i * 4).padStart(2, '0')}:00
-              </span>
-            ))}
-
-            {timelineBlocks.map((b) => {
-              const left = (secOfDay(b.start) / 86400) * 100
-              const width = Math.max(0.2, ((secOfDay(b.end) - secOfDay(b.start)) / 86400) * 100)
-              const isCurrent = current !== null && b.segs.some((s) => s.name === current.name)
-              const target =
-                current !== null && b.segs.some((s) => s.name === current.name)
-                  ? current
-                  : b.segs[0]
-              const sizeBytes = b.segs.reduce((acc, s) => acc + s.size_bytes, 0)
-              const title =
-                b.segs.length === 1
-                  ? `${b.segs[0].name}\n${formatTime(b.start)} – ${formatTime(b.end)}（${formatBytes(b.segs[0].size_bytes)}）`
-                  : `${b.segs.length} 段连续录像\n${formatTime(b.start)} – ${formatTime(b.end)}（共 ${formatBytes(sizeBytes)}）`
-              return (
+        </div>
+        <div className="px-4 pb-4 pt-3">
+          {timelineEmpty ? (
+            <EmptyState
+              title={`${date} 没有录像与事件`}
+              description="可能当天未开启录像，或录像已被保留策略清理。"
+            />
+          ) : (
+            <div className="cam-timeline">
+              <div className="cam-tl-track" />
+              {Array.from({ length: 25 }, (_, i) => (
                 <div
-                  key={b.segs[0].name}
-                  className={`ch-timeline-seg ${isCurrent ? 'current' : ''}`}
-                  style={{ left: `${left}%`, width: `${width}%` }}
-                  title={title}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`播放录像段 ${target.name}`}
-                  onClick={() => {
-                    setCurrent(target)
-                    setPendingSeek(0)
+                  key={i}
+                  className={cx('cam-tl-hour', i % 4 === 0 && 'major')}
+                  style={{ left: `${(i / 24) * 100}%` }}
+                />
+              ))}
+              {Array.from({ length: 7 }, (_, i) => (
+                <span
+                  key={i}
+                  className="cam-tl-hour-label"
+                  style={{
+                    left: `${((i * 4) / 24) * 100}%`,
+                    // 首尾标签贴边对齐，避免被面板裁掉一半
+                    transform:
+                      i === 0 ? 'translateX(0)' : i === 6 ? 'translateX(-100%)' : 'translateX(-50%)',
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
+                >
+                  {String(i * 4).padStart(2, '0')}:00
+                </span>
+              ))}
+
+              {timelineBlocks.map((b) => {
+                const left = (secOfDay(b.start) / 86400) * 100
+                const width = Math.max(0.2, ((secOfDay(b.end) - secOfDay(b.start)) / 86400) * 100)
+                const isCurrent = current !== null && b.segs.some((s) => s.name === current.name)
+                const target =
+                  current !== null && b.segs.some((s) => s.name === current.name) ? current : b.segs[0]
+                const sizeBytes = b.segs.reduce((acc, s) => acc + s.size_bytes, 0)
+                const title =
+                  b.segs.length === 1
+                    ? `${b.segs[0].name}\n${formatTime(b.start)} – ${formatTime(b.end)}（${formatBytes(b.segs[0].size_bytes)}）`
+                    : `${b.segs.length} 段连续录像\n${formatTime(b.start)} – ${formatTime(b.end)}（共 ${formatBytes(sizeBytes)}）`
+                return (
+                  <div
+                    key={b.segs[0].name}
+                    className={cx('cam-tl-seg', isCurrent && 'current')}
+                    style={{ left: `${left}%`, width: `${width}%` }}
+                    title={title}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`播放录像段 ${target.name}`}
+                    onClick={() => {
                       setCurrent(target)
                       setPendingSeek(0)
-                    }
-                  }}
-                />
-              )
-            })}
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setCurrent(target)
+                        setPendingSeek(0)
+                      }
+                    }}
+                  />
+                )
+              })}
 
-            {eventTicks.map((t, i) => {
-              const widthPct = Math.max(0.2, t.endPct - t.leftPct)
-              // 密集事件链并成了一根宽刻度 → 渲染为半透明软条带，露出活动范围
-              const dense = t.count > 1 && widthPct > 0.4
-              const title =
-                t.count === 1
-                  ? `${formatTime(t.first.time)} ${eventTypeLabel(t.first.type, t.first.detail)}${
-                      t.first.type === 'motion' ? `（得分 ${t.first.score}）` : ''
-                    }`
-                  : `${formatTime(t.first.time)} – ${formatTime(t.last.time)} 共 ${t.count} 条${
-                      t.kind === 'motion' ? '移动侦测' : '自检'
-                    }事件`
-              return (
-                <div
-                  key={`${t.kind}-${i}`}
-                  className={`ch-timeline-event ${t.kind}${dense ? ' dense' : ''}`}
-                  style={{ left: `${t.leftPct}%`, width: `${widthPct}%` }}
-                  title={title}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`跳转到 ${formatTime(t.first.time)} 的事件`}
-                  onClick={() => playAt(t.first.time)}
-                  onKeyDown={(ev) => {
-                    if (ev.key === 'Enter' || ev.key === ' ') {
-                      ev.preventDefault()
-                      playAt(t.first.time)
-                    }
-                  }}
-                />
-              )
-            })}
+              {eventTicks.map((t, i) => {
+                const widthPct = Math.max(0.2, t.endPct - t.leftPct)
+                // 密集事件链并成了一根宽刻度 → 渲染为半透明软条带，露出活动范围
+                const dense = t.count > 1 && widthPct > 0.4
+                const title =
+                  t.count === 1
+                    ? `${formatTime(t.first.time)} ${eventTypeLabel(t.first.type, t.first.detail)}${
+                        t.first.type === 'motion' ? `（得分 ${t.first.score}）` : ''
+                      }`
+                    : `${formatTime(t.first.time)} – ${formatTime(t.last.time)} 共 ${t.count} 条${
+                        t.kind === 'motion' ? '移动侦测' : '自检'
+                      }事件`
+                return (
+                  <div
+                    key={`${t.kind}-${i}`}
+                    className={cx('cam-tl-event', t.kind, dense && 'dense')}
+                    style={{ left: `${t.leftPct}%`, width: `${widthPct}%` }}
+                    title={title}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`跳转到 ${formatTime(t.first.time)} 的事件`}
+                    onClick={() => playAt(t.first.time)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.preventDefault()
+                        playAt(t.first.time)
+                      }
+                    }}
+                  />
+                )
+              })}
 
-            {playheadPct != null ? (
-              <div className="ch-timeline-playhead" style={{ left: `${playheadPct}%` }}>
-                <span className="ch-timeline-playhead-tag ch-num">{formatTime(absoluteTime).slice(0, 5)}</span>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </Card>
+              {playheadPct != null ? (
+                <div className="cam-tl-playhead" style={{ left: `${playheadPct}%` }}>
+                  <span className="cam-num cam-tl-playhead-tag">{formatTime(absoluteTime).slice(0, 5)}</span>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </Panel>
 
-      <Card size="small" bodyStyle={{ padding: 16 }}>
-        <div className="ch-player-box" ref={playerBoxRef}>
+      {/* ---------- 播放器面板 ---------- */}
+      <Panel className="p-4">
+        <div ref={playerBoxRef} className="relative overflow-hidden rounded-xl bg-black">
           {current && src ? (
             <>
               <video
                 ref={videoRef}
                 src={src}
                 preload="metadata"
+                className="block max-h-[56vh] w-full bg-black"
                 onLoadedMetadata={onLoadedMetadata}
                 onTimeUpdate={(e) => {
                   if (!seeking) setPos(e.currentTarget.currentTime)
@@ -438,45 +392,32 @@ export function PlaybackPage() {
                 onPause={() => setPlaying(false)}
                 onError={() => setVideoError(`无法播放 ${current.name}（分段可能损坏或缺 moov）`)}
               />
-              <span className="ch-ovl tl ch-num">
+              <span className="cam-num absolute left-3 top-3 z-10 rounded-md bg-black/45 px-2 py-1 text-caption text-white/85 backdrop-blur-md">
                 回放 · {current.name} · {absoluteTime ? formatTime(absoluteTime) : ''}
               </span>
             </>
           ) : (
-            <div
-              style={{
-                aspectRatio: '16 / 9',
-                maxHeight: '56vh',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                color: 'var(--color-text-3)',
-                fontSize: 13,
-                textAlign: 'center',
-                padding: 16,
-              }}
-            >
+            <div className="flex aspect-video max-h-[56vh] flex-col items-center justify-center gap-2 px-4 text-center">
               {IS_MOCK ? (
                 <>
-                  <span>mock 模式没有真实 mp4 视频源</span>
-                  <span style={{ fontSize: 12 }}>
+                  <span className="text-body text-cam-text-tertiary">mock 模式没有真实 mp4 视频源</span>
+                  <span className="max-w-[420px] text-caption leading-5 text-cam-text-tertiary">
                     时间轴、跳转与分段选择逻辑可正常自查；播放需连接后端（VITE_API_MODE=real）。
                   </span>
                 </>
               ) : (
-                <span>点击时间轴上的录像段或事件刻度开始播放</span>
+                <span className="text-body text-cam-text-tertiary">
+                  点击时间轴上的录像段或事件刻度开始播放
+                </span>
               )}
             </div>
           )}
         </div>
 
-        {videoError ? (
-          <Alert type="error" content={videoError} style={{ marginTop: 12 }} />
-        ) : null}
+        {videoError ? <Alert type="error" content={videoError} className="mt-3" /> : null}
 
-        <Space size={16} style={{ marginTop: 12, width: '100%' }} align="center">
+        {/* 控制条：播放 / 时间（mono）/ 进度 / 倍速 / 全屏 —— 无声也保持专业播放器结构（任务书 §25） */}
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button
             shape="circle"
             type="primary"
@@ -486,11 +427,11 @@ export function PlaybackPage() {
             disabled={!current || !src}
             aria-label={playing ? '暂停' : '播放'}
           />
-          <Text className="ch-num" style={{ fontSize: 13, flexShrink: 0 }}>
+          <span className="cam-num shrink-0 text-caption text-cam-text-secondary">
             {formatClockLong(pos)} / {formatClockLong(segDuration)}
-          </Text>
+          </span>
           <Slider
-            style={{ flex: 1 }}
+            className="min-w-[160px] flex-1"
             min={0}
             max={Math.max(1, segDuration)}
             step={0.1}
@@ -517,11 +458,11 @@ export function PlaybackPage() {
               </Radio>
             ))}
           </Radio.Group>
-          <Button type="outline" onClick={fullscreen}>
+          <Button type="outline" onClick={fullscreen} aria-label="全屏">
             全屏
           </Button>
-        </Space>
-      </Card>
+        </div>
+      </Panel>
     </>
   )
 }

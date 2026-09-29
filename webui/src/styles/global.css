@@ -365,59 +365,59 @@ body[data-theme='light'] {
   right: 12px;
   top: 12px;
 }
-/* ---------- 回看：24h 时间轴（无对应 Arco 组件，自绘但贴 Arco token） ---------- */
-.ch-timeline {
+/* ---------- 回看：24h 时间轴 + 日期胶囊（cam-*，v1.3 Phase 4；无对应 Arco 组件，自绘） ---------- */
+.cam-timeline {
   position: relative;
   height: 108px;
   user-select: none;
 }
-.ch-timeline-track {
+.cam-tl-track {
   position: absolute;
   left: 0;
   right: 0;
   top: 34px;
   height: 30px;
   border-radius: 6px;
-  background: var(--color-fill-2);
+  background: var(--cam-active);
 }
-.ch-timeline-hour {
+.cam-tl-hour {
   position: absolute;
   top: 34px;
   width: 1px;
   height: 30px;
-  background: var(--color-fill-3);
+  background: var(--cam-border);
 }
-.ch-timeline-hour.major {
-  background: var(--color-neutral-4);
+.cam-tl-hour.major {
+  background: var(--cam-border-strong);
 }
-.ch-timeline-hour-label {
+.cam-tl-hour-label {
   position: absolute;
   top: 74px;
   transform: translateX(-50%);
   font-size: 11.5px;
-  color: var(--color-text-3);
-  font-family: var(--ch-mono);
+  color: var(--cam-text-3);
+  font-family: var(--cam-mono);
   pointer-events: none;
 }
-.ch-timeline-seg {
+.cam-tl-seg {
   position: absolute;
   top: 37px;
   height: 24px;
   border-radius: 4px;
-  background: rgb(var(--primary-6));
+  background: rgb(var(--cam-accent-rgb));
   cursor: pointer;
   min-width: 3px;
-  transition: filter 0.15s;
+  transition: filter 150ms;
   z-index: 2;
 }
-.ch-timeline-seg:hover {
-  filter: brightness(1.1);
+.cam-tl-seg:hover {
+  filter: brightness(1.12);
 }
-.ch-timeline-seg.current {
-  outline: 2px solid var(--color-text-1);
+.cam-tl-seg.current {
+  outline: 2px solid var(--cam-text-1);
   outline-offset: 1px;
 }
-.ch-timeline-event {
+.cam-tl-event {
   position: absolute;
   top: 43px;
   width: 3px;
@@ -425,29 +425,29 @@ body[data-theme='light'] {
   border-radius: 1.5px;
   cursor: pointer;
   transform: translateX(-1.5px);
-  transition: transform 0.15s;
+  transition: transform 150ms;
   z-index: 1;
 }
-.ch-timeline-event:hover {
+.cam-tl-event:hover {
   transform: translateX(-1.5px) scaleY(1.2);
 }
 /* 移动侦测：中性色细刻度（活动纹理），不能和录像条同色 */
-.ch-timeline-event.motion {
-  background: var(--color-text-2);
+.cam-tl-event.motion {
+  background: var(--cam-text-2);
 }
-/* 自检 / 遮挡：少见但重要，通高刻度突出 */
-.ch-timeline-event.selfcheck-frozen {
+/* 自检冻结 / 遮挡：少见但重要，通高刻度突出 */
+.cam-tl-event.selfcheck-frozen {
   top: 37px;
   height: 24px;
-  background: rgb(var(--orange-6));
+  background: rgb(var(--cam-warning-rgb));
 }
-.ch-timeline-event.selfcheck-occlusion {
+.cam-tl-event.selfcheck-occlusion {
   top: 37px;
   height: 24px;
-  background: rgb(var(--red-6));
+  background: rgb(var(--cam-danger-rgb));
 }
 /* 密集事件聚合成的软条带：半透明、通高，只当「活动范围」纹理 */
-.ch-timeline-event.dense {
+.cam-tl-event.dense {
   top: 37px;
   height: 24px;
   min-width: 3px;
@@ -455,20 +455,20 @@ body[data-theme='light'] {
   opacity: 0.3;
   transform: none;
 }
-.ch-timeline-event.dense:hover {
+.cam-tl-event.dense:hover {
   transform: scaleY(1.08);
 }
-.ch-timeline-playhead {
+.cam-tl-playhead {
   position: absolute;
   top: 26px;
   bottom: 22px;
   width: 2px;
-  background: var(--color-text-1);
+  background: var(--cam-text-1);
   border-radius: 1px;
   pointer-events: none;
   z-index: 3;
 }
-.ch-timeline-playhead-tag {
+.cam-tl-playhead-tag {
   position: absolute;
   top: 2px;
   left: 50%;
@@ -476,28 +476,15 @@ body[data-theme='light'] {
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 11px;
-  font-family: var(--ch-mono);
-  background: var(--color-text-1);
-  color: var(--color-bg-1);
+  background: var(--cam-text-1);
+  color: var(--cam-bg);
   white-space: nowrap;
 }
-
-/* ---------- 回看：播放器 ---------- */
-.ch-player-box {
-  position: relative;
-  background: #000;
-  border-radius: 4px;
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
+/* 日期胶囊内的 DatePicker：去边框融入容器 */
+.cam-date-pill .arco-picker {
+  background: transparent;
+  border: none;
 }
-.ch-player-box video {
-  width: 100%;
-  max-height: 56vh;
-  display: block;
-  background: #000;
-}
-
 /* ---------- 设置页 ---------- */
 .ch-settings-grid {
   display: grid;
