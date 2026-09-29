@@ -10,6 +10,7 @@ import { batchDeleteEvents, fetchEvents, fetchStatus, fetchTimeline } from '../a
 import { errorText } from '../api/errors'
 import { mediaUrl } from '../api/media'
 import type { Event, EventType, TimelineData } from '../api/types'
+import { AutoCropImage } from '../components/AutoCropImage'
 import { PageHeader } from '../components/PageHeader'
 import { EmptyState, InitialLoading } from '../components/StateViews'
 import { useAsync } from '../hooks/useAsync'
@@ -413,11 +414,7 @@ export function EventsPage() {
       >
         {detail ? (
           <>
-            <img
-              src={mediaUrl(detail.image)}
-              alt="事件快照"
-              style={{ width: '100%', borderRadius: 8, display: 'block' }}
-            />
+            <AutoCropImage src={mediaUrl(detail.image)} alt="事件快照" />
             <div style={{ marginTop: 12, fontSize: 13, lineHeight: '22px' }}>
               <div>类型：{typeBadge(detail)}</div>
               <div className="num">时间：{formatDateTime(detail.time)}</div>

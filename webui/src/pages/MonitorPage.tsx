@@ -10,6 +10,7 @@ import { fetchConfig, fetchEvents, fetchStatus, fetchTimeline, manualSnapshot } 
 import { errorText } from '../api/errors'
 import { mediaUrl } from '../api/media'
 import type { Config, Event, EventsResponse, Status, TimelineData } from '../api/types'
+import { AutoCropImage } from '../components/AutoCropImage'
 import { EventList } from '../components/EventList'
 import { RoiEditorModal } from '../components/RoiEditorModal'
 import { ErrorState, InitialLoading } from '../components/StateViews'
@@ -295,11 +296,7 @@ export function MonitorPage() {
       >
         {shot ? (
           <>
-            <img
-              src={mediaUrl(shot.url)}
-              alt="抓拍画面"
-              style={{ width: '100%', borderRadius: 8, display: 'block' }}
-            />
+            <AutoCropImage src={mediaUrl(shot.url)} alt="抓拍画面" />
             <div className="ch-muted" style={{ marginTop: 8 }}>
               文件：{shot.file}
             </div>
@@ -318,13 +315,7 @@ export function MonitorPage() {
         onCancel={() => setPreview(null)}
         autoFocus={false}
       >
-        {preview ? (
-          <img
-            src={mediaUrl(preview.image)}
-            alt="事件快照"
-            style={{ width: '100%', borderRadius: 8, display: 'block' }}
-          />
-        ) : null}
+        {preview ? <AutoCropImage src={mediaUrl(preview.image)} alt="事件快照" /> : null}
       </Modal>
     </div>
   )
