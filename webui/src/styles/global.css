@@ -55,16 +55,22 @@
   --ch-scrollbar-hover: rgba(255, 255, 255, 0.24);
   /* 悬浮在画面上的小 chip（LIVE / 分辨率）：随主题翻转 */
   --ch-ovl-bg: rgba(10, 12, 16, 0.66);
-  /* 悬浮于画面之上的液态玻璃面板底色（实时事件 / livebar / 呼出按钮）：
-     高透明 + 低模糊 + 高光边缘，不是磨砂毛玻璃 */
-  --ch-glass-video: rgba(12, 15, 20, 0.35);
-  --ch-glass-video-border: rgba(255, 255, 255, 0.2);
-  --ch-glass-video-blur: blur(12px) saturate(150%);
+  /* 悬浮于画面之上的液态玻璃（Apple Liquid Glass 语言）：
+     几乎不模糊、高度透亮、边缘折射高光——模糊一重就变成磨砂 */
+  --ch-glass-video: rgba(255, 255, 255, 0.06);
+  --ch-glass-video-border: rgba(255, 255, 255, 0.32);
+  --ch-glass-video-blur: blur(3px) saturate(170%) brightness(1.08);
+  --ch-glass-video-sheen: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.14),
+    rgba(255, 255, 255, 0) 40%
+  );
   --ch-glass-video-highlight:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
-    inset 1px 0 0 rgba(255, 255, 255, 0.1),
-    inset -1px 0 0 rgba(255, 255, 255, 0.05);
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.16),
+    inset 1px 0 0 rgba(255, 255, 255, 0.22),
+    inset -1px 0 0 rgba(255, 255, 255, 0.22),
+    inset 0 12px 20px -10px rgba(255, 255, 255, 0.3);
   /* 图表（暗色为默认值；亮色在 body[data-theme='light'] 中覆盖 */
   --chart-grid: rgba(255, 255, 255, 0.07);
   --chart-axis: rgba(255, 255, 255, 0.16);
@@ -1128,7 +1134,7 @@ button.ch-rec:disabled {
   height: 52px;
   padding: 0 16px;
   border-radius: var(--ch-radius);
-  background: var(--ch-glass-video);
+  background: var(--ch-glass-video-sheen), var(--ch-glass-video);
   border: 1px solid var(--ch-glass-video-border);
   backdrop-filter: var(--ch-glass-video-blur);
   -webkit-backdrop-filter: var(--ch-glass-video-blur);
@@ -1155,7 +1161,7 @@ button.ch-rec:disabled {
   padding: 0 12px;
   border-radius: 999px;
   border: 1px solid var(--ch-glass-video-border);
-  background: var(--ch-glass-video);
+  background: var(--ch-glass-video-sheen), var(--ch-glass-video);
   backdrop-filter: var(--ch-glass-video-blur);
   -webkit-backdrop-filter: var(--ch-glass-video-blur);
   box-shadow: var(--ch-glass-video-highlight);
@@ -2169,8 +2175,8 @@ button.ch-rec:disabled {
     bottom: 20px;
     width: 340px;
     z-index: 10;
-    /* 悬浮于画面：液态玻璃（高透明 + 低模糊 + 高光边缘） */
-    background: var(--ch-glass-video);
+    /* 悬浮于画面：液态玻璃（几乎不模糊 + 高透亮 + 边缘折射高光） */
+    background: var(--ch-glass-video-sheen), var(--ch-glass-video);
     border-color: var(--ch-glass-video-border);
     backdrop-filter: var(--ch-glass-video-blur);
     -webkit-backdrop-filter: var(--ch-glass-video-blur);
@@ -2384,14 +2390,20 @@ body[data-theme='light'] {
   --ch-scrollbar: rgba(0, 0, 0, 0.18);
   --ch-scrollbar-hover: rgba(0, 0, 0, 0.3);
   --ch-ovl-bg: rgba(255, 255, 255, 0.82);
-  --ch-glass-video: rgba(255, 255, 255, 0.48);
-  --ch-glass-video-border: rgba(255, 255, 255, 0.8);
-  --ch-glass-video-blur: blur(12px) saturate(150%);
+  --ch-glass-video: rgba(255, 255, 255, 0.3);
+  --ch-glass-video-border: rgba(255, 255, 255, 0.85);
+  --ch-glass-video-blur: blur(3px) saturate(180%) brightness(1.12);
+  --ch-glass-video-sheen: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0) 42%
+  );
   --ch-glass-video-highlight:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.4),
-    inset 1px 0 0 rgba(255, 255, 255, 0.5),
-    inset -1px 0 0 rgba(255, 255, 255, 0.3);
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.45),
+    inset 1px 0 0 rgba(255, 255, 255, 0.6),
+    inset -1px 0 0 rgba(255, 255, 255, 0.6),
+    inset 0 12px 20px -10px rgba(255, 255, 255, 0.55);
   --chart-grid: rgba(0, 0, 0, 0.08);
   --chart-axis: rgba(0, 0, 0, 0.18);
   --chart-band: rgba(0, 0, 0, 0.045);
