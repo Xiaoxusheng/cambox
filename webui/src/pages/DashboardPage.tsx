@@ -265,7 +265,7 @@ export function DashboardPage() {
             <h3 className="text-section-title text-cam-text-primary">最新事件</h3>
             <Link
               to="/events"
-              className="text-caption text-cam-accent transition-colors duration-150 ease-cam hover:text-cam-accent/80"
+              className="text-caption text-cam-accent no-underline transition-colors duration-150 ease-cam hover:text-cam-accent/80"
             >
               全部 →
             </Link>

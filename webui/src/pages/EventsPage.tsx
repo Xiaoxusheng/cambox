@@ -298,7 +298,7 @@ export function EventsPage() {
               />
               <span className="text-caption text-cam-text-tertiary">全选本页</span>
             </div>
-            <ul>
+            <ul className="m-0 list-none p-0">
               {items.map((e) => {
                 const checked = selected.includes(e.id)
                 return (

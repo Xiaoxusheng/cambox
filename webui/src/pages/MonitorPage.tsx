@@ -207,7 +207,7 @@ export function MonitorPage() {
         </div>
         <Link
           to="/events"
-          className="shrink-0 text-caption text-cam-accent transition-colors duration-150 ease-cam hover:text-cam-accent/80"
+          className="shrink-0 text-caption text-cam-accent no-underline transition-colors duration-150 ease-cam hover:text-cam-accent/80"
         >
           全部 →
         </Link>

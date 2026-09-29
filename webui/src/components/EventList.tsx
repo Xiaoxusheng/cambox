@@ -38,7 +38,7 @@ export function EventList({
     )
   }
   return (
-    <ul className={cx('flex flex-col', className)}>
+    <ul className={cx('m-0 flex list-none flex-col p-0', className)}>
       {items.map((e, i) => {
         const clickable = typeof onItemClick === 'function'
         return (

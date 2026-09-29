@@ -138,7 +138,7 @@ export function AppLayout() {
           <div className="flex min-w-0 items-center gap-3">
             <Link
               to="/"
-              className="flex shrink-0 items-center gap-2"
+              className="flex shrink-0 items-center gap-2 no-underline hover:no-underline"
               aria-label="camhub 监控面板"
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cam-accent-dim text-cam-accent">
