@@ -1073,6 +1073,7 @@ button.ch-rec:disabled {
   border: 1px solid var(--ch-line);
   font-size: 12.5px;
   color: var(--ch-text-2);
+  transition: opacity 0.3s var(--ch-ease);
 }
 .ch-ovl.tl {
   top: 14px;
@@ -2161,6 +2162,8 @@ button.ch-rec:disabled {
     display: block;
     position: relative;
     height: calc(100vh - 52px - 12px);
+    /* 裁掉面板滑出屏幕的部分，避免把文档撑出横向滚动条 */
+    overflow: hidden;
   }
   .ch-monitor-main {
     position: absolute;
@@ -2183,21 +2186,18 @@ button.ch-rec:disabled {
     box-shadow:
       var(--ch-shadow),
       var(--ch-glass-video-highlight);
-    transition:
-      transform 0.45s var(--ch-ease),
-      opacity 0.35s var(--ch-ease),
-      visibility 0s 0s;
+    transition: transform 0.5s var(--ch-ease), visibility 0s 0s;
   }
-  /* 收起：整体滑出右缘；livebar 联动伸展为全宽 */
+  /* 收起：纯滑动划出右缘（无淡出）；livebar 联动伸展为全宽；右上 FPS chip 让位 */
   .ch-monitor.events-hidden .ch-monitor-events {
-    transform: translateX(calc(100% + 28px));
-    opacity: 0;
+    transform: translateX(calc(100% + 32px));
     visibility: hidden;
     pointer-events: none;
-    transition:
-      transform 0.45s var(--ch-ease),
-      opacity 0.3s var(--ch-ease),
-      visibility 0s 0.45s;
+    transition: transform 0.5s var(--ch-ease), visibility 0s 0.5s;
+  }
+  .ch-monitor.events-hidden .ch-ovl.tr {
+    opacity: 0;
+    pointer-events: none;
   }
   .ch-monitor.events-hidden .ch-livebar {
     right: 20px;
