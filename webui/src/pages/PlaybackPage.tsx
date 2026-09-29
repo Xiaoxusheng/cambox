@@ -81,12 +81,12 @@ export function PlaybackPage() {
   )
 
   /**
-   * 时间轴渲染块：把相邻（间隙 ≤ 45s）或重叠的录像段合并成一个连续块。
-   * 24h 视图下 1px ≈ 66s，几十秒的翻段间隙肉眼不可见，不合并就是一堆毛刺；
-   * 合并后是干净的整块，点击播块内对应段。
+   * 时间轴渲染块：把相邻（间隙 ≤ 30 分钟）或重叠的录像段合并成一个连续块，
+   * 录像覆盖期呈现为一条填满的实心带；翻段间隙、短暂停录都不可见。
+   * 超过 30 分钟的空档（真的长时间停录）才会断开。
    */
   const timelineBlocks = useMemo(() => {
-    const MERGE_GAP_SEC = 45
+    const MERGE_GAP_SEC = 1800
     const sorted = [...segments].sort((a, b) => secOfDay(a.start) - secOfDay(b.start))
     const out: { segs: TimelineSegment[]; start: string; end: string }[] = []
     for (const s of sorted) {
