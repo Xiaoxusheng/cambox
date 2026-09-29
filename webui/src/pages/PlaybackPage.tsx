@@ -9,7 +9,7 @@ import { DatePicker, Message } from '@arco-design/web-react'
 import { IconLeft, IconRight } from '@arco-design/web-react/icon'
 import { fetchStatus, fetchTimeline } from '../api/endpoints'
 import { IS_MOCK, recordingUrl } from '../api/media'
-import type { Status, TimelineData, TimelineSegment } from '../api/types'
+import type { Event, Status, TimelineData, TimelineSegment } from '../api/types'
 import { PageHeader } from '../components/PageHeader'
 import { EmptyState, ErrorState, InitialLoading } from '../components/StateViews'
 import { useAsync } from '../hooks/useAsync'
@@ -100,6 +100,31 @@ export function PlaybackPage() {
     }
     return out
   }, [segments])
+
+  /**
+   * 事件刻度聚合：同类事件落点间距 ≤ 0.35% 视宽（约 5 分钟）时并成一根刻度。
+   * 一天几千条 motion 事件若逐条渲染，会把时间轴糊成实心带还拖垮 DOM。
+   */
+  const eventTicks = useMemo(() => {
+    const MIN_GAP_PCT = 0.35
+    const kindOf = (e: Event) =>
+      e.type === 'motion' ? 'motion' : e.detail === 'occlusion' ? 'selfcheck-occlusion' : 'selfcheck-frozen'
+    const sorted = [...events].sort((a, b) => secOfDay(a.time) - secOfDay(b.time))
+    const out: { leftPct: number; endPct: number; kind: string; count: number; first: Event; last: Event }[] = []
+    for (const e of sorted) {
+      const pct = (secOfDay(e.time) / 86400) * 100
+      const kind = kindOf(e)
+      const last = out[out.length - 1]
+      if (last && last.kind === kind && pct - last.endPct <= MIN_GAP_PCT) {
+        last.endPct = pct
+        last.count += 1
+        last.last = e
+      } else {
+        out.push({ leftPct: pct, endPct: pct, kind, count: 1, first: e, last: e })
+      }
+    }
+    return out
+  }, [events])
 
   /** 找到包含该时刻的录像段（无则取之后最近的一段） */
   const locate = (iso: string): { seg: TimelineSegment; offset: number } | null => {
@@ -233,8 +258,12 @@ export function PlaybackPage() {
           <div className="ch-panel-title">今日时间轴</div>
           <div className="ch-panel-extra ch-legend">
             <span>
-              <i style={{ background: 'var(--ch-primary)' }} />
+              <i style={{ background: 'linear-gradient(180deg, #ff8a2b, #dd5b04)' }} />
               录像段
+            </span>
+            <span>
+              <i style={{ background: 'var(--ch-tick)' }} />
+              移动侦测
             </span>
             <span>
               <i style={{ background: 'var(--ch-warn)' }} />
@@ -314,26 +343,37 @@ export function PlaybackPage() {
                 )
               })}
 
-              {events.map((e) => (
-                <div
-                  key={e.id}
-                  className={`ch-timeline-event ${e.type === 'motion' ? 'motion' : e.detail === 'occlusion' ? 'selfcheck-occlusion' : 'selfcheck-frozen'}`}
-                  style={{ left: `${(secOfDay(e.time) / 86400) * 100}%` }}
-                  title={`${formatTime(e.time)} ${eventTypeLabel(e.type, e.detail)}${
-                    e.type === 'motion' ? `（得分 ${e.score}）` : ''
-                  }`}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`跳转到 ${formatTime(e.time)} 的${eventTypeLabel(e.type, e.detail)}`}
-                  onClick={() => playAt(e.time)}
-                  onKeyDown={(ev) => {
-                    if (ev.key === 'Enter' || ev.key === ' ') {
-                      ev.preventDefault()
-                      playAt(e.time)
-                    }
-                  }}
-                />
-              ))}
+              {eventTicks.map((t, i) => {
+                const widthPct = Math.max(0.2, t.endPct - t.leftPct)
+                // 密集事件链并成了一根宽刻度 → 渲染为半透明软条带，露出活动范围
+                const dense = t.count > 1 && widthPct > 0.4
+                const title =
+                  t.count === 1
+                    ? `${formatTime(t.first.time)} ${eventTypeLabel(t.first.type, t.first.detail)}${
+                        t.first.type === 'motion' ? `（得分 ${t.first.score}）` : ''
+                      }`
+                    : `${formatTime(t.first.time)} – ${formatTime(t.last.time)} 共 ${t.count} 条${
+                        t.kind === 'motion' ? '移动侦测' : '自检'
+                      }事件`
+                return (
+                  <div
+                    key={`${t.kind}-${i}`}
+                    className={`ch-timeline-event ${t.kind}${dense ? ' dense' : ''}`}
+                    style={{ left: `${t.leftPct}%`, width: `${widthPct}%` }}
+                    title={title}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`跳转到 ${formatTime(t.first.time)} 的事件`}
+                    onClick={() => playAt(t.first.time)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.preventDefault()
+                        playAt(t.first.time)
+                      }
+                    }}
+                  />
+                )
+              })}
 
               {playheadPct != null ? (
                 <div className="ch-timeline-playhead" style={{ left: `${playheadPct}%` }}>

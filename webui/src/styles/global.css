@@ -21,6 +21,7 @@
   --ch-ok-soft: rgba(48, 209, 88, 0.14);
   --ch-ok-line: rgba(48, 209, 88, 0.42);
   --ch-warn: #ff9f0a;
+  --ch-tick: rgba(255, 255, 255, 0.55);
   --ch-warn-soft: rgba(255, 159, 10, 0.14);
   --ch-warn-line: rgba(255, 159, 10, 0.45);
   --ch-danger: #ff453a;
@@ -1483,24 +1484,44 @@ button.ch-rec:disabled {
 }
 .ch-timeline-event {
   position: absolute;
-  top: 33px;
-  width: 4px;
-  height: 32px;
-  border-radius: 2px;
+  top: 43px;
+  width: 3px;
+  height: 12px;
+  border-radius: 1.5px;
   cursor: pointer;
-  transform: translateX(-2px);
+  transform: translateX(-1.5px);
   transition: transform 0.15s;
 }
 .ch-timeline-event:hover {
-  transform: translateX(-2px) scaleY(1.12);
+  transform: translateX(-1.5px) scaleY(1.2);
 }
+/* 密集事件聚合成的软条带：半透明、通高，只当“活动范围”纹理，
+   依然不能抢过录像条的橙色 */
+.ch-timeline-event.dense {
+  top: 37px;
+  height: 24px;
+  min-width: 3px;
+  border-radius: 2px;
+  opacity: 0.35;
+  transform: none;
+}
+.ch-timeline-event.dense:hover {
+  transform: scaleY(1.08);
+}
+/* 移动侦测：中性色细刻度（活动纹理），绝不能和录像条同色，
+   否则几千条事件会把时间轴涂成断断续续的“假录像块” */
 .ch-timeline-event.motion {
-  background: var(--ch-warn);
+  background: var(--ch-tick);
 }
+/* 自检 / 遮挡：少见但重要，用通高刻度突出 */
 .ch-timeline-event.selfcheck-frozen {
+  top: 37px;
+  height: 24px;
   background: var(--ch-warn);
 }
 .ch-timeline-event.selfcheck-occlusion {
+  top: 37px;
+  height: 24px;
   background: var(--ch-danger);
 }
 .ch-timeline-playhead {
@@ -2393,6 +2414,7 @@ body[data-theme='light'] {
   --ch-ok-soft: rgba(26, 158, 75, 0.1);
   --ch-ok-line: rgba(26, 158, 75, 0.35);
   --ch-warn: #d97706;
+  --ch-tick: rgba(15, 23, 42, 0.38);
   --ch-warn-soft: rgba(217, 119, 6, 0.1);
   --ch-warn-line: rgba(217, 119, 6, 0.35);
   --ch-danger: #d70015;
