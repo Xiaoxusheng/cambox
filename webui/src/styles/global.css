@@ -71,6 +71,12 @@
     inset 1px 0 0 rgba(255, 255, 255, 0.22),
     inset -1px 0 0 rgba(255, 255, 255, 0.22),
     inset 0 12px 20px -10px rgba(255, 255, 255, 0.3);
+  /* 文字在透明玻璃上的投影（暗色玻璃配浅字加暗影） */
+  --ch-glass-text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.85),
+    0 0 10px rgba(0, 0, 0, 0.35);
+  /* 事件面板专用文字底衬（面板文字多，比 livebar 需要更多对比度） */
+  --ch-events-scrim: rgba(10, 12, 16, 0.42);
   /* 图表（暗色为默认值；亮色在 body[data-theme='light'] 中覆盖 */
   --chart-grid: rgba(255, 255, 255, 0.07);
   --chart-axis: rgba(255, 255, 255, 0.16);
@@ -1144,6 +1150,7 @@ button.ch-rec:disabled {
     var(--ch-glass-video-highlight);
   font-size: 12.5px;
   color: var(--ch-text-2);
+  text-shadow: var(--ch-glass-text-shadow);
   flex-wrap: nowrap;
   overflow: hidden;
   transition: right 0.45s var(--ch-ease);
@@ -2178,14 +2185,16 @@ button.ch-rec:disabled {
     bottom: 20px;
     width: 340px;
     z-index: 10;
-    /* 悬浮于画面：液态玻璃（几乎不模糊 + 高透亮 + 边缘折射高光） */
-    background: var(--ch-glass-video-sheen), var(--ch-glass-video);
+    /* 悬浮于画面：液态玻璃（几乎不模糊 + 高透亮 + 边缘折射高光）；
+       面板文字多，在 sheen 与底色之间加一层文字底衬保证可读 */
+    background: var(--ch-glass-video-sheen), var(--ch-events-scrim), var(--ch-glass-video);
     border-color: var(--ch-glass-video-border);
     backdrop-filter: var(--ch-glass-video-blur);
     -webkit-backdrop-filter: var(--ch-glass-video-blur);
     box-shadow:
       var(--ch-shadow),
       var(--ch-glass-video-highlight);
+    text-shadow: var(--ch-glass-text-shadow);
     transition: transform 0.5s var(--ch-ease), visibility 0s 0s;
   }
   /* 收起：纯滑动划出右缘（无淡出）；livebar 联动伸展为全宽；右上 FPS chip 让位 */
@@ -2198,6 +2207,11 @@ button.ch-rec:disabled {
   .ch-monitor.events-hidden .ch-ovl.tr {
     opacity: 0;
     pointer-events: none;
+  }
+  /* 玻璃面板上的次要文字提亮一档 */
+  .ch-monitor-events .ch-evsub,
+  .ch-monitor-events .ch-muted {
+    color: var(--ch-text-2);
   }
   .ch-monitor.events-hidden .ch-livebar {
     right: 20px;
@@ -2404,6 +2418,10 @@ body[data-theme='light'] {
     inset 1px 0 0 rgba(255, 255, 255, 0.6),
     inset -1px 0 0 rgba(255, 255, 255, 0.6),
     inset 0 12px 20px -10px rgba(255, 255, 255, 0.55);
+  --ch-glass-text-shadow:
+    0 1px 2px rgba(255, 255, 255, 0.9),
+    0 0 10px rgba(255, 255, 255, 0.6);
+  --ch-events-scrim: rgba(255, 255, 255, 0.5);
   --chart-grid: rgba(0, 0, 0, 0.08);
   --chart-axis: rgba(0, 0, 0, 0.18);
   --chart-band: rgba(0, 0, 0, 0.045);
