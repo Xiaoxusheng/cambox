@@ -119,6 +119,14 @@ body[data-theme='light'] ::selection {
 .arco-input-number:focus-visible {
   outline: none;
 }
+/* 命令面板输入框：对话框内焦点上下文已明确（任务书 Light §13），
+   任何路径（含 Ctrl+K 键盘）聚焦都不叠加焦点环 */
+[role="dialog"][aria-label="命令面板"] input:focus,
+[role="dialog"][aria-label="命令面板"] input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 .arco-input-wrapper:focus-within,
 .arco-input-group-wrapper:focus-within,
 .arco-select-view-single:focus-within,
