@@ -267,6 +267,13 @@ body[arco-theme='dark'] .arco-input-wrapper:focus-within .arco-input-wrap {
   border-color: rgba(255, 255, 255, 0.22);
   background-color: var(--cam-elevated);
 }
+/* 组合模式（带后缀的 InputNumber 等）：边框在外层 group-wrapper 上 */
+body[arco-theme='dark'] .arco-input-group-wrapper:focus-within {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+body[data-theme='light'] .arco-input-group-wrapper:focus-within {
+  border-color: rgba(9, 9, 11, 0.22);
+}
 
 /* ============================== 4. 控件规格统一（v1.4.3） ============================== */
 /* 全部输入类控件 32px 高（任务书 §15）；圆角走 --border-radius-medium=6px。

@@ -106,6 +106,27 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
 body[data-theme='light'] ::selection {
   background: rgba(9, 9, 11, 0.14);
 }
+/* 表单控件：聚焦以边框高亮表达（Arco 自带 border 变化），不叠加全局 focus-visible 环
+   （近黑 2px 环会压过控件边角，用户反馈 v1.4.5）；键盘可见性由 border 变化保证 */
+.arco-input:focus-visible,
+.arco-select-view-input:focus-visible,
+.arco-picker-input input:focus-visible,
+.arco-input-number .arco-input:focus-visible,
+.arco-picker input:focus-visible,
+.arco-input-wrapper:focus-visible,
+.arco-select-view-single:focus-visible,
+.arco-picker:focus-visible,
+.arco-input-number:focus-visible {
+  outline: none;
+}
+.arco-input-wrapper:focus-within,
+.arco-input-group-wrapper:focus-within,
+.arco-select-view-single:focus-within,
+.arco-picker:focus-within,
+.arco-input-number:focus-within {
+  border-color: var(--cam-border-strong);
+}
+
 :focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.5);
   outline-offset: 2px;
