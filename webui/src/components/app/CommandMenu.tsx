@@ -127,7 +127,7 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
             onChange={(e) => setQuery(e.target.value)}
             placeholder="搜索页面或操作…"
             aria-label="搜索命令"
-            className="h-11 w-full bg-transparent text-body text-cam-text-primary outline-none placeholder:text-cam-text-disabled"
+            className="h-11 w-full bg-transparent text-body text-cam-text-primary outline-none focus-visible:outline-none placeholder:text-cam-text-disabled"
           />
           <kbd className="cam-num shrink-0 rounded border border-cam-border px-1.5 text-[10px] leading-[16px] text-cam-text-tertiary">
             ESC
